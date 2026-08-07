@@ -1,29 +1,52 @@
 import { supabase } from '../lib/supabase'
+import { buildDocumentStoragePath } from '../lib/documentStoragePath'
 import type { DocumentCategory, DocumentRow, PersonType } from '../types/db'
 
 const BUCKET = 'documents'
 
-export async function listDocuments(personType: PersonType, personId: string): Promise<DocumentRow[]> {
-  const { data, error } = await supabase
-    .from('documents')
-    .select('*')
-    .eq('person_type', personType)
-    .eq('person_id', personId)
-    .order('created_at', { ascending: false })
+export type DocumentFilter =
+  | { mode: 'person'; personType: PersonType; personId: string }
+  | { mode: 'course'; courseId: string }
+
+export async function listDocuments(filter: DocumentFilter): Promise<DocumentRow[]> {
+  let query = supabase.from('documents').select('*').order('created_at', { ascending: false })
+  if (filter.mode === 'person') {
+    query = query.eq('person_type', filter.personType).eq('person_id', filter.personId)
+  } else {
+    query = query.eq('course_id', filter.courseId)
+  }
+  const { data, error } = await query
   if (error) throw error
   return data
 }
 
 export async function uploadDocument(params: {
-  personType: PersonType
-  personId: string
-  courseId: string | null
+  personType?: PersonType | null
+  personId?: string | null
+  courseId?: string | null
   category: DocumentCategory
+  title?: string
+  templateId?: string | null
   file: File
 }): Promise<DocumentRow> {
-  const { personType, personId, courseId, category, file } = params
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-  const path = `${personType}/${personId}/${crypto.randomUUID()}-${safeName}`
+  const {
+    personType = null,
+    personId = null,
+    courseId = null,
+    category,
+    title = '',
+    templateId = null,
+    file,
+  } = params
+
+  if (!personId && !courseId) throw new Error('Indica almeno una persona o un corso')
+
+  const path = buildDocumentStoragePath({
+    personType,
+    personId,
+    courseId,
+    fileName: file.name,
+  })
 
   const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, {
     contentType: file.type || 'application/octet-stream',
@@ -34,10 +57,12 @@ export async function uploadDocument(params: {
   const { data, error } = await supabase
     .from('documents')
     .insert({
-      person_type: personType,
+      person_type: personId ? personType : null,
       person_id: personId,
       course_id: courseId,
       category,
+      title: title || file.name,
+      template_id: templateId,
       file_name: file.name,
       storage_path: path,
       mime_type: file.type,
@@ -47,7 +72,6 @@ export async function uploadDocument(params: {
     .select()
     .single()
   if (error) {
-    // Evita file orfani se l'insert fallisce
     await supabase.storage.from(BUCKET).remove([path])
     throw error
   }

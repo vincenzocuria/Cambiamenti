@@ -4,6 +4,7 @@ import type { Course, CourseInput } from '../types/db'
 import { createCourse, listCourses } from '../services/courses'
 import { fmtDate } from '../lib/format'
 import { CourseForm } from '../components/CourseForm'
+import { CourseStatusBadge } from '../components/CourseStatusBadge'
 import { PrimaryButton } from '../components/Buttons'
 
 export function CoursesPage() {
@@ -57,6 +58,7 @@ export function CoursesPage() {
             <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
               <th className="px-4 py-3">Corso</th>
               <th>Edizione</th>
+              <th>Stato</th>
               <th>Codice</th>
               <th>CUP</th>
               <th>Inizio</th>
@@ -73,6 +75,9 @@ export function CoursesPage() {
                   </Link>
                 </td>
                 <td>{c.edition || '—'}</td>
+                <td>
+                  <CourseStatusBadge status={c.status} />
+                </td>
                 <td>{c.code || '—'}</td>
                 <td>{c.cup || '—'}</td>
                 <td>{fmtDate(c.start_date)}</td>
@@ -82,7 +87,7 @@ export function CoursesPage() {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
                   Nessun corso trovato.
                 </td>
               </tr>

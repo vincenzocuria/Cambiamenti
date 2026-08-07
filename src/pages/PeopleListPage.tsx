@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { Person, PersonInput, PersonType } from '../types/db'
 import { createPerson, listPeople } from '../services/people'
+import { metaFor } from '../data/personTypes'
 import { fmtDate, fullName } from '../lib/format'
+import { hasCompleteFadCredentials } from '../lib/fadCredentials'
 import { PersonForm } from '../components/PersonForm'
 import { PrimaryButton } from '../components/Buttons'
 
@@ -10,16 +12,11 @@ interface Props {
   type: PersonType
 }
 
-const labels: Record<PersonType, { title: string; singular: string; basePath: string }> = {
-  student: { title: 'Alunni', singular: 'alunno', basePath: '/alunni' },
-  teacher: { title: 'Docenti', singular: 'docente', basePath: '/docenti' },
-}
-
 export function PeopleListPage({ type }: Props) {
   const [people, setPeople] = useState<Person[]>([])
   const [creating, setCreating] = useState(false)
   const [search, setSearch] = useState('')
-  const l = labels[type]
+  const l = metaFor(type)
 
   async function reload() {
     setPeople(await listPeople(type))
@@ -39,7 +36,9 @@ export function PeopleListPage({ type }: Props) {
   }
 
   const filtered = people.filter((p) =>
-    `${p.first_name} ${p.last_name} ${p.tax_code} ${p.email}`.toLowerCase().includes(search.toLowerCase()),
+    `${p.first_name} ${p.last_name} ${p.tax_code} ${p.email} ${p.fad_email}`
+      .toLowerCase()
+      .includes(search.toLowerCase()),
   )
 
   return (
@@ -53,7 +52,9 @@ export function PeopleListPage({ type }: Props) {
 
       {creating && (
         <div className="mb-6 rounded-2xl border border-indigo-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold capitalize text-slate-700">Nuovo {l.singular}</h2>
+          <h2 className="mb-4 text-lg font-semibold capitalize text-slate-700">
+            Nuovo {l.singular}
+          </h2>
           <PersonForm onSave={handleCreate} onCancel={() => setCreating(false)} />
         </div>
       )}
@@ -74,6 +75,7 @@ export function PeopleListPage({ type }: Props) {
               <th>Codice fiscale</th>
               <th>Nato/a il</th>
               <th>Email</th>
+              <th>FAD</th>
               <th>Telefono</th>
               <th>Città</th>
             </tr>
@@ -92,13 +94,24 @@ export function PeopleListPage({ type }: Props) {
                 <td>{p.tax_code || '—'}</td>
                 <td>{fmtDate(p.birth_date)}</td>
                 <td>{p.email || '—'}</td>
+                <td>
+                  {hasCompleteFadCredentials(p) ? (
+                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                      OK
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
+                      Da compilare
+                    </span>
+                  )}
+                </td>
                 <td>{p.phone || '—'}</td>
                 <td>{p.city || '—'}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
                   Nessun risultato.
                 </td>
               </tr>

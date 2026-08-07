@@ -20,6 +20,17 @@ export async function signOut() {
   if (error) throw error
 }
 
+export async function requestPasswordReset(email: string) {
+  const redirectTo = `${window.location.origin}/reimposta-password`
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+  if (error) throw error
+}
+
+export async function updatePassword(password: string) {
+  const { error } = await supabase.auth.updateUser({ password })
+  if (error) throw error
+}
+
 export async function fetchMyProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
     .from('profiles')

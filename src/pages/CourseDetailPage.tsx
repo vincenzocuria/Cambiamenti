@@ -1,20 +1,71 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import type { Course, CourseInput } from '../types/db'
+import type { Course, CourseInput, Person, PersonType } from '../types/db'
 import { deleteCourse, getCourse, updateCourse } from '../services/courses'
+import { listCoursePeople } from '../services/enrollments'
+import { fetchCourseStaffingCounts } from '../services/courseStaffing'
+import type { CourseStaffingCounts } from '../data/courseStaffing'
 import { fmtDate } from '../lib/format'
 import { CourseForm } from '../components/CourseForm'
 import { CoursePeople } from '../components/CoursePeople'
+import { CourseStaffingStatus } from '../components/CourseStaffingStatus'
+import { CourseStatusBadge } from '../components/CourseStatusBadge'
+import { CourseStatusPipeline } from '../components/CourseStatusPipeline'
+import { DocumentsPanel } from '../components/DocumentsPanel'
+import { GenerateDocumentForm } from '../components/GenerateDocumentForm'
 import { DangerButton, SecondaryButton } from '../components/Buttons'
+import { courseStatusMeta, isCourseStatus } from '../data/courseStatus'
+
+const genRoles: { type: PersonType; label: string }[] = [
+  { type: 'teacher', label: 'Docente' },
+  { type: 'tutor', label: 'Tutor' },
+  { type: 'admin_staff', label: 'Amministrativo' },
+  { type: 'student', label: 'Alunno' },
+]
 
 export function CourseDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [course, setCourse] = useState<Course | null>(null)
   const [editing, setEditing] = useState(false)
+  const [staffing, setStaffing] = useState<CourseStaffingCounts>({
+    teacher: 0,
+    tutor: 0,
+    admin_staff: 0,
+  })
+  const [peopleByType, setPeopleByType] = useState<Partial<Record<PersonType, Person[]>>>({
+    student: [],
+    teacher: [],
+    tutor: [],
+    admin_staff: [],
+  })
+  const [docsKey, setDocsKey] = useState(0)
+  const [peopleType, setPeopleType] = useState<PersonType>('teacher')
+
+  async function reloadStaff() {
+    if (!id) return
+    const [counts, students, teachers, tutors, admins] = await Promise.all([
+      fetchCourseStaffingCounts(id),
+      listCoursePeople('student', id),
+      listCoursePeople('teacher', id),
+      listCoursePeople('tutor', id),
+      listCoursePeople('admin_staff', id),
+    ])
+    setStaffing(counts)
+    setPeopleByType({
+      student: students,
+      teacher: teachers,
+      tutor: tutors,
+      admin_staff: admins,
+    })
+  }
 
   useEffect(() => {
-    if (id) getCourse(id).then(setCourse)
+    if (id) {
+      getCourse(id).then(setCourse)
+      void reloadStaff()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
   if (!id || !course) return <p className="text-slate-400">Caricamento…</p>
@@ -26,7 +77,8 @@ export function CourseDetailPage() {
   }
 
   async function handleDelete() {
-    if (!window.confirm(`Eliminare il corso "${course!.name}"? Verranno rimosse anche le iscrizioni.`)) return
+    if (!window.confirm(`Eliminare il corso "${course!.name}"? Verranno rimosse anche le iscrizioni.`))
+      return
     await deleteCourse(id!)
     navigate('/corsi')
   }
@@ -39,8 +91,22 @@ export function CourseDetailPage() {
             ← Tutti i corsi
           </Link>
           <h1 className="text-2xl font-bold text-slate-800">
-            {course.name} {course.edition && <span className="text-slate-400">· {course.edition}</span>}
+            {course.name}{' '}
+            {course.edition && <span className="text-slate-400">· {course.edition}</span>}
           </h1>
+          <div className="mt-2 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <CourseStatusBadge status={course.status} />
+              {isCourseStatus(course.status) && (
+                <span className="text-xs text-slate-500">
+                  {courseStatusMeta[course.status].description}
+                </span>
+              )}
+            </div>
+            {isCourseStatus(course.status) && (
+              <CourseStatusPipeline status={course.status} />
+            )}
+          </div>
         </div>
         <div className="flex gap-2">
           {!editing && <SecondaryButton onClick={() => setEditing(true)}>Modifica</SecondaryButton>}
@@ -53,29 +119,60 @@ export function CourseDetailPage() {
           <CourseForm initial={course} onSave={handleSave} onCancel={() => setEditing(false)} />
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 rounded-2xl border border-slate-200 bg-white p-5 text-sm shadow-sm sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-4 rounded-2xl border border-slate-200 bg-white p-5 text-sm shadow-sm sm:grid-cols-3 lg:grid-cols-4">
+          <Info label="Stato" value={<CourseStatusBadge status={course.status} />} />
           <Info label="Codice" value={course.code || '—'} />
           <Info label="CUP" value={course.cup || '—'} />
           <Info label="Inizio" value={fmtDate(course.start_date)} />
           <Info label="Fine" value={fmtDate(course.end_date)} />
-          <Info label="Durata" value={course.duration_hours != null ? `${course.duration_hours} ore` : '—'} />
+          <Info
+            label="Durata"
+            value={course.duration_hours != null ? `${course.duration_hours} ore` : '—'}
+          />
           <Info label="Note" value={course.notes || '—'} />
         </div>
       )}
 
+      <CourseStaffingStatus counts={staffing} />
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <CoursePeople courseId={id} type="student" />
-        <CoursePeople courseId={id} type="teacher" />
+        <CoursePeople courseId={id} type="teacher" onChanged={() => void reloadStaff()} />
+        <CoursePeople courseId={id} type="tutor" onChanged={() => void reloadStaff()} />
+        <CoursePeople courseId={id} type="admin_staff" onChanged={() => void reloadStaff()} />
+        <CoursePeople courseId={id} type="student" onChanged={() => void reloadStaff()} />
       </div>
+
+      <div className="space-y-3">
+        <div className="flex flex-wrap gap-2">
+          {genRoles.map((r) => (
+            <SecondaryButton
+              key={r.type}
+              type="button"
+              onClick={() => setPeopleType(r.type)}
+              className={peopleType === r.type ? 'border-indigo-300 bg-indigo-50' : ''}
+            >
+              Genera per {r.label.toLowerCase()}
+            </SecondaryButton>
+          ))}
+        </div>
+        <GenerateDocumentForm
+          course={course}
+          people={peopleByType[peopleType] ?? []}
+          peopleType={peopleType}
+          onGenerated={() => setDocsKey((n) => n + 1)}
+        />
+      </div>
+
+      <DocumentsPanel key={docsKey} mode="course" courseId={id} />
     </div>
   )
 }
 
-function Info({ label, value }: { label: string; value: string }) {
+function Info({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div>
       <p className="text-xs text-slate-400">{label}</p>
-      <p className="font-medium text-slate-700">{value}</p>
+      <div className="font-medium text-slate-700">{value}</div>
     </div>
   )
 }

@@ -1,3 +1,5 @@
+import type { CourseStatus } from '../data/courseStatus'
+
 export type Role = 'superadmin' | 'admin' | 'staff' | 'pending'
 
 export interface Profile {
@@ -15,6 +17,7 @@ export interface Course {
   code: string
   cup: string
   notes: string
+  status: CourseStatus
   start_date: string | null
   end_date: string | null
   duration_hours: number | null
@@ -24,7 +27,10 @@ export interface Course {
 
 export type CourseInput = Omit<Course, 'id' | 'created_at' | 'updated_at'>
 
-export type PersonType = 'student' | 'teacher'
+/** Anagrafica o ruolo sul corso. `staff` = personale unificato; teacher/tutor/admin_staff = ruoli. */
+export type PersonType = 'student' | 'staff' | 'teacher' | 'tutor' | 'admin_staff'
+
+export type CourseStaffRole = 'teacher' | 'tutor' | 'admin_staff'
 
 export interface Person {
   id: string
@@ -40,6 +46,8 @@ export interface Person {
   province: string
   phone: string
   email: string
+  fad_email: string
+  fad_password: string
   iban: string
   bank_name: string
   bic: string
@@ -55,14 +63,45 @@ export interface Person {
 
 export type PersonInput = Omit<Person, 'id' | 'created_at' | 'updated_at'>
 
-export type DocumentCategory = 'identity' | 'module' | 'other'
+export type DocumentCategory =
+  | 'identity'
+  | 'module'
+  | 'appointment'
+  | 'curriculum'
+  | 'other'
+  | 'generated'
+
+export type TemplatePersonRole =
+  | 'none'
+  | 'student'
+  | 'staff'
+  | 'teacher'
+  | 'tutor'
+  | 'admin_staff'
+  | 'any'
+
+export interface DocumentTemplate {
+  id: string
+  name: string
+  description: string
+  body: string
+  requires_course: boolean
+  person_role: TemplatePersonRole
+  default_category: DocumentCategory
+  created_at: string
+  updated_at: string
+}
+
+export type DocumentTemplateInput = Omit<DocumentTemplate, 'id' | 'created_at' | 'updated_at'>
 
 export interface DocumentRow {
   id: string
-  person_type: PersonType
-  person_id: string
+  person_type: PersonType | null
+  person_id: string | null
   course_id: string | null
   category: DocumentCategory
+  title: string
+  template_id: string | null
   file_name: string
   storage_path: string
   mime_type: string

@@ -3,12 +3,14 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { signOut } from '../services/auth'
 import { isAdmin } from '../lib/roles'
+import { BrandLogo } from './BrandLogo'
 
 const links = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/corsi', label: 'Corsi' },
   { to: '/alunni', label: 'Alunni' },
-  { to: '/docenti', label: 'Docenti' },
+  { to: '/personale', label: 'Personale' },
+  { to: '/template', label: 'Template' },
 ]
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -25,7 +27,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-8">
-            <span className="text-lg font-bold text-indigo-700">VCuria</span>
+            <BrandLogo size="sm" />
             <nav className="flex gap-1">
               {links.map((l) => (
                 <NavLink

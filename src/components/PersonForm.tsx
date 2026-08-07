@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react'
 import type { Person, PersonInput } from '../types/db'
 import { deriveBankInfo, normalizeIban } from '../lib/iban'
 import { TextField, SelectField, TextAreaField } from './Field'
+import { PasswordField } from './PasswordField'
 import { PrimaryButton, SecondaryButton } from './Buttons'
 
 const empty: PersonInput = {
@@ -17,6 +18,8 @@ const empty: PersonInput = {
   province: '',
   phone: '',
   email: '',
+  fad_email: '',
+  fad_password: '',
   iban: '',
   bank_name: '',
   bic: '',
@@ -44,7 +47,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export function PersonForm({ initial, onSave, onCancel }: Props) {
-  const [form, setForm] = useState<PersonInput>(initial ?? empty)
+  const [form, setForm] = useState<PersonInput>(() => ({ ...empty, ...initial }))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -112,6 +115,23 @@ export function PersonForm({ initial, onSave, onCancel }: Props) {
         <TextField label="Provincia" value={form.province} onChange={(e) => set('province', e.target.value.toUpperCase())} maxLength={2} />
         <TextField label="Telefono" type="tel" value={form.phone} onChange={(e) => set('phone', e.target.value)} />
         <TextField label="Email" type="email" value={form.email} onChange={(e) => set('email', e.target.value)} />
+      </Section>
+
+      <Section title="Credenziali FAD">
+        <TextField
+          label="Email FAD"
+          type="email"
+          value={form.fad_email}
+          onChange={(e) => set('fad_email', e.target.value)}
+          hint="Se vuota, nei documenti si usa l’email anagrafica"
+        />
+        <PasswordField
+          label="Password FAD"
+          value={form.fad_password}
+          onChange={(e) => set('fad_password', e.target.value)}
+          autoComplete="new-password"
+          hint="Credenziali della piattaforma e-learning (non del gestionale)"
+        />
       </Section>
 
       <Section title="Coordinate bancarie">

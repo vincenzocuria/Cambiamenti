@@ -1,6 +1,11 @@
 import { useState, type FormEvent } from 'react'
+import {
+  courseStatuses,
+  courseStatusMeta,
+  defaultCourseStatus,
+} from '../data/courseStatus'
 import type { Course, CourseInput } from '../types/db'
-import { TextField, TextAreaField } from './Field'
+import { TextField, SelectField, TextAreaField } from './Field'
 import { PrimaryButton, SecondaryButton } from './Buttons'
 
 const empty: CourseInput = {
@@ -9,6 +14,7 @@ const empty: CourseInput = {
   code: '',
   cup: '',
   notes: '',
+  status: defaultCourseStatus,
   start_date: null,
   end_date: null,
   duration_hours: null,
@@ -58,6 +64,19 @@ export function CourseForm({ initial, onSave, onCancel }: Props) {
         />
         <TextField label="Codice" value={form.code} onChange={(e) => set('code', e.target.value)} />
         <TextField label="CUP" value={form.cup} onChange={(e) => set('cup', e.target.value)} />
+        <SelectField
+          label="Stato *"
+          required
+          value={form.status}
+          onChange={(e) => set('status', e.target.value as CourseInput['status'])}
+          hint="Ciclo Regione Calabria fino a Esito chiuso."
+        >
+          {courseStatuses.map((s) => (
+            <option key={s} value={s}>
+              {courseStatusMeta[s].label}
+            </option>
+          ))}
+        </SelectField>
         <TextField
           label="Data inizio"
           type="date"
