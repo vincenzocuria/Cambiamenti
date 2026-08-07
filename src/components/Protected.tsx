@@ -1,9 +1,16 @@
 import type { ReactNode } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { isPending, isAdmin } from '../lib/roles'
 
-// Blocca l'accesso: richiede sessione valida e ruolo staff/admin
-export function Protected({ children }: { children: ReactNode }) {
+// Blocca l'accesso: richiede sessione valida e ruolo abilitato
+export function Protected({
+  children,
+  adminOnly = false,
+}: {
+  children: ReactNode
+  adminOnly?: boolean
+}) {
   const { session, profile, loading } = useAuth()
 
   if (loading) {
@@ -14,6 +21,7 @@ export function Protected({ children }: { children: ReactNode }) {
     )
   }
   if (!session) return <Navigate to="/login" replace />
-  if (!profile || profile.role === 'pending') return <Navigate to="/in-attesa" replace />
+  if (isPending(profile?.role)) return <Navigate to="/in-attesa" replace />
+  if (adminOnly && !isAdmin(profile?.role)) return <Navigate to="/" replace />
   return <>{children}</>
 }

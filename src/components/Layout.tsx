@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { signOut } from '../services/auth'
+import { isAdmin } from '../lib/roles'
 
 const links = [
   { to: '/', label: 'Dashboard', end: true },
@@ -41,7 +42,7 @@ export function Layout({ children }: { children: ReactNode }) {
                   {l.label}
                 </NavLink>
               ))}
-              {profile?.role === 'admin' && (
+              {isAdmin(profile?.role) && (
                 <NavLink
                   to="/utenti"
                   className={({ isActive }) =>

@@ -11,9 +11,9 @@ import { PeopleListPage } from './pages/PeopleListPage'
 import { PersonDetailPage } from './pages/PersonDetailPage'
 import { UsersPage } from './pages/UsersPage'
 
-function page(element: React.ReactNode) {
+function page(element: React.ReactNode, adminOnly = false) {
   return (
-    <Protected>
+    <Protected adminOnly={adminOnly}>
       <Layout>{element}</Layout>
     </Protected>
   )
@@ -33,7 +33,7 @@ export default function App() {
           <Route path="/alunni/:id" element={page(<PersonDetailPage type="student" />)} />
           <Route path="/docenti" element={page(<PeopleListPage type="teacher" />)} />
           <Route path="/docenti/:id" element={page(<PersonDetailPage type="teacher" />)} />
-          <Route path="/utenti" element={page(<UsersPage />)} />
+          <Route path="/utenti" element={page(<UsersPage />, true)} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
