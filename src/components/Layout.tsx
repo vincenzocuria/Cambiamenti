@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 import { signOut } from '../services/auth'
 import { isAdmin } from '../lib/roles'
 import { BrandLogo } from './BrandLogo'
+import { NotificationBell } from './NotificationBell'
 
 const links = [
   { to: '/', label: 'Dashboard', end: true },
@@ -60,6 +61,7 @@ export function Layout({ children }: { children: ReactNode }) {
             </nav>
           </div>
           <div className="flex items-center gap-3">
+            <NotificationBell />
             <span className="text-xs text-slate-500">{profile?.email}</span>
             <button
               onClick={handleLogout}

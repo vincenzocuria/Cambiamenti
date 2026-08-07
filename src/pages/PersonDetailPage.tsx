@@ -3,14 +3,16 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { Course, Person, PersonInput, PersonType } from '../types/db'
 import { deletePerson, getPerson, listStaffRoles, updatePerson } from '../services/people'
 import { listPersonCourses } from '../services/enrollments'
+import { inpsBenefitLabel } from '../data/inpsBenefits'
 import { isStaffType, metaFor } from '../data/personTypes'
 import { fmtDate, fullName } from '../lib/format'
 import { PersonForm } from '../components/PersonForm'
 import { DocumentsPanel } from '../components/DocumentsPanel'
 import { GenerateDocumentForm } from '../components/GenerateDocumentForm'
 import { DangerButton, SecondaryButton } from '../components/Buttons'
+import { EmailLink, WhatsAppLink } from '../components/ContactLinks'
 import { SecretValue } from '../components/SecretValue'
-import { hasCompleteFadCredentials } from '../lib/fadCredentials'
+import { effectiveFadEmail, hasCompleteFadCredentials } from '../lib/fadCredentials'
 
 interface Props {
   type: PersonType
@@ -93,7 +95,12 @@ export function PersonDetailPage({ type }: Props) {
       </div>
 
       {editing ? (
-        <PersonForm initial={person} onSave={handleSave} onCancel={() => setEditing(false)} />
+        <PersonForm
+          initial={person}
+          personType={registryType}
+          onSave={handleSave}
+          onCancel={() => setEditing(false)}
+        />
       ) : (
         <div className="space-y-4">
           <InfoCard title="Anagrafica">
@@ -109,17 +116,32 @@ export function PersonDetailPage({ type }: Props) {
                 .filter(Boolean)
                 .join(', ')}
             />
-            <Info label="Telefono" value={person.phone} />
-            <Info label="Email" value={person.email} />
+            <Info label="Telefono">
+              <WhatsAppLink value={person.phone} />
+            </Info>
+            <Info label="Email">
+              <EmailLink value={person.email} />
+            </Info>
+            {registryType === 'student' && (
+              <Info
+                label="Prestazione INPS"
+                value={inpsBenefitLabel(person.inps_benefit) || 'Non specificata'}
+              />
+            )}
           </InfoCard>
           <InfoCard title="Credenziali FAD">
-            <Info
-              label="Email FAD"
-              value={
-                person.fad_email ||
-                (person.email ? `${person.email} (anagrafica)` : '')
-              }
-            />
+            <Info label="Email FAD">
+              {person.fad_email ? (
+                <EmailLink value={person.fad_email} />
+              ) : effectiveFadEmail(person) ? (
+                <span className="text-sm font-medium text-slate-700">
+                  <EmailLink value={effectiveFadEmail(person)} />{' '}
+                  <span className="text-xs font-normal text-slate-400">(anagrafica)</span>
+                </span>
+              ) : (
+                '—'
+              )}
+            </Info>
             <div>
               <p className="text-xs text-slate-400">Password FAD</p>
               <SecretValue value={person.fad_password} />
@@ -222,13 +244,27 @@ function InfoCard({ title, children }: { title: string; children: React.ReactNod
   )
 }
 
-function Info({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function Info({
+  label,
+  value,
+  mono,
+  children,
+}: {
+  label: string
+  value?: string
+  mono?: boolean
+  children?: React.ReactNode
+}) {
   return (
     <div>
       <p className="text-xs text-slate-400">{label}</p>
-      <p className={`text-sm font-medium text-slate-700 ${mono ? 'font-mono' : ''}`}>
-        {value || '—'}
-      </p>
+      {children != null ? (
+        <div className="text-sm font-medium text-slate-700">{children}</div>
+      ) : (
+        <p className={`text-sm font-medium text-slate-700 ${mono ? 'font-mono' : ''}`}>
+          {value || '—'}
+        </p>
+      )}
     </div>
   )
 }

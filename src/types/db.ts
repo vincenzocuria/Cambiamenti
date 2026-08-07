@@ -1,6 +1,18 @@
 import type { CourseStatus } from '../data/courseStatus'
+import type { NotificationType } from '../lib/notificationTypes'
 
 export type Role = 'superadmin' | 'admin' | 'staff' | 'pending'
+
+export interface Notification {
+  id: string
+  user_id: string
+  type: NotificationType
+  title: string
+  body: string
+  link: string
+  read_at: string | null
+  created_at: string
+}
 
 export interface Profile {
   id: string
@@ -57,6 +69,8 @@ export interface Person {
   doc_issue_date: string | null
   doc_expiry_date: string | null
   notes: string
+  /** Solo alunni: naspi | adi | sfl | cig | nessuno | '' */
+  inps_benefit: string
   created_at: string
   updated_at: string
 }

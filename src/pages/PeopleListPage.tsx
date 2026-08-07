@@ -5,6 +5,7 @@ import { createPerson, listPeople } from '../services/people'
 import { metaFor } from '../data/personTypes'
 import { fmtDate, fullName } from '../lib/format'
 import { hasCompleteFadCredentials } from '../lib/fadCredentials'
+import { EmailLink, WhatsAppLink } from '../components/ContactLinks'
 import { PersonForm } from '../components/PersonForm'
 import { PrimaryButton } from '../components/Buttons'
 
@@ -55,7 +56,11 @@ export function PeopleListPage({ type }: Props) {
           <h2 className="mb-4 text-lg font-semibold capitalize text-slate-700">
             Nuovo {l.singular}
           </h2>
-          <PersonForm onSave={handleCreate} onCancel={() => setCreating(false)} />
+          <PersonForm
+            personType={type}
+            onSave={handleCreate}
+            onCancel={() => setCreating(false)}
+          />
         </div>
       )}
 
@@ -93,7 +98,9 @@ export function PeopleListPage({ type }: Props) {
                 </td>
                 <td>{p.tax_code || '—'}</td>
                 <td>{fmtDate(p.birth_date)}</td>
-                <td>{p.email || '—'}</td>
+                <td>
+                  <EmailLink value={p.email} />
+                </td>
                 <td>
                   {hasCompleteFadCredentials(p) ? (
                     <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
@@ -105,7 +112,9 @@ export function PeopleListPage({ type }: Props) {
                     </span>
                   )}
                 </td>
-                <td>{p.phone || '—'}</td>
+                <td>
+                  <WhatsAppLink value={p.phone} />
+                </td>
                 <td>{p.city || '—'}</td>
               </tr>
             ))}

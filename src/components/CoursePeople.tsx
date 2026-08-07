@@ -6,6 +6,7 @@ import { createPerson, listPeople } from '../services/people'
 import { isStaffType, metaFor } from '../data/personTypes'
 import { fullName } from '../lib/format'
 import { DangerButton, SecondaryButton } from './Buttons'
+import { EmailLink, WhatsAppLink } from './ContactLinks'
 import { PersonForm } from './PersonForm'
 
 interface Props {
@@ -107,7 +108,11 @@ export function CoursePeople({ courseId, type, onChanged }: Props) {
           <p className="mb-2 text-xs font-medium text-slate-600">
             Nuova figura (verrà associata a questo corso come {meta.singular})
           </p>
-          <PersonForm onSave={handleCreate} onCancel={() => setCreating(false)} />
+          <PersonForm
+            personType={isStaffType(type) ? 'staff' : type}
+            onSave={handleCreate}
+            onCancel={() => setCreating(false)}
+          />
         </div>
       )}
 
@@ -136,13 +141,21 @@ export function CoursePeople({ courseId, type, onChanged }: Props) {
       ) : (
         <ul className="divide-y divide-slate-100">
           {enrolled.map((p) => (
-            <li key={p.id} className="flex items-center justify-between py-2">
-              <Link
-                to={`${meta.basePath}/${p.id}`}
-                className="text-sm font-medium text-indigo-600 hover:underline"
-              >
-                {fullName(p)}
-              </Link>
+            <li key={p.id} className="flex items-center justify-between gap-2 py-2">
+              <div className="min-w-0">
+                <Link
+                  to={`${meta.basePath}/${p.id}`}
+                  className="text-sm font-medium text-indigo-600 hover:underline"
+                >
+                  {fullName(p)}
+                </Link>
+                {(p.phone || p.email) && (
+                  <p className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-500">
+                    {p.phone ? <WhatsAppLink value={p.phone} className="text-xs" /> : null}
+                    {p.email ? <EmailLink value={p.email} className="text-xs" /> : null}
+                  </p>
+                )}
+              </div>
               <DangerButton onClick={() => void handleRemove(p.id)}>Rimuovi</DangerButton>
             </li>
           ))}

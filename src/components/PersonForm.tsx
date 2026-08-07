@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import type { Person, PersonInput } from '../types/db'
+import type { Person, PersonInput, PersonType } from '../types/db'
+import { inpsBenefitOptions } from '../data/inpsBenefits'
 import { deriveBankInfo, normalizeIban } from '../lib/iban'
 import { TextField, SelectField, TextAreaField } from './Field'
 import { PasswordField } from './PasswordField'
@@ -29,10 +30,12 @@ const empty: PersonInput = {
   doc_issue_date: null,
   doc_expiry_date: null,
   notes: '',
+  inps_benefit: '',
 }
 
 interface Props {
   initial?: Person
+  personType?: PersonType
   onSave: (input: PersonInput) => Promise<void>
   onCancel: () => void
 }
@@ -46,10 +49,15 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-export function PersonForm({ initial, onSave, onCancel }: Props) {
-  const [form, setForm] = useState<PersonInput>(() => ({ ...empty, ...initial }))
+export function PersonForm({ initial, personType, onSave, onCancel }: Props) {
+  const [form, setForm] = useState<PersonInput>(() => ({
+    ...empty,
+    ...initial,
+    inps_benefit: initial?.inps_benefit ?? '',
+  }))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const isStudent = personType === 'student'
 
   function set<K extends keyof PersonInput>(key: K, value: PersonInput[K]) {
     setForm((f) => ({ ...f, [key]: value }))
@@ -133,6 +141,24 @@ export function PersonForm({ initial, onSave, onCancel }: Props) {
           hint="Credenziali della piattaforma e-learning (non del gestionale)"
         />
       </Section>
+
+      {isStudent && (
+        <Section title="Prestazione / trattamento INPS">
+          <SelectField
+            label="Categoria"
+            value={form.inps_benefit}
+            onChange={(e) => set('inps_benefit', e.target.value)}
+            hint="Usata nei moduli GOL (es. Allegato 1.c)"
+          >
+            <option value="">— Non specificata —</option>
+            {inpsBenefitOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </SelectField>
+        </Section>
+      )}
 
       <Section title="Coordinate bancarie">
         <TextField

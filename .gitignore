@@ -16,6 +16,9 @@ dist-ssr
 .env
 .env.*
 !.env.example
+scripts/cambiamenti-secrets.env
+*-secrets.env
+!*secrets.env.example
 
 # Editor directories and files
 .vscode/*
@@ -27,3 +30,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Supabase CLI temp
+supabase/.temp/
+

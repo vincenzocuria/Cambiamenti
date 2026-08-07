@@ -8,7 +8,10 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "deploy": "npm run build && rm -f dist/_redirects && wrangler deploy"
+    "deploy": "npm run build && node scripts/cleanRedirects.js && wrangler deploy",
+    "email:write": "node scripts/write-auth-email-templates.mjs",
+    "email:smtp": "node scripts/deploy-auth-smtp.mjs",
+    "email:deploy": "node scripts/write-auth-email-templates.mjs && node scripts/deploy-auth-email-templates.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.2",

@@ -10,8 +10,11 @@ export const roleLabels: Record<Role, string> = {
   pending: 'In attesa',
 }
 
-/** Ruoli assegnabili dalla UI (il superadmin resta protetto lato DB). */
-export const assignableRoles: Role[] = ['pending', 'staff']
+/** Ruoli assegnabili da un admin (non include admin/superadmin). */
+export const staffAssignableRoles: Role[] = ['pending', 'staff']
+
+/** Ruoli assegnabili dal superadmin (può anche nominare altri admin). */
+export const superadminAssignableRoles: Role[] = ['pending', 'staff', 'admin']
 
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase()
@@ -35,4 +38,18 @@ export function isStaff(role: Role | null | undefined): boolean {
 
 export function isPending(role: Role | null | undefined): boolean {
   return !role || role === 'pending'
+}
+
+/** Ruoli che l'attore può assegnare ad altri utenti. */
+export function rolesAssignableBy(actorRole: Role | null | undefined): Role[] {
+  if (isSuperAdmin(actorRole)) return superadminAssignableRoles
+  if (isAdmin(actorRole)) return staffAssignableRoles
+  return []
+}
+
+/** Ruoli selezionabili quando si invita un utente nuovo (già abilitato). */
+export function inviteRolesBy(actorRole: Role | null | undefined): Role[] {
+  if (isSuperAdmin(actorRole)) return ['staff', 'admin']
+  if (isAdmin(actorRole)) return ['staff']
+  return []
 }

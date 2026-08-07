@@ -1,25 +1,44 @@
 import { courseStatusLabel } from '../data/courseStatus'
+import { inpsBenefitCheck, inpsBenefitLabel } from '../data/inpsBenefits'
 import { school } from '../data/school'
 import type { Course, Person, PersonType } from '../types/db'
 import { fmtDate, fullName } from './format'
 
 function personVars(person: Person, prefix: string): Record<string, string> {
+  const phoneEmail = [person.phone, person.email].filter(Boolean).join(' / ')
+  const benefit = person.inps_benefit ?? ''
+  const hasIban = Boolean(person.iban?.trim())
+
   return {
     [`${prefix}.nome`]: person.first_name,
     [`${prefix}.cognome`]: person.last_name,
     [`${prefix}.nome_completo`]: fullName(person),
     [`${prefix}.cf`]: person.tax_code,
+    [`${prefix}.data_nascita`]: fmtDate(person.birth_date),
+    [`${prefix}.luogo_nascita`]: person.birth_place,
     [`${prefix}.indirizzo`]: [person.address, person.postal_code, person.city, person.province]
       .filter(Boolean)
       .join(', '),
     [`${prefix}.citta`]: person.city,
+    [`${prefix}.cap`]: person.postal_code,
+    [`${prefix}.provincia`]: person.province,
     [`${prefix}.email`]: person.email,
     [`${prefix}.email_fad`]: person.fad_email || person.email,
     [`${prefix}.password_fad`]: person.fad_password,
     [`${prefix}.telefono`]: person.phone,
+    [`${prefix}.telefono_email`]: phoneEmail,
     [`${prefix}.iban`]: person.iban,
     [`${prefix}.banca`]: person.bank_name,
     [`${prefix}.bic`]: person.bic,
+    [`${prefix}.prestazione`]: inpsBenefitLabel(benefit),
+    [`${prefix}.prestazione_codice`]: benefit,
+    [`${prefix}.check_naspi`]: inpsBenefitCheck(benefit, 'naspi'),
+    [`${prefix}.check_adi`]: inpsBenefitCheck(benefit, 'adi'),
+    [`${prefix}.check_sfl`]: inpsBenefitCheck(benefit, 'sfl'),
+    [`${prefix}.check_cig`]: inpsBenefitCheck(benefit, 'cig'),
+    [`${prefix}.check_nessuno`]: inpsBenefitCheck(benefit, 'nessuno'),
+    [`${prefix}.check_bonifico_sepa`]: hasIban ? '☑' : '☐',
+    [`${prefix}.check_bonifico_domiciliato`]: hasIban ? '☐' : '☐',
   }
 }
 
@@ -41,9 +60,11 @@ export function buildTemplateContext(input: {
 
   const course = input.course
   if (course) {
+    const edition = course.edition?.trim()
     Object.assign(vars, {
       'corso.nome': course.name,
       'corso.edizione': course.edition,
+      'corso.edizione_suffisso': edition ? ` Ed. ${edition}` : '',
       'corso.codice': course.code,
       'corso.cup': course.cup,
       'corso.stato': courseStatusLabel(course.status),

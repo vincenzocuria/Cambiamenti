@@ -40,7 +40,9 @@ export function LoginPage() {
         navigate('/')
       } else if (mode === 'signup') {
         await signUp(email, password, fullName)
-        setInfo('Registrazione inviata: controlla la tua email per confermare l\'account.')
+        setInfo(
+          'Registrazione inviata: conferma l\'email, poi attendi l\'approvazione del superadmin.',
+        )
       } else {
         await requestPasswordReset(email)
         setInfo('Se l\'email è registrata, riceverai un link per reimpostare la password.')
@@ -66,12 +68,18 @@ export function LoginPage() {
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           {mode === 'signup' && (
-            <TextField
-              label="Nome e cognome"
-              required
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-            />
+            <>
+              <TextField
+                label="Nome e cognome"
+                required
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+              />
+              <p className="text-xs text-slate-500">
+                Dopo la conferma email il tuo accesso resterà in attesa finché il superadmin non
+                ti abilita.
+              </p>
+            </>
           )}
           <TextField
             label="Email"

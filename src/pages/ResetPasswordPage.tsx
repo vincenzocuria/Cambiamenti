@@ -61,7 +61,7 @@ export function ResetPasswordPage() {
       <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="mb-6 flex flex-col items-center gap-2">
           <BrandLogo size="lg" />
-          <p className="text-center text-sm text-slate-500">Reimposta password</p>
+          <p className="text-center text-sm text-slate-500">Imposta la tua password</p>
         </div>
 
         {!ready ? (

@@ -1,7 +1,9 @@
 import { supabase } from '../lib/supabase'
 import type { DocumentTemplate, DocumentTemplateInput } from '../types/db'
+import { ensureGolTemplates } from './seedGolTemplates'
 
 export async function listTemplates(): Promise<DocumentTemplate[]> {
+  await ensureGolTemplates()
   const { data, error } = await supabase
     .from('document_templates')
     .select('*')
