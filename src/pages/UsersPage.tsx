@@ -8,6 +8,7 @@ import { splitPendingProfiles } from '../lib/profileLists'
 import { EmailLink } from '../components/ContactLinks'
 import { InviteUserForm } from '../components/InviteUserForm'
 import { UserRoleControls } from '../components/UserRoleControls'
+import { tableClass, tdClass, thClass, theadRowClass, trClass } from '../lib/tableStyles'
 
 function isRoleLocked(p: Profile, meId: string | undefined): boolean {
   return p.id === meId || isSuperAdmin(p.role) || isSuperAdminEmail(p.email)
@@ -36,24 +37,26 @@ function UsersTable({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className={tableClass}>
         <thead>
-          <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
-            <th className="px-4 py-3">Email</th>
-            <th>Nome</th>
-            <th>Registrato il</th>
-            <th>Ruolo</th>
+          <tr className={theadRowClass}>
+            <th className={thClass}>Email</th>
+            <th className={thClass}>Nome</th>
+            <th className={thClass}>Registrato il</th>
+            <th className={thClass}>Ruolo</th>
           </tr>
         </thead>
         <tbody>
           {profiles.map((p) => (
-            <tr key={p.id} className="border-b border-slate-100 last:border-0">
-              <td className="px-4 py-3 font-medium text-slate-700">
+            <tr key={p.id} className={trClass}>
+              <td className={`${tdClass} font-medium`}>
                 <EmailLink value={p.email} />
               </td>
-              <td>{p.full_name || '—'}</td>
-              <td>{fmtDate(p.created_at)}</td>
-              <td className="py-3 pr-4">
+              <td className={tdClass}>{p.full_name || '—'}</td>
+              <td className={`${tdClass} whitespace-nowrap tabular-nums`}>
+                {fmtDate(p.created_at)}
+              </td>
+              <td className={tdClass}>
                 <UserRoleControls
                   profile={p}
                   actorRole={actorRole}

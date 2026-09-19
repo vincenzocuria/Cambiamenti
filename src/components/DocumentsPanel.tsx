@@ -14,10 +14,11 @@ import { documentPersonType, isStaffType } from '../data/personTypes'
 import { fmtBytes, fmtDate } from '../lib/format'
 import { DangerButton, PrimaryButton } from './Buttons'
 import { SelectField, TextField } from './Field'
+import { tableClass, tdCompactClass, thCompactClass, theadRowClass, trClass } from '../lib/tableStyles'
 
 export type DocumentsPanelProps =
   | { mode: 'person'; personType: PersonType; personId: string }
-  | { mode: 'course'; courseId: string }
+  | { mode: 'course'; courseId: string; personNames?: Record<string, string> }
 
 function toFilter(props: DocumentsPanelProps): DocumentFilter {
   return props.mode === 'person'
@@ -173,22 +174,22 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
       {docs.length === 0 ? (
         <p className="text-sm text-slate-400">Nessun documento caricato.</p>
       ) : (
-        <table className="w-full text-sm">
+        <table className={tableClass}>
           <thead>
-            <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
-              <th className="py-2">File</th>
-              <th>Categoria</th>
-              {props.mode === 'course' && <th>Persona</th>}
-              {props.mode === 'person' && <th>Corso</th>}
-              <th>Dimensione</th>
-              <th>Data</th>
-              <th></th>
+            <tr className={theadRowClass}>
+              <th className={thCompactClass}>File</th>
+              <th className={thCompactClass}>Categoria</th>
+              {props.mode === 'course' && <th className={thCompactClass}>Persona</th>}
+              {props.mode === 'person' && <th className={thCompactClass}>Corso</th>}
+              <th className={thCompactClass}>Dimensione</th>
+              <th className={thCompactClass}>Data</th>
+              <th className={thCompactClass}></th>
             </tr>
           </thead>
           <tbody>
             {docs.map((d) => (
-              <tr key={d.id} className="border-b border-slate-100">
-                <td className="py-2">
+              <tr key={d.id} className={trClass}>
+                <td className={tdCompactClass}>
                   <button
                     onClick={() => void handleDownload(d)}
                     className="font-medium text-indigo-600 hover:underline"
@@ -196,23 +197,29 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
                     {d.title || d.file_name}
                   </button>
                 </td>
-                <td>{categoryLabels[d.category] ?? d.category}</td>
+                <td className={tdCompactClass}>{categoryLabels[d.category] ?? d.category}</td>
                 {props.mode === 'course' && (
-                  <td className="text-slate-500">
-                    {d.person_type === 'student'
-                      ? 'Alunno'
-                      : d.person_type === 'staff' ||
-                          d.person_type === 'teacher' ||
-                          d.person_type === 'tutor' ||
-                          d.person_type === 'admin_staff'
-                        ? 'Personale'
-                        : '—'}
+                  <td className={`${tdCompactClass} text-slate-500`}>
+                    {d.person_id && props.personNames?.[d.person_id]
+                      ? props.personNames[d.person_id]
+                      : d.person_type === 'student'
+                        ? 'Alunno'
+                        : d.person_type === 'staff' ||
+                            d.person_type === 'teacher' ||
+                            d.person_type === 'tutor' ||
+                            d.person_type === 'admin_staff'
+                          ? 'Personale'
+                          : '—'}
                   </td>
                 )}
-                {props.mode === 'person' && <td>{courseName(d.course_id)}</td>}
-                <td>{fmtBytes(d.size_bytes)}</td>
-                <td>{fmtDate(d.created_at)}</td>
-                <td className="text-right">
+                {props.mode === 'person' && (
+                  <td className={tdCompactClass}>{courseName(d.course_id)}</td>
+                )}
+                <td className={tdCompactClass}>{fmtBytes(d.size_bytes)}</td>
+                <td className={`${tdCompactClass} whitespace-nowrap tabular-nums`}>
+                  {fmtDate(d.created_at)}
+                </td>
+                <td className={`${tdCompactClass} text-right`}>
                   <DangerButton onClick={() => void handleDelete(d)}>Elimina</DangerButton>
                 </td>
               </tr>

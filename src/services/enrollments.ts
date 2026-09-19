@@ -1,8 +1,20 @@
+import { isCourseStaffRole } from '../data/personTypes'
 import { supabase } from '../lib/supabase'
+import { uniqueCourseRoleMessage } from '../lib/uniqueCourseRole'
 import type { Course, CourseStaffRole, Person, PersonType } from '../types/db'
 
-function isCourseStaffRole(type: PersonType): type is CourseStaffRole {
-  return type === 'teacher' || type === 'tutor' || type === 'admin_staff'
+export async function getCourseStaffRole(
+  courseId: string,
+  personId: string,
+): Promise<CourseStaffRole | null> {
+  const { data, error } = await supabase
+    .from('course_staff')
+    .select('role')
+    .eq('course_id', courseId)
+    .eq('person_id', personId)
+    .maybeSingle()
+  if (error) throw error
+  return (data?.role as CourseStaffRole | undefined) ?? null
 }
 
 export async function listCoursePeople(type: PersonType, courseId: string): Promise<Person[]> {
@@ -64,12 +76,18 @@ export async function addToCourse(type: PersonType, courseId: string, personId: 
 
   if (!isCourseStaffRole(type)) throw new Error('Tipo non valido per assegnazione corso')
 
+  const existing = await getCourseStaffRole(courseId, personId)
+  if (existing) throw new Error(uniqueCourseRoleMessage(existing))
+
   const { error } = await supabase.from('course_staff').insert({
     course_id: courseId,
     person_id: personId,
     role: type,
   })
-  if (error) throw error
+  if (error) {
+    if (error.code === '23505') throw new Error(uniqueCourseRoleMessage(type))
+    throw error
+  }
 }
 
 export async function removeFromCourse(

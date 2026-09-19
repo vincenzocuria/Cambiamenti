@@ -226,7 +226,7 @@ export function PersonDetailPage({ type }: Props) {
       {isStaffType(type) && (
         <p className="text-sm text-slate-500">
           Carica il <strong>curriculum</strong> e gli altri documenti della figura qui sotto
-          (categoria Curriculum). I dati anagrafici restano unici anche se ha più ruoli nei corsi.
+          (categoria Curriculum). I dati anagrafici restano unici; su ogni corso ha un solo ruolo.
         </p>
       )}
 
@@ -239,7 +239,9 @@ function InfoCard({ title, children }: { title: string; children: React.ReactNod
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4">
       <h3 className="mb-3 text-sm font-semibold text-slate-700">{title}</h3>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{children}</div>
+      <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+        {children}
+      </div>
     </div>
   )
 }
@@ -256,8 +258,8 @@ function Info({
   children?: React.ReactNode
 }) {
   return (
-    <div>
-      <p className="text-xs text-slate-400">{label}</p>
+    <div className="min-w-0">
+      <p className="mb-0.5 text-xs text-slate-400">{label}</p>
       {children != null ? (
         <div className="text-sm font-medium text-slate-700">{children}</div>
       ) : (

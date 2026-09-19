@@ -12,10 +12,12 @@ import { PersonForm } from './PersonForm'
 interface Props {
   courseId: string
   type: PersonType
+  /** Personale già assegnato a un qualsiasi ruolo sul corso. */
+  takenPersonIds?: string[]
   onChanged?: () => void
 }
 
-export function CoursePeople({ courseId, type, onChanged }: Props) {
+export function CoursePeople({ courseId, type, takenPersonIds, onChanged }: Props) {
   const [enrolled, setEnrolled] = useState<Person[]>([])
   const [all, setAll] = useState<Person[]>([])
   const [selected, setSelected] = useState('')
@@ -37,7 +39,12 @@ export function CoursePeople({ courseId, type, onChanged }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId, type])
 
-  const available = all.filter((p) => !enrolled.some((e) => e.id === p.id))
+  const taken = new Set(takenPersonIds ?? [])
+  const available = all.filter((p) => {
+    if (enrolled.some((e) => e.id === p.id)) return false
+    if (isStaffType(type) && taken.has(p.id)) return false
+    return true
+  })
 
   async function handleAdd() {
     if (!selected) return
@@ -94,7 +101,7 @@ export function CoursePeople({ courseId, type, onChanged }: Props) {
           )}
           {isStaffType(type) && (
             <p className="text-xs text-slate-400">
-              Stessa anagrafica del personale: una figura può avere più ruoli.
+              Stessa anagrafica del personale: su questo corso ogni figura ha un solo ruolo.
             </p>
           )}
         </div>

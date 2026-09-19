@@ -1,11 +1,11 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { Course, CourseInput, Person, PersonType } from '../types/db'
 import { deleteCourse, getCourse, updateCourse } from '../services/courses'
 import { listCoursePeople } from '../services/enrollments'
 import { fetchCourseStaffingCounts } from '../services/courseStaffing'
 import type { CourseStaffingCounts } from '../data/courseStaffing'
-import { fmtDate } from '../lib/format'
+import { fmtDate, fullName } from '../lib/format'
 import { CourseForm } from '../components/CourseForm'
 import { CoursePeople } from '../components/CoursePeople'
 import { CourseStaffingStatus } from '../components/CourseStaffingStatus'
@@ -13,8 +13,10 @@ import { CourseStatusBadge } from '../components/CourseStatusBadge'
 import { CourseStatusPipeline } from '../components/CourseStatusPipeline'
 import { DocumentsPanel } from '../components/DocumentsPanel'
 import { GenerateDocumentForm } from '../components/GenerateDocumentForm'
+import { BulkGenerateDocumentsForm } from '../components/BulkGenerateDocumentsForm'
 import { DangerButton, SecondaryButton } from '../components/Buttons'
 import { courseStatusMeta, isCourseStatus } from '../data/courseStatus'
+import { takenStaffIds } from '../lib/takenStaffIds'
 
 const genRoles: { type: PersonType; label: string }[] = [
   { type: 'teacher', label: 'Docente' },
@@ -40,7 +42,19 @@ export function CourseDetailPage() {
     admin_staff: [],
   })
   const [docsKey, setDocsKey] = useState(0)
-  const [peopleType, setPeopleType] = useState<PersonType>('teacher')
+  const [peopleType, setPeopleType] = useState<PersonType>('student')
+  const [genMode, setGenMode] = useState<'single' | 'bulk'>('bulk')
+  const staffTakenIds = useMemo(() => takenStaffIds(peopleByType), [peopleByType])
+  const personNames = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.values(peopleByType)
+          .flat()
+          .filter((p): p is Person => Boolean(p))
+          .map((p) => [p.id, fullName(p)]),
+      ),
+    [peopleByType],
+  )
 
   async function reloadStaff() {
     if (!id) return
@@ -136,14 +150,29 @@ export function CourseDetailPage() {
       <CourseStaffingStatus counts={staffing} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <CoursePeople courseId={id} type="teacher" onChanged={() => void reloadStaff()} />
-        <CoursePeople courseId={id} type="tutor" onChanged={() => void reloadStaff()} />
-        <CoursePeople courseId={id} type="admin_staff" onChanged={() => void reloadStaff()} />
+        <CoursePeople
+          courseId={id}
+          type="teacher"
+          takenPersonIds={staffTakenIds}
+          onChanged={() => void reloadStaff()}
+        />
+        <CoursePeople
+          courseId={id}
+          type="tutor"
+          takenPersonIds={staffTakenIds}
+          onChanged={() => void reloadStaff()}
+        />
+        <CoursePeople
+          courseId={id}
+          type="admin_staff"
+          takenPersonIds={staffTakenIds}
+          onChanged={() => void reloadStaff()}
+        />
         <CoursePeople courseId={id} type="student" onChanged={() => void reloadStaff()} />
       </div>
 
       <div className="space-y-3">
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {genRoles.map((r) => (
             <SecondaryButton
               key={r.type}
@@ -154,16 +183,45 @@ export function CourseDetailPage() {
               Genera per {r.label.toLowerCase()}
             </SecondaryButton>
           ))}
+          <span className="hidden h-6 w-px bg-slate-200 sm:block" />
+          <SecondaryButton
+            type="button"
+            onClick={() => setGenMode('bulk')}
+            className={genMode === 'bulk' ? 'border-indigo-300 bg-indigo-50' : ''}
+          >
+            In massa
+          </SecondaryButton>
+          <SecondaryButton
+            type="button"
+            onClick={() => setGenMode('single')}
+            className={genMode === 'single' ? 'border-indigo-300 bg-indigo-50' : ''}
+          >
+            Singolo
+          </SecondaryButton>
         </div>
-        <GenerateDocumentForm
-          course={course}
-          people={peopleByType[peopleType] ?? []}
-          peopleType={peopleType}
-          onGenerated={() => setDocsKey((n) => n + 1)}
-        />
+        {genMode === 'bulk' ? (
+          <BulkGenerateDocumentsForm
+            course={course}
+            people={peopleByType[peopleType] ?? []}
+            peopleType={peopleType}
+            onGenerated={() => setDocsKey((n) => n + 1)}
+          />
+        ) : (
+          <GenerateDocumentForm
+            course={course}
+            people={peopleByType[peopleType] ?? []}
+            peopleType={peopleType}
+            onGenerated={() => setDocsKey((n) => n + 1)}
+          />
+        )}
       </div>
 
-      <DocumentsPanel key={docsKey} mode="course" courseId={id} />
+      <DocumentsPanel
+        key={docsKey}
+        mode="course"
+        courseId={id}
+        personNames={personNames}
+      />
     </div>
   )
 }

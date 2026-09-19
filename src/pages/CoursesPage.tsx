@@ -6,6 +6,14 @@ import { fmtDate } from '../lib/format'
 import { CourseForm } from '../components/CourseForm'
 import { CourseStatusBadge } from '../components/CourseStatusBadge'
 import { PrimaryButton } from '../components/Buttons'
+import {
+  tableWideClass,
+  tableWrapClass,
+  tdClass,
+  thClass,
+  theadRowClass,
+  trClass,
+} from '../lib/tableStyles'
 
 export function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([])
@@ -52,42 +60,46 @@ export function CoursesPage() {
         className="mb-4 w-full max-w-md rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none"
       />
 
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-sm">
+      <div className={tableWrapClass}>
+        <table className={tableWideClass}>
           <thead>
-            <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
-              <th className="px-4 py-3">Corso</th>
-              <th>Edizione</th>
-              <th>Stato</th>
-              <th>Codice</th>
-              <th>CUP</th>
-              <th>Inizio</th>
-              <th>Fine</th>
-              <th>Ore</th>
+            <tr className={theadRowClass}>
+              <th className={thClass}>Corso</th>
+              <th className={thClass}>Edizione</th>
+              <th className={thClass}>Stato</th>
+              <th className={thClass}>Codice</th>
+              <th className={thClass}>CUP</th>
+              <th className={thClass}>Inizio</th>
+              <th className={thClass}>Fine</th>
+              <th className={thClass}>Ore</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((c) => (
-              <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50">
-                <td className="px-4 py-3">
+              <tr key={c.id} className={trClass}>
+                <td className={tdClass}>
                   <Link to={`/corsi/${c.id}`} className="font-medium text-indigo-600 hover:underline">
                     {c.name}
                   </Link>
                 </td>
-                <td>{c.edition || '—'}</td>
-                <td>
+                <td className={tdClass}>{c.edition || '—'}</td>
+                <td className={tdClass}>
                   <CourseStatusBadge status={c.status} />
                 </td>
-                <td>{c.code || '—'}</td>
-                <td>{c.cup || '—'}</td>
-                <td>{fmtDate(c.start_date)}</td>
-                <td>{fmtDate(c.end_date)}</td>
-                <td>{c.duration_hours ?? '—'}</td>
+                <td className={tdClass}>{c.code || '—'}</td>
+                <td className={tdClass}>{c.cup || '—'}</td>
+                <td className={`${tdClass} whitespace-nowrap tabular-nums`}>
+                  {fmtDate(c.start_date)}
+                </td>
+                <td className={`${tdClass} whitespace-nowrap tabular-nums`}>
+                  {fmtDate(c.end_date)}
+                </td>
+                <td className={tdClass}>{c.duration_hours ?? '—'}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={8} className={`${tdClass} py-10 text-center text-slate-400`}>
                   Nessun corso trovato.
                 </td>
               </tr>

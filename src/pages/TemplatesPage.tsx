@@ -5,6 +5,7 @@ import { deleteTemplate, listTemplates } from '../services/templates'
 import { categoryLabels } from '../data/documentCategories'
 import { fmtDate } from '../lib/format'
 import { DangerButton, PrimaryButton } from '../components/Buttons'
+import { tableClass, tdClass, thClass, theadRowClass, trClass } from '../lib/tableStyles'
 
 const personRoleLabel: Record<string, string> = {
   none: 'Solo corso / generico',
@@ -55,21 +56,21 @@ export function TemplatesPage() {
           Nessun template. Creane uno per iniziare (es. lettera d&apos;incarico).
         </p>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <table className={tableClass}>
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500">
-                <th className="px-4 py-3">Nome</th>
-                <th>Richiede</th>
-                <th>Categoria</th>
-                <th>Aggiornato</th>
-                <th></th>
+              <tr className={theadRowClass}>
+                <th className={thClass}>Nome</th>
+                <th className={thClass}>Richiede</th>
+                <th className={thClass}>Categoria</th>
+                <th className={thClass}>Aggiornato</th>
+                <th className={thClass}></th>
               </tr>
             </thead>
             <tbody>
               {items.map((t) => (
-                <tr key={t.id} className="border-b border-slate-100">
-                  <td className="px-4 py-3">
+                <tr key={t.id} className={trClass}>
+                  <td className={tdClass}>
                     <Link to={`/template/${t.id}`} className="font-medium text-indigo-600 hover:underline">
                       {t.name}
                     </Link>
@@ -77,7 +78,7 @@ export function TemplatesPage() {
                       <p className="text-xs text-slate-400">{t.description}</p>
                     )}
                   </td>
-                  <td>
+                  <td className={tdClass}>
                     {[
                       t.requires_course ? 'Corso' : null,
                       t.person_role !== 'none' ? personRoleLabel[t.person_role] : null,
@@ -85,9 +86,11 @@ export function TemplatesPage() {
                       .filter(Boolean)
                       .join(' + ') || '—'}
                   </td>
-                  <td>{categoryLabels[t.default_category]}</td>
-                  <td>{fmtDate(t.updated_at)}</td>
-                  <td className="px-4 text-right">
+                  <td className={tdClass}>{categoryLabels[t.default_category]}</td>
+                  <td className={`${tdClass} whitespace-nowrap tabular-nums`}>
+                    {fmtDate(t.updated_at)}
+                  </td>
+                  <td className={`${tdClass} text-right`}>
                     <DangerButton onClick={() => void handleDelete(t)}>Elimina</DangerButton>
                   </td>
                 </tr>

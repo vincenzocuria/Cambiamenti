@@ -8,6 +8,14 @@ import { hasCompleteFadCredentials } from '../lib/fadCredentials'
 import { EmailLink, WhatsAppLink } from '../components/ContactLinks'
 import { PersonForm } from '../components/PersonForm'
 import { PrimaryButton } from '../components/Buttons'
+import {
+  tableWideClass,
+  tableWrapClass,
+  tdClass,
+  thClass,
+  theadRowClass,
+  trClass,
+} from '../lib/tableStyles'
 
 interface Props {
   type: PersonType
@@ -64,31 +72,38 @@ export function PeopleListPage({ type }: Props) {
         </div>
       )}
 
-      <input
-        type="search"
-        placeholder="Cerca per nome, codice fiscale o email…"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="mb-4 w-full max-w-md rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none"
-      />
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <input
+          type="search"
+          placeholder="Cerca per nome, codice fiscale o email…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full max-w-md rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none"
+        />
+        <p className="text-xs text-slate-500">
+          {filtered.length === people.length
+            ? `${people.length} ${people.length === 1 ? l.singular : l.title.toLowerCase()}`
+            : `${filtered.length} di ${people.length}`}
+        </p>
+      </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-sm">
+      <div className={tableWrapClass}>
+        <table className={tableWideClass}>
           <thead>
-            <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
-              <th className="px-4 py-3">Nominativo</th>
-              <th>Codice fiscale</th>
-              <th>Nato/a il</th>
-              <th>Email</th>
-              <th>FAD</th>
-              <th>Telefono</th>
-              <th>Città</th>
+            <tr className={theadRowClass}>
+              <th className={thClass}>Nominativo</th>
+              <th className={thClass}>Codice fiscale</th>
+              <th className={thClass}>Nato/a il</th>
+              <th className={thClass}>Email</th>
+              <th className={thClass}>FAD</th>
+              <th className={thClass}>Telefono</th>
+              <th className={thClass}>Città</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((p) => (
-              <tr key={p.id} className="border-b border-slate-100 hover:bg-slate-50">
-                <td className="px-4 py-3">
+              <tr key={p.id} className={trClass}>
+                <td className={tdClass}>
                   <Link
                     to={`${l.basePath}/${p.id}`}
                     className="font-medium text-indigo-600 hover:underline"
@@ -96,12 +111,16 @@ export function PeopleListPage({ type }: Props) {
                     {fullName(p)}
                   </Link>
                 </td>
-                <td>{p.tax_code || '—'}</td>
-                <td>{fmtDate(p.birth_date)}</td>
-                <td>
+                <td className={`${tdClass} font-mono text-xs tracking-wide`}>
+                  {p.tax_code || '—'}
+                </td>
+                <td className={`${tdClass} whitespace-nowrap tabular-nums`}>
+                  {fmtDate(p.birth_date)}
+                </td>
+                <td className={`${tdClass} break-all`}>
                   <EmailLink value={p.email} />
                 </td>
-                <td>
+                <td className={tdClass}>
                   {hasCompleteFadCredentials(p) ? (
                     <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
                       OK
@@ -112,16 +131,18 @@ export function PeopleListPage({ type }: Props) {
                     </span>
                   )}
                 </td>
-                <td>
+                <td className={`${tdClass} whitespace-nowrap`}>
                   <WhatsAppLink value={p.phone} />
                 </td>
-                <td>{p.city || '—'}</td>
+                <td className={tdClass}>{p.city || '—'}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
-                  Nessun risultato.
+                <td colSpan={7} className={`${tdClass} py-10 text-center text-slate-400`}>
+                  {people.length === 0
+                    ? `Nessun ${l.singular} in anagrafica.`
+                    : 'Nessun risultato per la ricerca.'}
                 </td>
               </tr>
             )}

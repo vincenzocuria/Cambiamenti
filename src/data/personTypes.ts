@@ -77,6 +77,14 @@ export function isStaffType(type: PersonType): boolean {
   return type === 'staff' || type === 'teacher' || type === 'tutor' || type === 'admin_staff'
 }
 
+export function isCourseStaffRole(type: PersonType): type is CourseStaffRole {
+  return type === 'teacher' || type === 'tutor' || type === 'admin_staff'
+}
+
+export function staffRoleSingular(role: CourseStaffRole): string {
+  return personTypeMeta[role].singular
+}
+
 /** Tipo usato nei documenti allegati alla scheda. */
 export function documentPersonType(type: PersonType): 'student' | 'staff' {
   return type === 'student' ? 'student' : 'staff'

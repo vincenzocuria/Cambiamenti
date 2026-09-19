@@ -2,9 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Course, DocumentTemplate, Person, PersonType } from '../types/db'
 import { listTemplates } from '../services/templates'
 import { generateFromTemplate } from '../services/generateDocument'
+import { generateDocumentsBulk } from '../services/generateDocumentsBulk'
+import { buildBulkDocumentJobs } from '../lib/bulkDocumentJobs'
 import { metaFor } from '../data/personTypes'
 import { fullName } from '../lib/format'
-import { PrimaryButton } from './Buttons'
+import { resolveTemplatePersonType, templateFits } from '../lib/templateFits'
+import { PrimaryButton, SecondaryButton } from './Buttons'
 import { SelectField } from './Field'
 
 type Props = {
@@ -15,40 +18,6 @@ type Props = {
   people?: Person[]
   peopleType?: PersonType
   onGenerated?: () => void
-}
-
-function roleMatches(templateRole: string, personType: PersonType | null): boolean {
-  if (!personType) return true
-  if (templateRole === 'any' || templateRole === 'staff') {
-    return (
-      personType === 'staff' ||
-      personType === 'teacher' ||
-      personType === 'tutor' ||
-      personType === 'admin_staff'
-    )
-  }
-  if (personType === 'staff') {
-    return (
-      templateRole === 'teacher' ||
-      templateRole === 'tutor' ||
-      templateRole === 'admin_staff' ||
-      templateRole === 'staff'
-    )
-  }
-  return templateRole === personType
-}
-
-function templateFits(
-  t: DocumentTemplate,
-  opts: { canHaveCourse: boolean; personType: PersonType | null; canPickPerson: boolean },
-): boolean {
-  if (t.requires_course && !opts.canHaveCourse) return false
-  if (t.person_role === 'none') return true
-  if (opts.canPickPerson) {
-    if (!opts.personType) return true
-    return roleMatches(t.person_role, opts.personType)
-  }
-  return roleMatches(t.person_role, opts.personType)
 }
 
 export function GenerateDocumentForm({
@@ -125,10 +94,7 @@ export function GenerateDocumentForm({
     setError('')
     setInfo('')
     try {
-      const role: PersonType | null =
-        selectedTemplate.person_role === 'any' || selectedTemplate.person_role === 'none'
-          ? effectivePersonType
-          : selectedTemplate.person_role
+      const role = resolveTemplatePersonType(selectedTemplate, effectivePersonType)
 
       await generateFromTemplate({
         template: selectedTemplate,
@@ -139,6 +105,52 @@ export function GenerateDocumentForm({
       setInfo('Documento generato e allegato.')
       onGenerated?.()
       setTick((n) => n + 1)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Generazione fallita')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleGenerateAll() {
+    if (!person) return
+    const chosenCourse =
+      selectableCourses.find((c) => c.id === selectedCourseId) ?? course ?? null
+    const templates = available.filter((t) => !t.requires_course || chosenCourse)
+    if (templates.some((t) => t.requires_course) && !chosenCourse) {
+      setError('Seleziona il corso collegato')
+      return
+    }
+    if (templates.length === 0) {
+      setError('Nessun modello da generare')
+      return
+    }
+    if (
+      !window.confirm(
+        `Generare ${templates.length} modell${templates.length === 1 ? 'o' : 'i'} per ${fullName(person)}?`,
+      )
+    ) {
+      return
+    }
+
+    setBusy(true)
+    setError('')
+    setInfo('')
+    try {
+      const result = await generateDocumentsBulk({
+        course: chosenCourse,
+        jobs: buildBulkDocumentJobs({
+          templates,
+          people: [person],
+          personType: effectivePersonType,
+        }),
+      })
+      if (result.failed) {
+        setError(`${result.ok} creati, ${result.failed} errori`)
+      } else {
+        setInfo(`${result.ok} documenti generati e allegati.`)
+      }
+      if (result.ok > 0) onGenerated?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Generazione fallita')
     } finally {
@@ -171,7 +183,7 @@ export function GenerateDocumentForm({
           ))}
         </SelectField>
 
-        {selectedTemplate?.requires_course && !course && (
+        {!course && available.some((t) => t.requires_course) && (
           <SelectField
             label="Corso"
             value={selectedCourseId}
@@ -210,6 +222,11 @@ export function GenerateDocumentForm({
         <PrimaryButton type="button" disabled={busy} onClick={() => void handleGenerate()}>
           {busy ? 'Generazione…' : 'Genera documento'}
         </PrimaryButton>
+        {person && available.length > 1 && (
+          <SecondaryButton type="button" disabled={busy} onClick={() => void handleGenerateAll()}>
+            Genera tutti i modelli
+          </SecondaryButton>
+        )}
       </div>
       {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
       {info && <p className="mt-3 text-sm text-emerald-600">{info}</p>}
