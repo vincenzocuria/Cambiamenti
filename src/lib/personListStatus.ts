@@ -28,6 +28,13 @@ export function matchesPersonStatus(person: Person, status: string): boolean {
   return true
 }
 
-export function countPersonStatus(people: Person[], status: PersonListStatus): number {
-  return people.filter((p) => matchesPersonStatus(p, status)).length
+export function countPersonStatuses(people: Person[]) {
+  const counts = { fad_ok: 0, fad_da_compilare: 0, senza_email: 0, con_inps: 0 }
+  for (const p of people) {
+    if (hasCompleteFadCredentials(p)) counts.fad_ok += 1
+    else counts.fad_da_compilare += 1
+    if (!personHasEmail(p)) counts.senza_email += 1
+    if (hasPaidInpsBenefit(p.inps_benefit)) counts.con_inps += 1
+  }
+  return counts
 }

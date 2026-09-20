@@ -2,15 +2,16 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { DocumentCategory, DocumentTemplate } from '../types/db'
 import { deleteTemplate, listTemplates } from '../services/templates'
-import { categoryLabels, categoryOptions } from '../data/documentCategories'
+import { categoryLabels } from '../data/documentCategories'
 import { fmtDate } from '../lib/format'
 import { matchesSearch } from '../lib/matchesSearch'
 import { describeFilters, exportFilteredList } from '../lib/listExport'
 import { useListQuery } from '../hooks/useListQuery'
 import { DangerButton, PrimaryButton } from '../components/Buttons'
+import { usePagedSlice } from '../hooks/usePagedSlice'
 import { KpiCards } from '../components/KpiCards'
-import { StatusFilterCards } from '../components/StatusFilterCards'
 import { ListToolbar } from '../components/ListToolbar'
+import { ListPagination } from '../components/ListPagination'
 import { tableClass, tdClass, thClass, theadRowClass, trClass } from '../lib/tableStyles'
 
 const personRoleLabel: Record<string, string> = {
@@ -74,8 +75,19 @@ export function TemplatesPage() {
     [searched, status],
   )
 
-  const withCourse = items.filter((t) => t.requires_course).length
-  const withPerson = items.filter((t) => t.person_role !== 'none').length
+  const { page, setPage, pages, slice, pageSize } = usePagedSlice(
+    filtered,
+    `${search}|${status}`,
+  )
+  const { withCourse, withPerson } = useMemo(() => {
+    let withCourse = 0
+    let withPerson = 0
+    for (const t of items) {
+      if (t.requires_course) withCourse += 1
+      if (t.person_role !== 'none') withPerson += 1
+    }
+    return { withCourse, withPerson }
+  }, [items])
   const statusLabel =
     status === 'con_corso'
       ? 'Richiede corso'
@@ -147,24 +159,7 @@ export function TemplatesPage() {
             active: status === 'con_persona',
             onClick: () => toggleStatus('con_persona'),
           },
-          {
-            key: 'categorie',
-            label: 'Categorie usate',
-            hint: 'Tipologie documento',
-            value: new Set(items.map((t) => t.default_category)).size,
-          },
         ]}
-      />
-
-      <StatusFilterCards
-        allCount={items.length}
-        value={status}
-        onChange={setStatus}
-        items={categoryOptions.map((o) => ({
-          key: o.value,
-          label: o.label,
-          count: items.filter((t) => t.default_category === o.value).length,
-        }))}
       />
 
       <ListToolbar
@@ -196,7 +191,7 @@ export function TemplatesPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((t) => (
+              {slice.map((t) => (
                 <tr key={t.id} className={trClass}>
                   <td className={tdClass}>
                     <Link to={`/template/${t.id}`} className="font-medium text-indigo-600 hover:underline">
@@ -225,6 +220,13 @@ export function TemplatesPage() {
           </table>
         </div>
       )}
+      <ListPagination
+        page={page}
+        pages={pages}
+        pageSize={pageSize}
+        total={filtered.length}
+        onPage={setPage}
+      />
     </div>
   )
 }

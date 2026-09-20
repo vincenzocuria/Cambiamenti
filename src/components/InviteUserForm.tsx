@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import type { Role } from '../types/db'
 import { inviteUser, type InviteRole } from '../services/inviteUser'
 import { inviteRolesBy, roleLabels } from '../lib/roles'
-import { TextField } from './Field'
+import { SelectField, TextField } from './Field'
 import { PrimaryButton } from './Buttons'
 
 interface Props {
@@ -62,20 +62,17 @@ export function InviteUserForm({ actorRole, onInvited }: Props) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
-        <label className="block text-sm">
-          <span className="mb-1 block font-medium text-slate-700">Ruolo</span>
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value as InviteRole)}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none"
-          >
-            {roles.map((r) => (
-              <option key={r} value={r}>
-                {roleLabels[r]}
-              </option>
-            ))}
-          </select>
-        </label>
+        <SelectField
+          label="Ruolo"
+          value={role}
+          onChange={(e) => setRole(e.target.value as InviteRole)}
+        >
+          {roles.map((r) => (
+            <option key={r} value={r}>
+              {roleLabels[r]}
+            </option>
+          ))}
+        </SelectField>
         <div className="flex items-end">
           <PrimaryButton type="submit" disabled={busy} className="w-full justify-center">
             {busy ? 'Invio…' : 'Invia invito'}

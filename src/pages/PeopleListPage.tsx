@@ -8,18 +8,15 @@ import { fmtDate, fullName } from '../lib/format'
 import { hasCompleteFadCredentials } from '../lib/fadCredentials'
 import { matchesSearch } from '../lib/matchesSearch'
 import { describeFilters, exportFilteredList } from '../lib/listExport'
-import {
-  countPersonStatus,
-  isPersonListStatus,
-  matchesPersonStatus,
-} from '../lib/personListStatus'
+import { countPersonStatuses, isPersonListStatus, matchesPersonStatus } from '../lib/personListStatus'
 import { useListQuery } from '../hooks/useListQuery'
+import { usePagedSlice } from '../hooks/usePagedSlice'
 import { EmailLink, WhatsAppLink } from '../components/ContactLinks'
 import { PersonForm } from '../components/PersonForm'
 import { PrimaryButton } from '../components/Buttons'
 import { KpiCards } from '../components/KpiCards'
-import { StatusFilterCards } from '../components/StatusFilterCards'
 import { ListToolbar } from '../components/ListToolbar'
+import { ListPagination } from '../components/ListPagination'
 import {
   tableWideClass,
   tableWrapClass,
@@ -85,10 +82,12 @@ export function PeopleListPage({ type }: Props) {
     [searched, status],
   )
 
-  const fadOk = countPersonStatus(people, 'fad_ok')
-  const fadMissing = countPersonStatus(people, 'fad_da_compilare')
-  const noEmail = countPersonStatus(people, 'senza_email')
-  const withInps = countPersonStatus(people, 'con_inps')
+  const { fad_ok: fadOk, fad_da_compilare: fadMissing, senza_email: noEmail, con_inps: withInps } =
+    useMemo(() => countPersonStatuses(people), [people])
+  const { page, setPage, pages, slice, pageSize } = usePagedSlice(
+    filtered,
+    `${type}|${search}|${status}`,
+  )
 
   const statusLabel =
     status === 'fad_ok'
@@ -184,29 +183,6 @@ export function PeopleListPage({ type }: Props) {
         ]}
       />
 
-      <StatusFilterCards
-        allCount={people.length}
-        value={status}
-        onChange={setStatus}
-        items={[
-          { key: 'fad_ok', label: 'FAD OK', count: fadOk, tone: 'ok' },
-          {
-            key: 'fad_da_compilare',
-            label: 'Da compilare',
-            count: fadMissing,
-            tone: fadMissing > 0 ? 'warn' : 'ok',
-          },
-          isStudent
-            ? { key: 'con_inps', label: 'Con INPS', count: withInps, tone: 'info' }
-            : {
-                key: 'senza_email',
-                label: 'Senza email',
-                count: noEmail,
-                tone: noEmail > 0 ? 'warn' : 'default',
-              },
-        ]}
-      />
-
       {creating && (
         <div className="mb-6 rounded-2xl border border-indigo-200 bg-white p-5 shadow-sm">
           <h2 className="mb-4 text-lg font-semibold capitalize text-slate-700">
@@ -247,7 +223,7 @@ export function PeopleListPage({ type }: Props) {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((p) => (
+            {slice.map((p) => (
               <tr key={p.id} className={trClass}>
                 <td className={tdClass}>
                   <Link
@@ -291,6 +267,13 @@ export function PeopleListPage({ type }: Props) {
           </tbody>
         </table>
       </div>
+      <ListPagination
+        page={page}
+        pages={pages}
+        pageSize={pageSize}
+        total={filtered.length}
+        onPage={setPage}
+      />
     </div>
   )
 }

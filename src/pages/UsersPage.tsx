@@ -3,6 +3,7 @@ import type { Profile, Role } from '../types/db'
 import { listProfiles, setRole } from '../services/profiles'
 import { useAuth } from '../hooks/useAuth'
 import { useListQuery } from '../hooks/useListQuery'
+import { usePagedSlice } from '../hooks/usePagedSlice'
 import { fmtDate } from '../lib/format'
 import { isSuperAdmin, isSuperAdminEmail, roleLabels } from '../lib/roles'
 import { visibleToViewer } from '../lib/profileVisibility'
@@ -13,8 +14,8 @@ import { InviteUserForm } from '../components/InviteUserForm'
 import { UserRoleControls } from '../components/UserRoleControls'
 import { ResetUserPassword } from '../components/ResetUserPassword'
 import { KpiCards } from '../components/KpiCards'
-import { StatusFilterCards } from '../components/StatusFilterCards'
 import { ListToolbar } from '../components/ListToolbar'
+import { ListPagination } from '../components/ListPagination'
 import { tableClass, tdClass, thClass, theadRowClass, trClass } from '../lib/tableStyles'
 
 function isRoleLocked(p: Profile, meId: string | undefined): boolean {
@@ -74,8 +75,11 @@ export function UsersPage() {
     [searched, status],
   )
 
+  const { page, setPage, pages, slice, pageSize } = usePagedSlice(
+    filtered,
+    `${search}|${status}`,
+  )
   const pending = visible.filter((p) => p.role === 'pending').length
-  const enabled = visible.filter((p) => p.role !== 'pending').length
   const admins = visible.filter((p) => p.role === 'admin' || p.role === 'superadmin').length
   const staff = visible.filter((p) => p.role === 'staff').length
 
@@ -140,13 +144,13 @@ export function UsersPage() {
             onClick: () => toggleStatus('pending'),
           },
           {
-            key: 'abilitati',
-            label: 'Abilitati',
-            hint: 'Accesso attivo',
-            value: enabled,
+            key: 'staff',
+            label: 'Staff',
+            hint: 'Accesso operativo',
+            value: staff,
             tone: 'ok',
-            active: status === 'abilitati',
-            onClick: () => toggleStatus('abilitati'),
+            active: status === 'staff',
+            onClick: () => toggleStatus('staff'),
           },
           {
             key: 'amministratori',
@@ -156,17 +160,6 @@ export function UsersPage() {
             active: status === 'amministratori',
             onClick: () => toggleStatus('amministratori'),
           },
-        ]}
-      />
-
-      <StatusFilterCards
-        allCount={visible.length}
-        value={status}
-        onChange={setStatus}
-        items={[
-          { key: 'pending', label: 'In attesa', count: pending, tone: pending > 0 ? 'warn' : 'ok' },
-          { key: 'staff', label: 'Staff', count: staff, tone: 'info' },
-          { key: 'amministratori', label: 'Amministratori', count: admins },
         ]}
       />
 
@@ -202,7 +195,7 @@ export function UsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((p) => (
+                {slice.map((p) => (
                   <tr
                     key={p.id}
                     className={
@@ -246,6 +239,13 @@ export function UsersPage() {
           </div>
         )}
       </div>
+      <ListPagination
+        page={page}
+        pages={pages}
+        pageSize={pageSize}
+        total={filtered.length}
+        onPage={setPage}
+      />
     </div>
   )
 }

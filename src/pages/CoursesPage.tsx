@@ -2,12 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { Course, CourseInput } from '../types/db'
 import { createCourse, listCourses } from '../services/courses'
-import {
-  courseStatusMeta,
-  courseStatuses,
-  isCourseStatus,
-  type CourseStatus,
-} from '../data/courseStatus'
+import { courseStatusMeta, isCourseStatus, type CourseStatus } from '../data/courseStatus'
 import { fmtDate } from '../lib/format'
 import { matchesSearch } from '../lib/matchesSearch'
 import { describeFilters, exportFilteredList } from '../lib/listExport'
@@ -15,9 +10,10 @@ import { useListQuery } from '../hooks/useListQuery'
 import { CourseForm } from '../components/CourseForm'
 import { CourseStatusBadge } from '../components/CourseStatusBadge'
 import { PrimaryButton } from '../components/Buttons'
+import { usePagedSlice } from '../hooks/usePagedSlice'
 import { KpiCards } from '../components/KpiCards'
-import { StatusFilterCards } from '../components/StatusFilterCards'
 import { ListToolbar } from '../components/ListToolbar'
+import { ListPagination } from '../components/ListPagination'
 import {
   tableWideClass,
   tableWrapClass,
@@ -64,11 +60,15 @@ export function CoursesPage() {
     [searched, status],
   )
 
+  const { page, setPage, pages, slice, pageSize } = usePagedSlice(
+    filtered,
+    `${search}|${status}`,
+  )
   const inCorso = countStatus(courses, 'in_corso')
   const prossimi = countStatus(courses, 'in_attivazione')
   const daRendicontare = countStatus(courses, 'finito')
   const esitoChiuso = countStatus(courses, 'esito_chiuso')
-  const statusLabel = status ? courseStatusMeta[status as CourseStatus]?.label : ''
+  const statusLabel = status ? courseStatusMeta[status]?.label : ''
 
   function toggleStatus(key: string) {
     setStatus(status === key ? '' : key)
@@ -147,18 +147,6 @@ export function CoursesPage() {
         ]}
       />
 
-      <StatusFilterCards
-        allCount={courses.length}
-        value={status}
-        onChange={setStatus}
-        items={courseStatuses.map((s) => ({
-          key: s,
-          label: courseStatusMeta[s].label,
-          count: countStatus(courses, s),
-          tone: s === 'finito' ? 'warn' : s === 'in_corso' ? 'ok' : 'default',
-        }))}
-      />
-
       {creating && (
         <div className="mb-6 rounded-2xl border border-indigo-200 bg-white p-5 shadow-sm">
           <h2 className="mb-4 text-lg font-semibold text-slate-700">Nuovo corso</h2>
@@ -193,7 +181,7 @@ export function CoursesPage() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((c) => (
+            {slice.map((c) => (
               <tr key={c.id} className={trClass}>
                 <td className={tdClass}>
                   <Link to={`/corsi/${c.id}`} className="font-medium text-indigo-600 hover:underline">
@@ -227,6 +215,13 @@ export function CoursesPage() {
           </tbody>
         </table>
       </div>
+      <ListPagination
+        page={page}
+        pages={pages}
+        pageSize={pageSize}
+        total={filtered.length}
+        onPage={setPage}
+      />
     </div>
   )
 }
