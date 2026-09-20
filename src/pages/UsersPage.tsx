@@ -1,88 +1,39 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Profile, Role } from '../types/db'
 import { listProfiles, setRole } from '../services/profiles'
 import { useAuth } from '../hooks/useAuth'
+import { useListQuery } from '../hooks/useListQuery'
 import { fmtDate } from '../lib/format'
-import { isSuperAdmin, isSuperAdminEmail } from '../lib/roles'
-import { splitPendingProfiles } from '../lib/profileLists'
+import { isSuperAdmin, isSuperAdminEmail, roleLabels } from '../lib/roles'
+import { matchesSearch } from '../lib/matchesSearch'
+import { describeFilters, exportFilteredList } from '../lib/listExport'
 import { EmailLink } from '../components/ContactLinks'
 import { InviteUserForm } from '../components/InviteUserForm'
 import { UserRoleControls } from '../components/UserRoleControls'
+import { KpiCards } from '../components/KpiCards'
+import { StatusFilterCards } from '../components/StatusFilterCards'
+import { ListToolbar } from '../components/ListToolbar'
 import { tableClass, tdClass, thClass, theadRowClass, trClass } from '../lib/tableStyles'
 
 function isRoleLocked(p: Profile, meId: string | undefined): boolean {
   return p.id === meId || isSuperAdmin(p.role) || isSuperAdminEmail(p.email)
 }
 
-function UsersTable({
-  profiles,
-  meId,
-  actorRole,
-  busyId,
-  emptyLabel,
-  onApprove,
-  onChangeRole,
-}: {
-  profiles: Profile[]
-  meId: string | undefined
-  actorRole: Role | null | undefined
-  busyId: string | null
-  emptyLabel: string
-  onApprove: (id: string) => void
-  onChangeRole: (id: string, role: Role) => void
-}) {
-  if (profiles.length === 0) {
-    return <p className="px-4 py-6 text-sm text-slate-500">{emptyLabel}</p>
-  }
-
-  return (
-    <div className="overflow-x-auto">
-      <table className={tableClass}>
-        <thead>
-          <tr className={theadRowClass}>
-            <th className={thClass}>Email</th>
-            <th className={thClass}>Nome</th>
-            <th className={thClass}>Registrato il</th>
-            <th className={thClass}>Ruolo</th>
-          </tr>
-        </thead>
-        <tbody>
-          {profiles.map((p) => (
-            <tr key={p.id} className={trClass}>
-              <td className={`${tdClass} font-medium`}>
-                <EmailLink value={p.email} />
-              </td>
-              <td className={tdClass}>{p.full_name || '—'}</td>
-              <td className={`${tdClass} whitespace-nowrap tabular-nums`}>
-                {fmtDate(p.created_at)}
-              </td>
-              <td className={tdClass}>
-                <UserRoleControls
-                  profile={p}
-                  actorRole={actorRole}
-                  locked={isRoleLocked(p, meId)}
-                  busy={busyId === p.id}
-                  onApprove={onApprove}
-                  onChangeRole={onChangeRole}
-                />
-                {p.id === meId && (
-                  <span className="ml-2 text-xs text-slate-400">(tu)</span>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
+function matchesUserStatus(p: Profile, status: string): boolean {
+  if (!status) return true
+  if (status === 'pending') return p.role === 'pending'
+  if (status === 'abilitati') return p.role !== 'pending'
+  if (status === 'amministratori') return p.role === 'admin' || p.role === 'superadmin'
+  if (status === 'staff') return p.role === 'staff'
+  return true
 }
 
-// Pagina admin: approvazione e gestione ruoli degli utenti
 export function UsersPage() {
   const { profile: me } = useAuth()
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [error, setError] = useState('')
   const [busyId, setBusyId] = useState<string | null>(null)
+  const { search, status, setSearch, setStatus } = useListQuery()
 
   async function reload() {
     setProfiles(await listProfiles())
@@ -105,7 +56,53 @@ export function UsersPage() {
     }
   }
 
-  const { pending, others } = splitPendingProfiles(profiles)
+  const searched = useMemo(
+    () =>
+      profiles.filter((p) =>
+        matchesSearch(`${p.email} ${p.full_name} ${roleLabels[p.role]}`, search),
+      ),
+    [profiles, search],
+  )
+
+  const filtered = useMemo(
+    () => searched.filter((p) => matchesUserStatus(p, status)),
+    [searched, status],
+  )
+
+  const pending = profiles.filter((p) => p.role === 'pending').length
+  const enabled = profiles.filter((p) => p.role !== 'pending').length
+  const admins = profiles.filter((p) => p.role === 'admin' || p.role === 'superadmin').length
+  const staff = profiles.filter((p) => p.role === 'staff').length
+
+  const statusLabel =
+    status === 'pending'
+      ? 'In attesa'
+      : status === 'abilitati'
+        ? 'Abilitati'
+        : status === 'amministratori'
+          ? 'Amministratori'
+          : status === 'staff'
+            ? 'Staff'
+            : ''
+
+  function toggleStatus(key: string) {
+    setStatus(status === key ? '' : key)
+  }
+
+  function exportList(format: 'excel' | 'pdf') {
+    exportFilteredList({
+      title: 'Utenti',
+      rows: filtered,
+      format,
+      filters: describeFilters([statusLabel, search && `ricerca «${search}»`]),
+      columns: [
+        { header: 'Email', value: (p) => p.email },
+        { header: 'Nome', value: (p) => p.full_name || '' },
+        { header: 'Registrato il', value: (p) => fmtDate(p.created_at) },
+        { header: 'Ruolo', value: (p) => roleLabels[p.role] },
+      ],
+    })
+  }
 
   return (
     <div>
@@ -117,40 +114,121 @@ export function UsersPage() {
 
       <InviteUserForm actorRole={me?.role} onInvited={() => void reload()} />
 
-      <section className="mb-8 overflow-hidden rounded-2xl border border-amber-200 bg-amber-50/40 shadow-sm">
-        <div className="flex items-center justify-between border-b border-amber-200 px-4 py-3">
-          <h2 className="text-sm font-semibold text-amber-900">In attesa di approvazione</h2>
-          <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
-            {pending.length}
-          </span>
-        </div>
-        <div className="bg-white">
-          <UsersTable
-            profiles={pending}
-            meId={me?.id}
-            actorRole={me?.role}
-            busyId={busyId}
-            emptyLabel="Nessuna richiesta in sospeso."
-            onApprove={(id) => void handleRole(id, 'staff')}
-            onChangeRole={(id, role) => void handleRole(id, role)}
-          />
-        </div>
-      </section>
+      <KpiCards
+        items={[
+          {
+            key: 'totale',
+            label: 'Totale utenti',
+            hint: 'Tutti i profili',
+            value: profiles.length,
+            active: !status,
+            onClick: () => setStatus(''),
+          },
+          {
+            key: 'pending',
+            label: 'In attesa',
+            hint: 'Da approvare',
+            value: pending,
+            tone: pending > 0 ? 'warn' : 'ok',
+            active: status === 'pending',
+            onClick: () => toggleStatus('pending'),
+          },
+          {
+            key: 'abilitati',
+            label: 'Abilitati',
+            hint: 'Accesso attivo',
+            value: enabled,
+            tone: 'ok',
+            active: status === 'abilitati',
+            onClick: () => toggleStatus('abilitati'),
+          },
+          {
+            key: 'amministratori',
+            label: 'Amministratori',
+            hint: 'Admin e superadmin',
+            value: admins,
+            active: status === 'amministratori',
+            onClick: () => toggleStatus('amministratori'),
+          },
+        ]}
+      />
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-4 py-3">
-          <h2 className="text-sm font-semibold text-slate-700">Utenti abilitati</h2>
-        </div>
-        <UsersTable
-          profiles={others}
-          meId={me?.id}
-          actorRole={me?.role}
-          busyId={busyId}
-          emptyLabel="Nessun utente abilitato."
-          onApprove={(id) => void handleRole(id, 'staff')}
-          onChangeRole={(id, role) => void handleRole(id, role)}
-        />
-      </section>
+      <StatusFilterCards
+        allCount={profiles.length}
+        value={status}
+        onChange={setStatus}
+        items={[
+          { key: 'pending', label: 'In attesa', count: pending, tone: pending > 0 ? 'warn' : 'ok' },
+          { key: 'staff', label: 'Staff', count: staff, tone: 'info' },
+          { key: 'amministratori', label: 'Amministratori', count: admins },
+        ]}
+      />
+
+      <ListToolbar
+        search={search}
+        onSearch={setSearch}
+        placeholder="Cerca per email, nome o ruolo…"
+        resultCount={filtered.length}
+        totalCount={profiles.length}
+        unitSingular="utente"
+        unitPlural="utenti"
+        onExportExcel={() => exportList('excel')}
+        onExportPdf={() => exportList('pdf')}
+      />
+
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        {filtered.length === 0 ? (
+          <p className="px-4 py-8 text-center text-sm text-slate-400">
+            {profiles.length === 0
+              ? 'Nessun utente.'
+              : 'Nessun risultato per i filtri selezionati.'}
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className={tableClass}>
+              <thead>
+                <tr className={theadRowClass}>
+                  <th className={thClass}>Email</th>
+                  <th className={thClass}>Nome</th>
+                  <th className={thClass}>Registrato il</th>
+                  <th className={thClass}>Ruolo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((p) => (
+                  <tr
+                    key={p.id}
+                    className={
+                      p.role === 'pending' ? `${trClass} bg-amber-50/50` : trClass
+                    }
+                  >
+                    <td className={`${tdClass} font-medium`}>
+                      <EmailLink value={p.email} />
+                    </td>
+                    <td className={tdClass}>{p.full_name || '—'}</td>
+                    <td className={`${tdClass} whitespace-nowrap tabular-nums`}>
+                      {fmtDate(p.created_at)}
+                    </td>
+                    <td className={tdClass}>
+                      <UserRoleControls
+                        profile={p}
+                        actorRole={me?.role}
+                        locked={isRoleLocked(p, me?.id)}
+                        busy={busyId === p.id}
+                        onApprove={(id) => void handleRole(id, 'staff')}
+                        onChangeRole={(id, role) => void handleRole(id, role)}
+                      />
+                      {p.id === me?.id && (
+                        <span className="ml-2 text-xs text-slate-400">(tu)</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

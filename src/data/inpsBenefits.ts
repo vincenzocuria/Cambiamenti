@@ -13,6 +13,11 @@ export function inpsBenefitLabel(value: string): string {
   return inpsBenefitOptions.find((o) => o.value === value)?.label ?? ''
 }
 
+/** Prestazione INPS attiva (esclude vuoto e «nessuno»). */
+export function hasPaidInpsBenefit(value: string): boolean {
+  return value === 'naspi' || value === 'adi' || value === 'sfl' || value === 'cig'
+}
+
 export function inpsBenefitCheck(value: string, option: InpsBenefit): string {
   return value === option ? '☑' : '☐'
 }

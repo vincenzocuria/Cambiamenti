@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { CourseStatusPipeline } from '../components/CourseStatusPipeline'
 import { DashboardCourseList } from '../components/DashboardCourseList'
+import { KpiCards } from '../components/KpiCards'
 import {
   fetchActiveCourses,
   fetchCoursesToReport,
@@ -29,25 +30,25 @@ const kpiCards: {
     key: 'inCorso',
     label: 'In corso',
     hint: 'Formazione attiva',
-    to: '/corsi',
+    to: '/corsi?stato=in_corso',
   },
   {
     key: 'prossimi',
     label: 'Prossimi',
     hint: 'In attivazione',
-    to: '/corsi',
+    to: '/corsi?stato=in_attivazione',
   },
   {
     key: 'daRendicontare',
     label: 'Da rendicontare',
     hint: 'Finiti in attesa',
-    to: '/corsi',
+    to: '/corsi?stato=finito',
   },
   {
     key: 'esitoChiuso',
     label: 'Esito chiuso',
     hint: 'Ciclo completato',
-    to: '/corsi',
+    to: '/corsi?stato=esito_chiuso',
   },
   {
     key: 'courses',
@@ -108,21 +109,17 @@ export function DashboardPage() {
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
-        {kpiCards.map((c) => (
-          <Link
-            key={c.key}
-            to={c.to}
-            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-indigo-300 hover:shadow"
-          >
-            <p className="text-sm font-medium text-slate-500">{c.label}</p>
-            <p className="mt-2 text-3xl font-bold text-indigo-700">
-              {counts ? counts[c.key] : '…'}
-            </p>
-            <p className="mt-1 text-xs text-slate-400">{c.hint}</p>
-          </Link>
-        ))}
-      </div>
+      <KpiCards
+        className=""
+        items={kpiCards.map((c) => ({
+          key: c.key,
+          label: c.label,
+          hint: c.hint,
+          to: c.to,
+          value: counts ? counts[c.key] : '…',
+          tone: c.key === 'daRendicontare' && counts && counts.daRendicontare > 0 ? 'warn' : 'default',
+        }))}
+      />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-700">Pipeline corso</h2>

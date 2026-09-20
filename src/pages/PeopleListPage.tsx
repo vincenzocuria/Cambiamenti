@@ -1,13 +1,25 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { Person, PersonInput, PersonType } from '../types/db'
 import { createPerson, listPeople } from '../services/people'
 import { metaFor } from '../data/personTypes'
+import { inpsBenefitLabel } from '../data/inpsBenefits'
 import { fmtDate, fullName } from '../lib/format'
 import { hasCompleteFadCredentials } from '../lib/fadCredentials'
+import { matchesSearch } from '../lib/matchesSearch'
+import { describeFilters, exportFilteredList } from '../lib/listExport'
+import {
+  countPersonStatus,
+  isPersonListStatus,
+  matchesPersonStatus,
+} from '../lib/personListStatus'
+import { useListQuery } from '../hooks/useListQuery'
 import { EmailLink, WhatsAppLink } from '../components/ContactLinks'
 import { PersonForm } from '../components/PersonForm'
 import { PrimaryButton } from '../components/Buttons'
+import { KpiCards } from '../components/KpiCards'
+import { StatusFilterCards } from '../components/StatusFilterCards'
+import { ListToolbar } from '../components/ListToolbar'
 import {
   tableWideClass,
   tableWrapClass,
@@ -21,11 +33,25 @@ interface Props {
   type: PersonType
 }
 
+function fadBadge(person: Person) {
+  return hasCompleteFadCredentials(person) ? (
+    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+      OK
+    </span>
+  ) : (
+    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
+      Da compilare
+    </span>
+  )
+}
+
 export function PeopleListPage({ type }: Props) {
   const [people, setPeople] = useState<Person[]>([])
   const [creating, setCreating] = useState(false)
-  const [search, setSearch] = useState('')
+  const { search, status: rawStatus, setSearch, setStatus } = useListQuery()
+  const status = isPersonListStatus(rawStatus) ? rawStatus : ''
   const l = metaFor(type)
+  const isStudent = type === 'student'
 
   async function reload() {
     setPeople(await listPeople(type))
@@ -33,7 +59,6 @@ export function PeopleListPage({ type }: Props) {
 
   useEffect(() => {
     setCreating(false)
-    setSearch('')
     void reload()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [type])
@@ -44,11 +69,62 @@ export function PeopleListPage({ type }: Props) {
     await reload()
   }
 
-  const filtered = people.filter((p) =>
-    `${p.first_name} ${p.last_name} ${p.tax_code} ${p.email} ${p.fad_email}`
-      .toLowerCase()
-      .includes(search.toLowerCase()),
+  const searched = useMemo(
+    () =>
+      people.filter((p) =>
+        matchesSearch(
+          `${p.first_name} ${p.last_name} ${p.tax_code} ${p.email} ${p.fad_email}`,
+          search,
+        ),
+      ),
+    [people, search],
   )
+
+  const filtered = useMemo(
+    () => searched.filter((p) => matchesPersonStatus(p, status)),
+    [searched, status],
+  )
+
+  const fadOk = countPersonStatus(people, 'fad_ok')
+  const fadMissing = countPersonStatus(people, 'fad_da_compilare')
+  const noEmail = countPersonStatus(people, 'senza_email')
+  const withInps = countPersonStatus(people, 'con_inps')
+
+  const statusLabel =
+    status === 'fad_ok'
+      ? 'FAD OK'
+      : status === 'fad_da_compilare'
+        ? 'FAD da compilare'
+        : status === 'senza_email'
+          ? 'Senza email'
+          : status === 'con_inps'
+            ? 'Con prestazione INPS'
+            : ''
+
+  function toggleStatus(key: string) {
+    setStatus(status === key ? '' : key)
+  }
+
+  function exportList(format: 'excel' | 'pdf') {
+    exportFilteredList({
+      title: l.title,
+      rows: filtered,
+      format,
+      filters: describeFilters([statusLabel, search && `ricerca «${search}»`]),
+      columns: [
+        { header: 'Nominativo', value: (p) => fullName(p) },
+        { header: 'Codice fiscale', value: (p) => p.tax_code || '' },
+        { header: 'Nato/a il', value: (p) => fmtDate(p.birth_date) },
+        { header: 'Email', value: (p) => p.email || '' },
+        { header: 'FAD', value: (p) => (hasCompleteFadCredentials(p) ? 'OK' : 'Da compilare') },
+        { header: 'Telefono', value: (p) => p.phone || '' },
+        { header: 'Città', value: (p) => p.city || '' },
+        ...(isStudent
+          ? [{ header: 'INPS', value: (p: Person) => inpsBenefitLabel(p.inps_benefit) || '—' }]
+          : []),
+      ],
+    })
+  }
 
   return (
     <div>
@@ -58,6 +134,78 @@ export function PeopleListPage({ type }: Props) {
           <PrimaryButton onClick={() => setCreating(true)}>+ Nuovo {l.singular}</PrimaryButton>
         )}
       </div>
+
+      <KpiCards
+        items={[
+          {
+            key: 'totale',
+            label: `Totale ${l.title.toLowerCase()}`,
+            hint: 'In anagrafica',
+            value: people.length,
+            active: !status,
+            onClick: () => setStatus(''),
+          },
+          {
+            key: 'fad_ok',
+            label: 'FAD completa',
+            hint: 'Email e password',
+            value: fadOk,
+            tone: 'ok',
+            active: status === 'fad_ok',
+            onClick: () => toggleStatus('fad_ok'),
+          },
+          {
+            key: 'fad_da_compilare',
+            label: 'FAD da compilare',
+            hint: 'Credenziali incomplete',
+            value: fadMissing,
+            tone: fadMissing > 0 ? 'warn' : 'ok',
+            active: status === 'fad_da_compilare',
+            onClick: () => toggleStatus('fad_da_compilare'),
+          },
+          isStudent
+            ? {
+                key: 'con_inps',
+                label: 'Con prestazione INPS',
+                hint: 'NASpI, ADI, SFL o CIG',
+                value: withInps,
+                active: status === 'con_inps',
+                onClick: () => toggleStatus('con_inps'),
+              }
+            : {
+                key: 'senza_email',
+                label: 'Senza email',
+                hint: 'Contatto mancante',
+                value: noEmail,
+                tone: noEmail > 0 ? 'warn' : 'ok',
+                active: status === 'senza_email',
+                onClick: () => toggleStatus('senza_email'),
+              },
+        ]}
+      />
+
+      <StatusFilterCards
+        allCount={people.length}
+        value={status}
+        onChange={setStatus}
+        items={[
+          { key: 'fad_ok', label: 'FAD OK', count: fadOk, tone: 'ok' },
+          {
+            key: 'fad_da_compilare',
+            label: 'Da compilare',
+            count: fadMissing,
+            tone: fadMissing > 0 ? 'warn' : 'ok',
+          },
+          isStudent
+            ? { key: 'con_inps', label: 'Con INPS', count: withInps, tone: 'info' }
+            : {
+                key: 'senza_email',
+                label: 'Senza email',
+                count: noEmail,
+                tone: noEmail > 0 ? 'warn' : 'default',
+              },
+        ]}
+      />
 
       {creating && (
         <div className="mb-6 rounded-2xl border border-indigo-200 bg-white p-5 shadow-sm">
@@ -72,20 +220,17 @@ export function PeopleListPage({ type }: Props) {
         </div>
       )}
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <input
-          type="search"
-          placeholder="Cerca per nome, codice fiscale o email…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full max-w-md rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none"
-        />
-        <p className="text-xs text-slate-500">
-          {filtered.length === people.length
-            ? `${people.length} ${people.length === 1 ? l.singular : l.title.toLowerCase()}`
-            : `${filtered.length} di ${people.length}`}
-        </p>
-      </div>
+      <ListToolbar
+        search={search}
+        onSearch={setSearch}
+        placeholder="Cerca per nome, codice fiscale o email…"
+        resultCount={filtered.length}
+        totalCount={people.length}
+        unitSingular={l.singular}
+        unitPlural={l.title.toLowerCase()}
+        onExportExcel={() => exportList('excel')}
+        onExportPdf={() => exportList('pdf')}
+      />
 
       <div className={tableWrapClass}>
         <table className={tableWideClass}>
@@ -98,6 +243,7 @@ export function PeopleListPage({ type }: Props) {
               <th className={thClass}>FAD</th>
               <th className={thClass}>Telefono</th>
               <th className={thClass}>Città</th>
+              {isStudent && <th className={thClass}>INPS</th>}
             </tr>
           </thead>
           <tbody>
@@ -120,29 +266,25 @@ export function PeopleListPage({ type }: Props) {
                 <td className={`${tdClass} break-all`}>
                   <EmailLink value={p.email} />
                 </td>
-                <td className={tdClass}>
-                  {hasCompleteFadCredentials(p) ? (
-                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                      OK
-                    </span>
-                  ) : (
-                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
-                      Da compilare
-                    </span>
-                  )}
-                </td>
+                <td className={tdClass}>{fadBadge(p)}</td>
                 <td className={`${tdClass} whitespace-nowrap`}>
                   <WhatsAppLink value={p.phone} />
                 </td>
                 <td className={tdClass}>{p.city || '—'}</td>
+                {isStudent && (
+                  <td className={tdClass}>{inpsBenefitLabel(p.inps_benefit) || '—'}</td>
+                )}
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className={`${tdClass} py-10 text-center text-slate-400`}>
+                <td
+                  colSpan={isStudent ? 8 : 7}
+                  className={`${tdClass} py-10 text-center text-slate-400`}
+                >
                   {people.length === 0
                     ? `Nessun ${l.singular} in anagrafica.`
-                    : 'Nessun risultato per la ricerca.'}
+                    : 'Nessun risultato per i filtri selezionati.'}
                 </td>
               </tr>
             )}
