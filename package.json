@@ -9,6 +9,9 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "deploy": "npm run build && node scripts/cleanRedirects.js && wrangler deploy",
+    "deploy:cron": "node scripts/deploy-doc-expiry-cron.mjs",
+    "deploy:functions": "node scripts/deploy-edge-functions.mjs",
+    "deploy:all": "npm run deploy:functions && npm run deploy:cron && npm run deploy",
     "email:write": "node scripts/write-auth-email-templates.mjs",
     "email:smtp": "node scripts/deploy-auth-smtp.mjs",
     "email:deploy": "node scripts/write-auth-email-templates.mjs && node scripts/deploy-auth-email-templates.mjs"

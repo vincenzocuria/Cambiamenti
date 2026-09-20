@@ -1,0 +1,9 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cambiamenti-cron",
+  "main": "workers/cron-check-doc-expiry.ts",
+  "compatibility_date": "2026-08-07",
+  "triggers": {
+    "crons": ["0 5 * * *"]
+  }
+}
