@@ -5,11 +5,13 @@ import { useAuth } from '../hooks/useAuth'
 import { useListQuery } from '../hooks/useListQuery'
 import { fmtDate } from '../lib/format'
 import { isSuperAdmin, isSuperAdminEmail, roleLabels } from '../lib/roles'
+import { visibleToViewer } from '../lib/profileVisibility'
 import { matchesSearch } from '../lib/matchesSearch'
 import { describeFilters, exportFilteredList } from '../lib/listExport'
 import { EmailLink } from '../components/ContactLinks'
 import { InviteUserForm } from '../components/InviteUserForm'
 import { UserRoleControls } from '../components/UserRoleControls'
+import { ResetUserPassword } from '../components/ResetUserPassword'
 import { KpiCards } from '../components/KpiCards'
 import { StatusFilterCards } from '../components/StatusFilterCards'
 import { ListToolbar } from '../components/ListToolbar'
@@ -32,6 +34,7 @@ export function UsersPage() {
   const { profile: me } = useAuth()
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
   const [busyId, setBusyId] = useState<string | null>(null)
   const { search, status, setSearch, setStatus } = useListQuery()
 
@@ -56,12 +59,14 @@ export function UsersPage() {
     }
   }
 
+  const visible = useMemo(() => visibleToViewer(profiles, me), [profiles, me])
+
   const searched = useMemo(
     () =>
-      profiles.filter((p) =>
+      visible.filter((p) =>
         matchesSearch(`${p.email} ${p.full_name} ${roleLabels[p.role]}`, search),
       ),
-    [profiles, search],
+    [visible, search],
   )
 
   const filtered = useMemo(
@@ -69,10 +74,10 @@ export function UsersPage() {
     [searched, status],
   )
 
-  const pending = profiles.filter((p) => p.role === 'pending').length
-  const enabled = profiles.filter((p) => p.role !== 'pending').length
-  const admins = profiles.filter((p) => p.role === 'admin' || p.role === 'superadmin').length
-  const staff = profiles.filter((p) => p.role === 'staff').length
+  const pending = visible.filter((p) => p.role === 'pending').length
+  const enabled = visible.filter((p) => p.role !== 'pending').length
+  const admins = visible.filter((p) => p.role === 'admin' || p.role === 'superadmin').length
+  const staff = visible.filter((p) => p.role === 'staff').length
 
   const statusLabel =
     status === 'pending'
@@ -111,6 +116,7 @@ export function UsersPage() {
         Puoi invitare utenti da qui, oppure approvare chi si è registrato da solo.
       </p>
       {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
+      {info && <p className="mb-4 text-sm text-emerald-600">{info}</p>}
 
       <InviteUserForm actorRole={me?.role} onInvited={() => void reload()} />
 
@@ -120,7 +126,7 @@ export function UsersPage() {
             key: 'totale',
             label: 'Totale utenti',
             hint: 'Tutti i profili',
-            value: profiles.length,
+            value: visible.length,
             active: !status,
             onClick: () => setStatus(''),
           },
@@ -145,7 +151,7 @@ export function UsersPage() {
           {
             key: 'amministratori',
             label: 'Amministratori',
-            hint: 'Admin e superadmin',
+            hint: 'Ruolo amministratore',
             value: admins,
             active: status === 'amministratori',
             onClick: () => toggleStatus('amministratori'),
@@ -154,7 +160,7 @@ export function UsersPage() {
       />
 
       <StatusFilterCards
-        allCount={profiles.length}
+        allCount={visible.length}
         value={status}
         onChange={setStatus}
         items={[
@@ -169,7 +175,7 @@ export function UsersPage() {
         onSearch={setSearch}
         placeholder="Cerca per email, nome o ruolo…"
         resultCount={filtered.length}
-        totalCount={profiles.length}
+        totalCount={visible.length}
         unitSingular="utente"
         unitPlural="utenti"
         onExportExcel={() => exportList('excel')}
@@ -179,7 +185,7 @@ export function UsersPage() {
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {filtered.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-slate-400">
-            {profiles.length === 0
+            {visible.length === 0
               ? 'Nessun utente.'
               : 'Nessun risultato per i filtri selezionati.'}
           </p>
@@ -192,6 +198,7 @@ export function UsersPage() {
                   <th className={thClass}>Nome</th>
                   <th className={thClass}>Registrato il</th>
                   <th className={thClass}>Ruolo</th>
+                  <th className={thClass}>Password</th>
                 </tr>
               </thead>
               <tbody>
@@ -221,6 +228,16 @@ export function UsersPage() {
                       {p.id === me?.id && (
                         <span className="ml-2 text-xs text-slate-400">(tu)</span>
                       )}
+                    </td>
+                    <td className={tdClass}>
+                      <ResetUserPassword
+                        target={p}
+                        actor={me}
+                        busy={busyId === p.id}
+                        onBusy={(busy) => setBusyId(busy ? p.id : null)}
+                        onError={setError}
+                        onInfo={setInfo}
+                      />
                     </td>
                   </tr>
                 ))}

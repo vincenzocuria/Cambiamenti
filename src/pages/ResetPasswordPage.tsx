@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { updatePassword } from '../services/auth'
+import { passwordError } from '../lib/passwordRules'
 import { PasswordField } from '../components/PasswordField'
 import { PrimaryButton } from '../components/Buttons'
 import { BrandLogo } from '../components/BrandLogo'
@@ -34,12 +35,9 @@ export function ResetPasswordPage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    if (password.length < 8) {
-      setError('La password deve avere almeno 8 caratteri.')
-      return
-    }
-    if (password !== confirm) {
-      setError('Le password non coincidono.')
+    const issue = passwordError(password, confirm)
+    if (issue) {
+      setError(issue)
       return
     }
     setBusy(true)

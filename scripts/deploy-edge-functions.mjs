@@ -25,6 +25,7 @@ process.env.SUPABASE_ACCESS_TOKEN = token
 
 const functions = [
   { name: 'invite-user', verifyJwt: true },
+  { name: 'reset-user-password', verifyJwt: true },
   { name: 'send-notification-email', verifyJwt: false },
   { name: 'check-doc-expiry', verifyJwt: false },
 ]

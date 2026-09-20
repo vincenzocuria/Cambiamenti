@@ -20,7 +20,7 @@ export function PendingPage() {
         <BrandLogo size="md" className="mx-auto mb-4" />
         <h1 className="mb-2 text-xl font-bold text-slate-800">Account in attesa di approvazione</h1>
         <p className="mb-6 text-sm text-slate-500">
-          Hai confermato l&apos;account: resta in attesa finché il superadmin non ti abilita
+          Hai confermato l&apos;account: resta in attesa finché un amministratore non ti abilita
           dal pannello Utenti. Fino ad allora non puoi vedere i dati della scuola.
         </p>
         <SecondaryButton

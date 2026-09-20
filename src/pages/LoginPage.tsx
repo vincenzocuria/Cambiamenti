@@ -41,7 +41,7 @@ export function LoginPage() {
       } else if (mode === 'signup') {
         await signUp(email, password, fullName)
         setInfo(
-          'Registrazione inviata: conferma l\'email, poi attendi l\'approvazione del superadmin.',
+          'Registrazione inviata: conferma l\'email, poi attendi l\'approvazione di un amministratore.',
         )
       } else {
         await requestPasswordReset(email)
@@ -76,8 +76,8 @@ export function LoginPage() {
                 onChange={(e) => setFullName(e.target.value)}
               />
               <p className="text-xs text-slate-500">
-                Dopo la conferma email il tuo accesso resterà in attesa finché il superadmin non
-                ti abilita.
+                Dopo la conferma email il tuo accesso resterà in attesa finché un amministratore
+                non ti abilita.
               </p>
             </>
           )}

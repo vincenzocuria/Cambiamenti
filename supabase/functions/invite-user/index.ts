@@ -44,10 +44,10 @@ Deno.serve(async (req) => {
 
     const body = parseInviteBody(await req.json())
     if (body.email === SUPERADMIN_EMAIL) {
-      return jsonResponse({ error: 'Questa email è riservata al superadmin' }, 400)
+      return jsonResponse({ error: 'Questa email non è disponibile' }, 400)
     }
     if (body.role === 'admin' && profile.role !== 'superadmin') {
-      return jsonResponse({ error: 'Solo il superadmin può creare altri admin' }, 403)
+      return jsonResponse({ error: 'Non puoi assegnare questo ruolo' }, 403)
     }
 
     const admin = createClient(supabaseUrl, serviceKey)
