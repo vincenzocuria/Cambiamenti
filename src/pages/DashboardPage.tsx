@@ -187,7 +187,7 @@ export function DashboardPage() {
           title="Credenziali FAD incomplete"
           count={missingFad.length}
           tone={missingFad.length > 0 ? 'warn' : 'ok'}
-          empty="Email e password FAD compilate per tutti."
+          empty="Username o email e password FAD compilate per tutti."
         >
           {missingFad.slice(0, 8).map((a) => (
             <AlertPersonRow key={`${a.kind}-${a.id}`} alert={a} />

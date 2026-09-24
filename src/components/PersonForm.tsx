@@ -127,11 +127,13 @@ export function PersonForm({ initial, personType, onSave, onCancel }: Props) {
 
       <Section title="Credenziali FAD">
         <TextField
-          label="Email FAD"
-          type="email"
+          label="Username o email FAD"
+          type="text"
+          autoComplete="off"
+          spellCheck={false}
           value={form.fad_email}
           onChange={(e) => set('fad_email', e.target.value)}
-          hint="Se vuota, nei documenti si usa l’email anagrafica"
+          hint="Nome utente Moodle oppure email. Se vuoto, nei documenti si usa l’email anagrafica"
         />
         <PasswordField
           label="Password FAD"

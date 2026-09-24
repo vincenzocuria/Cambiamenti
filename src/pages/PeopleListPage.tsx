@@ -147,7 +147,7 @@ export function PeopleListPage({ type }: Props) {
           {
             key: 'fad_ok',
             label: 'FAD completa',
-            hint: 'Email e password',
+            hint: 'Utente o email',
             value: fadOk,
             tone: 'ok',
             active: status === 'fad_ok',

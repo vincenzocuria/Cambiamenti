@@ -130,7 +130,7 @@ export function PersonDetailPage({ type }: Props) {
             )}
           </InfoCard>
           <InfoCard title="Credenziali FAD">
-            <Info label="Email FAD">
+            <Info label="Username o email FAD">
               {person.fad_email ? (
                 <EmailLink value={person.fad_email} />
               ) : effectiveFadEmail(person) ? (
@@ -148,7 +148,7 @@ export function PersonDetailPage({ type }: Props) {
             </div>
             {!hasCompleteFadCredentials(person) && (
               <p className="col-span-full text-xs text-amber-700">
-                Credenziali FAD incomplete. Usa Modifica per aggiungere email e password FAD.
+                Credenziali FAD incomplete. Usa Modifica per aggiungere username o email e password FAD.
               </p>
             )}
           </InfoCard>

@@ -14,7 +14,7 @@ export function hasCompleteFadCredentials(
   return hasFadEmail(person) && hasFadPassword(person)
 }
 
-/** Email usata per la FAD: dedicata se presente, altrimenti anagrafica. */
+/** Username o email FAD: valore dedicato se presente, altrimenti email anagrafica. */
 export function effectiveFadEmail(person: Pick<Person, 'fad_email' | 'email'>): string {
   return person.fad_email?.trim() || person.email?.trim() || ''
 }
