@@ -1,5 +1,7 @@
 import type { Person } from '../types/db'
+import { effectiveFadEmail } from '../lib/fadCredentials'
 import { fadShareForPerson } from '../lib/fadShareMessage'
+import { FadLoginLink } from './FadLoginLink'
 
 type Props = {
   person: Pick<Person, 'first_name' | 'email' | 'phone' | 'fad_email' | 'fad_password'>
@@ -14,20 +16,34 @@ const compactClass = 'text-xs text-indigo-600 hover:underline'
 
 export function FadShareActions({ person, courseLabel, compact = false }: Props) {
   const share = fadShareForPerson(person, courseLabel)
-  if (!share) return null
-  if (!share.mailto && !share.whatsapp) {
-    if (compact) return null
+  const username = effectiveFadEmail(person)
+  if (!share && !username) return null
+  if (!share) {
     return (
-      <p className="text-xs text-amber-700">
-        Per inviare le credenziali serve un’email o un telefono in anagrafica.
-      </p>
+      <FadLoginLink
+        username={username}
+        password={person.fad_password}
+        compact={compact}
+        label="Apri FAD"
+        className={compact ? compactClass : buttonClass}
+      />
     )
   }
-
   const className = compact ? compactClass : buttonClass
+  const noContact = !share.mailto && !share.whatsapp
 
   return (
-    <div className={compact ? 'mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5' : 'flex flex-wrap gap-2'}>
+    <div className={compact ? 'mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5' : 'space-y-2'}>
+      <div className={compact ? 'contents' : 'flex flex-wrap gap-2'}>
+      {username ? (
+        <FadLoginLink
+          username={username}
+          password={person.fad_password}
+          compact
+          label="Apri FAD"
+          className={className}
+        />
+      ) : null}
       {share.mailto && (
         <a
           href={share.mailto}
@@ -49,6 +65,12 @@ export function FadShareActions({ person, courseLabel, compact = false }: Props)
         >
           WhatsApp credenziali
         </a>
+      )}
+      </div>
+      {!compact && noContact && (
+        <p className="text-xs text-amber-700">
+          Per inviare le credenziali serve un’email o un telefono in anagrafica.
+        </p>
       )}
     </div>
   )

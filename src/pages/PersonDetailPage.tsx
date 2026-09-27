@@ -13,8 +13,8 @@ import { DangerButton, SecondaryButton } from '../components/Buttons'
 import { EmailLink, WhatsAppLink } from '../components/ContactLinks'
 import { SecretValue } from '../components/SecretValue'
 import { effectiveFadEmail, hasCompleteFadCredentials } from '../lib/fadCredentials'
-import { FAD_LOGIN_URL } from '../lib/fadLogin'
 import { formatCourseShareLabel } from '../lib/fadShareMessage'
+import { FadLoginLink } from '../components/FadLoginLink'
 import { FadShareActions } from '../components/FadShareActions'
 
 interface Props {
@@ -150,14 +150,11 @@ export function PersonDetailPage({ type }: Props) {
               <SecretValue value={person.fad_password} />
             </div>
             <Info label="Accesso">
-              <a
-                href={FAD_LOGIN_URL}
-                target="_blank"
-                rel="noopener noreferrer"
+              <FadLoginLink
+                username={effectiveFadEmail(person)}
+                password={person.fad_password}
                 className="break-all text-sm text-indigo-600 hover:underline"
-              >
-                {FAD_LOGIN_URL}
-              </a>
+              />
             </Info>
             <div className="col-span-full">
               <FadShareActions

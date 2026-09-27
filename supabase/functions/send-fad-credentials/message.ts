@@ -1,5 +1,13 @@
 /** Allineato a src/lib/fadLogin.ts e src/lib/fadShareMessage.ts */
 export const FAD_LOGIN_URL = 'https://www.cambiamentisrl.it/fad/login/index.php'
+
+function fadLoginUrl(username: string): string {
+  const value = username.trim()
+  if (!value) return FAD_LOGIN_URL
+  const url = new URL(FAD_LOGIN_URL)
+  url.searchParams.set('username', value)
+  return url.toString()
+}
 export const FAD_SHARE_SUBJECT = 'Credenziali accesso FAD — Cambia-Menti Formazione'
 
 export function destinationEmail(email: string, fadEmail: string): string {
@@ -20,7 +28,7 @@ export function credentialsText(input: {
     '',
     'ecco le credenziali per accedere alla piattaforma FAD di Cambia-Menti Formazione.',
     '',
-    `Link: ${FAD_LOGIN_URL}`,
+    `Link: ${fadLoginUrl(input.username)}`,
     `Username: ${input.username}`,
     `Password: ${input.password}`,
   ]
@@ -45,11 +53,12 @@ export function credentialsHtml(input: {
   const course = input.courseName
     ? `<p style="margin:16px 0 0">Corso: ${escapeHtml(input.courseName)}</p>`
     : ''
+  const loginUrl = escapeHtml(fadLoginUrl(input.username))
   return `
     <div style="font-family:system-ui,sans-serif;color:#1e293b;line-height:1.5">
       <p style="margin:0 0 12px">Ciao ${escapeHtml(input.greetingName)},</p>
       <p style="margin:0 0 12px">ecco le credenziali per accedere alla piattaforma FAD di Cambia-Menti Formazione.</p>
-      <p style="margin:0 0 12px"><a href="${FAD_LOGIN_URL}" style="color:#4338ca">${FAD_LOGIN_URL}</a></p>
+      <p style="margin:0 0 12px"><a href="${loginUrl}" style="color:#4338ca">${loginUrl}</a></p>
       <p style="margin:0">Username: <strong>${escapeHtml(input.username)}</strong><br>Password: <strong>${escapeHtml(input.password)}</strong></p>
       ${course}
     </div>

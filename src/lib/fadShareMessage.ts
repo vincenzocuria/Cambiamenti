@@ -1,7 +1,7 @@
 import type { Person } from '../types/db'
 import { mailtoUrl, whatsappUrl } from './contactLinks'
 import { effectiveFadEmail, hasCompleteFadCredentials } from './fadCredentials'
-import { FAD_LOGIN_URL } from './fadLogin'
+import { fadLoginUrl } from './fadLogin'
 
 export const FAD_SHARE_SUBJECT = 'Credenziali accesso FAD — Cambia-Menti Formazione'
 
@@ -30,7 +30,7 @@ export function fadCredentialsText(input: {
     '',
     'ecco le credenziali per accedere alla piattaforma FAD di Cambia-Menti Formazione.',
     '',
-    `Link: ${FAD_LOGIN_URL}`,
+    `Link: ${fadLoginUrl(input.username)}`,
     `Username: ${input.username}`,
     `Password: ${input.password}`,
   ]
