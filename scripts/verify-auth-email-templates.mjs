@@ -1,6 +1,8 @@
 import { getSupabaseAccessToken } from './lib/supabaseAccessToken.mjs'
 
-const projectRef = process.env.SUPABASE_PROJECT_REF || 'nmmjivrsuezhptwsfqdv'
+import { CAMBIAMENTI_SUPABASE_PROJECT_REF } from './lib/cambiamentiSupabaseProject.mjs'
+
+const projectRef = CAMBIAMENTI_SUPABASE_PROJECT_REF
 const token = getSupabaseAccessToken()
 if (!token) {
   console.error('no token')

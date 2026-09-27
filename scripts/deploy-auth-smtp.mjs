@@ -5,7 +5,9 @@ import { loadEnvFile } from './lib/loadEnvFile.mjs'
 import { emailBrand } from './lib/emailBrand.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const projectRef = process.env.SUPABASE_PROJECT_REF || 'nmmjivrsuezhptwsfqdv'
+import { CAMBIAMENTI_SUPABASE_PROJECT_REF } from './lib/cambiamentiSupabaseProject.mjs'
+
+const projectRef = CAMBIAMENTI_SUPABASE_PROJECT_REF
 
 loadEnvFile(path.join(root, 'scripts', 'cambiamenti-secrets.env'))
 const localSenderName = process.env.SMTP_SENDER_NAME?.trim()

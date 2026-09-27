@@ -3,6 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getSupabaseAccessToken } from './lib/supabaseAccessToken.mjs'
+import { CAMBIAMENTI_SUPABASE_PROJECT_REF } from './lib/cambiamentiSupabaseProject.mjs'
 import { loadEnvFile } from './lib/loadEnvFile.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -14,7 +15,7 @@ if (!process.env.SMTP_PASS || process.env.SMTP_PASS === 're_INCOLLA_API_KEY') {
   loadEnvFile(path.join(root, '..', 'lidia', 'scripts', 'lidia-secrets.env'))
 }
 
-const projectRef = process.env.SUPABASE_PROJECT_REF || 'nmmjivrsuezhptwsfqdv'
+const projectRef = CAMBIAMENTI_SUPABASE_PROJECT_REF
 const token = getSupabaseAccessToken()
 if (!token) {
   console.error('Token Supabase non trovato')

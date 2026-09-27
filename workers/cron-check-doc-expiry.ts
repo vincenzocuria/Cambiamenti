@@ -4,7 +4,7 @@ interface Env {
 }
 
 const DEFAULT_URL =
-  'https://nmmjivrsuezhptwsfqdv.supabase.co/functions/v1/check-doc-expiry'
+  'https://oevppwtjbzbopjvsvoiu.supabase.co/functions/v1/check-doc-expiry'
 
 export default {
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext) {

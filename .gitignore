@@ -17,6 +17,7 @@ dist-ssr
 .env.*
 !.env.example
 scripts/cambiamenti-secrets.env
+scripts/split-supabase/lg-edil-db.env
 *-secrets.env
 !*secrets.env.example
 

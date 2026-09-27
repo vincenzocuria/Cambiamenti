@@ -14,7 +14,9 @@
     "deploy:all": "npm run deploy:functions && npm run deploy:cron && npm run deploy",
     "email:write": "node scripts/write-auth-email-templates.mjs",
     "email:smtp": "node scripts/deploy-auth-smtp.mjs",
-    "email:deploy": "node scripts/write-auth-email-templates.mjs && node scripts/deploy-auth-email-templates.mjs"
+    "email:deploy": "node scripts/write-auth-email-templates.mjs && node scripts/deploy-auth-email-templates.mjs",
+    "split:migrate-cm": "node scripts/split-supabase/migrate-cambiamenti.mjs",
+    "split:migrate-lg": "node scripts/split-supabase/migrate-lg-edil.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.2",

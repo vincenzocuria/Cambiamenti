@@ -9,7 +9,9 @@ import { loadEnvFile } from './lib/loadEnvFile.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const secretsPath = path.join(root, 'scripts', 'cambiamenti-secrets.env')
-const projectRef = process.env.SUPABASE_PROJECT_REF || 'nmmjivrsuezhptwsfqdv'
+import { CAMBIAMENTI_SUPABASE_PROJECT_REF } from './lib/cambiamentiSupabaseProject.mjs'
+
+const projectRef = CAMBIAMENTI_SUPABASE_PROJECT_REF
 
 loadEnvFile(secretsPath)
 if (!process.env.SMTP_PASS) {
