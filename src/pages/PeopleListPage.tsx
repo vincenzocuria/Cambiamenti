@@ -11,6 +11,9 @@ import { describeFilters, exportFilteredList } from '../lib/listExport'
 import { countPersonStatuses, isPersonListStatus, matchesPersonStatus } from '../lib/personListStatus'
 import { useListQuery } from '../hooks/useListQuery'
 import { usePagedSlice } from '../hooks/usePagedSlice'
+import { useTableSort } from '../hooks/useTableSort'
+import { sortPeople } from '../lib/sortPeople'
+import { SortableTh } from '../components/SortableTh'
 import { EmailLink, WhatsAppLink } from '../components/ContactLinks'
 import { PersonForm } from '../components/PersonForm'
 import { PrimaryButton } from '../components/Buttons'
@@ -21,7 +24,6 @@ import {
   tableWideClass,
   tableWrapClass,
   tdClass,
-  thClass,
   theadRowClass,
   trClass,
 } from '../lib/tableStyles'
@@ -46,6 +48,7 @@ export function PeopleListPage({ type }: Props) {
   const [people, setPeople] = useState<Person[]>([])
   const [creating, setCreating] = useState(false)
   const { search, status: rawStatus, setSearch, setStatus } = useListQuery()
+  const { sortKey, sortDir, toggleSort } = useTableSort()
   const status = isPersonListStatus(rawStatus) ? rawStatus : ''
   const l = metaFor(type)
   const isStudent = type === 'student'
@@ -82,11 +85,16 @@ export function PeopleListPage({ type }: Props) {
     [searched, status],
   )
 
+  const sorted = useMemo(
+    () => sortPeople(filtered, sortKey, sortDir),
+    [filtered, sortKey, sortDir],
+  )
+
   const { fad_ok: fadOk, fad_da_compilare: fadMissing, senza_email: noEmail, con_inps: withInps } =
     useMemo(() => countPersonStatuses(people), [people])
   const { page, setPage, pages, slice, pageSize } = usePagedSlice(
-    filtered,
-    `${type}|${search}|${status}`,
+    sorted,
+    `${type}|${search}|${status}|${sortKey}|${sortDir}`,
   )
 
   const statusLabel =
@@ -107,7 +115,7 @@ export function PeopleListPage({ type }: Props) {
   function exportList(format: 'excel' | 'pdf') {
     exportFilteredList({
       title: l.title,
-      rows: filtered,
+      rows: sorted,
       format,
       filters: describeFilters([statusLabel, search && `ricerca «${search}»`]),
       columns: [
@@ -212,14 +220,64 @@ export function PeopleListPage({ type }: Props) {
         <table className={tableWideClass}>
           <thead>
             <tr className={theadRowClass}>
-              <th className={thClass}>Nominativo</th>
-              <th className={thClass}>Codice fiscale</th>
-              <th className={thClass}>Nato/a il</th>
-              <th className={thClass}>Email</th>
-              <th className={thClass}>FAD</th>
-              <th className={thClass}>Telefono</th>
-              <th className={thClass}>Città</th>
-              {isStudent && <th className={thClass}>INPS</th>}
+              <SortableTh
+                label="Nominativo"
+                column="name"
+                activeKey={sortKey}
+                direction={sortDir}
+                onSort={toggleSort}
+              />
+              <SortableTh
+                label="Codice fiscale"
+                column="tax_code"
+                activeKey={sortKey}
+                direction={sortDir}
+                onSort={toggleSort}
+              />
+              <SortableTh
+                label="Nato/a il"
+                column="birth_date"
+                activeKey={sortKey}
+                direction={sortDir}
+                onSort={toggleSort}
+              />
+              <SortableTh
+                label="Email"
+                column="email"
+                activeKey={sortKey}
+                direction={sortDir}
+                onSort={toggleSort}
+              />
+              <SortableTh
+                label="FAD"
+                column="fad"
+                activeKey={sortKey}
+                direction={sortDir}
+                onSort={toggleSort}
+              />
+              <SortableTh
+                label="Telefono"
+                column="phone"
+                activeKey={sortKey}
+                direction={sortDir}
+                onSort={toggleSort}
+              />
+              <SortableTh
+                label="Città"
+                column="city"
+                activeKey={sortKey}
+                direction={sortDir}
+                onSort={toggleSort}
+              />
+              {isStudent && (
+                <SortableTh
+                  label="INPS"
+                  column="inps"
+                  activeKey={sortKey}
+                  direction={sortDir}
+                  onSort={toggleSort}
+                />
+              )}
             </tr>
           </thead>
           <tbody>
@@ -271,7 +329,7 @@ export function PeopleListPage({ type }: Props) {
         page={page}
         pages={pages}
         pageSize={pageSize}
-        total={filtered.length}
+        total={sorted.length}
         onPage={setPage}
       />
     </div>
