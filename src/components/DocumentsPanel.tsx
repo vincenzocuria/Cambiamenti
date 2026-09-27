@@ -10,6 +10,7 @@ import {
 import { listPersonCourses } from '../services/enrollments'
 import { listCourses } from '../services/courses'
 import { categoryLabels, categoryOptions } from '../data/documentCategories'
+import { DOCUMENT_FILE_ACCEPT } from '../lib/documentFileTypes'
 import { documentPersonType, isStaffType } from '../data/personTypes'
 import { fmtBytes, fmtDate } from '../lib/format'
 import { DangerButton, PrimaryButton } from './Buttons'
@@ -61,13 +62,14 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
   const needsCourseLink = category === 'module' || category === 'appointment'
 
   async function handleUpload() {
-    const file = fileRef.current?.files?.[0]
-    if (!file) {
+    const files = Array.from(fileRef.current?.files ?? [])
+    if (files.length === 0) {
       setError('Seleziona un file da caricare')
       return
     }
     setBusy(true)
     setError('')
+    const failures: string[] = []
     try {
       const linkedCourse =
         props.mode === 'course'
@@ -76,17 +78,34 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
             ? courseId
             : null
 
-      await uploadDocument({
-        personType: props.mode === 'person' ? documentPersonType(props.personType) : null,
-        personId: props.mode === 'person' ? props.personId : null,
-        courseId: linkedCourse,
-        category,
-        title: title || (category === 'curriculum' ? 'Curriculum' : ''),
-        file,
-      })
-      if (fileRef.current) fileRef.current.value = ''
-      setTitle('')
+      for (const file of files) {
+        const fileTitle =
+          files.length === 1
+            ? title || (category === 'curriculum' ? 'Curriculum' : '')
+            : title
+              ? `${title} — ${file.name}`
+              : ''
+        try {
+          await uploadDocument({
+            personType: props.mode === 'person' ? documentPersonType(props.personType) : null,
+            personId: props.mode === 'person' ? props.personId : null,
+            courseId: linkedCourse,
+            category,
+            title: fileTitle,
+            file,
+          })
+        } catch (err) {
+          failures.push(
+            `${file.name}: ${err instanceof Error ? err.message : 'Errore durante il caricamento'}`,
+          )
+        }
+      }
+      if (failures.length < files.length) {
+        if (fileRef.current) fileRef.current.value = ''
+        setTitle('')
+      }
       await reload()
+      if (failures.length) setError(failures.join(' '))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Errore durante il caricamento')
     } finally {
@@ -160,9 +179,13 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
           <input
             ref={fileRef}
             type="file"
-            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt,.html"
+            multiple
+            accept={DOCUMENT_FILE_ACCEPT}
             className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-indigo-700 hover:file:bg-indigo-100"
           />
+          <span className="mt-1 block text-xs text-slate-400">
+            PDF, Word, Excel, immagini, testo o RAR. Puoi selezionare più file.
+          </span>
         </label>
 
         <PrimaryButton type="button" onClick={() => void handleUpload()} disabled={busy}>

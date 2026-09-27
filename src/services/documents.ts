@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { documentContentType } from '../lib/documentFileTypes'
 import { buildDocumentStoragePath } from '../lib/documentStoragePath'
 import type { DocumentCategory, DocumentRow, PersonType } from '../types/db'
 
@@ -41,6 +42,11 @@ export async function uploadDocument(params: {
 
   if (!personId && !courseId) throw new Error('Indica almeno una persona o un corso')
 
+  const contentType = documentContentType(file)
+  if (!contentType) {
+    throw new Error(`Formato non consentito: ${file.name}. Usa PDF, Word, Excel, immagini, testo o RAR.`)
+  }
+
   const path = buildDocumentStoragePath({
     personType,
     personId,
@@ -49,7 +55,7 @@ export async function uploadDocument(params: {
   })
 
   const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, {
-    contentType: file.type || 'application/octet-stream',
+    contentType,
   })
   if (uploadError) throw uploadError
 
@@ -65,7 +71,7 @@ export async function uploadDocument(params: {
       template_id: templateId,
       file_name: file.name,
       storage_path: path,
-      mime_type: file.type,
+      mime_type: contentType,
       size_bytes: file.size,
       uploaded_by: userData.user?.id ?? null,
     })
