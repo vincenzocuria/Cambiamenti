@@ -2,6 +2,7 @@ export interface ResendInput {
   to: string[]
   subject: string
   html: string
+  text?: string
 }
 
 export async function sendViaResend(input: ResendInput): Promise<void> {
@@ -23,6 +24,7 @@ export async function sendViaResend(input: ResendInput): Promise<void> {
       to: input.to,
       subject: input.subject,
       html: input.html,
+      ...(input.text ? { text: input.text } : {}),
     }),
   })
 

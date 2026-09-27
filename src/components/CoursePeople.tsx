@@ -8,16 +8,18 @@ import { fullName } from '../lib/format'
 import { DangerButton, SecondaryButton } from './Buttons'
 import { EmailLink, WhatsAppLink } from './ContactLinks'
 import { PersonForm } from './PersonForm'
+import { FadShareActions } from './FadShareActions'
 
 interface Props {
   courseId: string
   type: PersonType
   /** Personale già assegnato a un qualsiasi ruolo sul corso. */
   takenPersonIds?: string[]
+  courseLabel?: string
   onChanged?: () => void
 }
 
-export function CoursePeople({ courseId, type, takenPersonIds, onChanged }: Props) {
+export function CoursePeople({ courseId, type, takenPersonIds, courseLabel, onChanged }: Props) {
   const [enrolled, setEnrolled] = useState<Person[]>([])
   const [all, setAll] = useState<Person[]>([])
   const [selected, setSelected] = useState('')
@@ -162,6 +164,7 @@ export function CoursePeople({ courseId, type, takenPersonIds, onChanged }: Prop
                     {p.email ? <EmailLink value={p.email} className="text-xs" /> : null}
                   </p>
                 )}
+                <FadShareActions person={p} courseLabel={courseLabel} compact />
               </div>
               <DangerButton onClick={() => void handleRemove(p.id)}>Rimuovi</DangerButton>
             </li>

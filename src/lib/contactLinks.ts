@@ -1,8 +1,15 @@
-/** URL mailto: se l'email è valida. */
-export function mailtoUrl(email: string): string | null {
+/** URL mailto: se l'email è valida. Oggetto e testo sono opzionali. */
+export function mailtoUrl(
+  email: string,
+  extra?: { subject?: string; body?: string },
+): string | null {
   const value = email.trim()
   if (!value || !value.includes('@')) return null
-  return `mailto:${value}`
+  const params = new URLSearchParams()
+  if (extra?.subject) params.set('subject', extra.subject)
+  if (extra?.body) params.set('body', extra.body)
+  const query = params.toString()
+  return query ? `mailto:${value}?${query}` : `mailto:${value}`
 }
 
 /**
@@ -29,8 +36,11 @@ export function toWhatsAppDigits(phone: string): string | null {
   return digits
 }
 
-/** URL WhatsApp Web/Desktop: https://wa.me/39… */
-export function whatsappUrl(phone: string): string | null {
+/** URL WhatsApp Web/Desktop: https://wa.me/39… Il testo precompila la chat. */
+export function whatsappUrl(phone: string, text?: string): string | null {
   const digits = toWhatsAppDigits(phone)
-  return digits ? `https://wa.me/${digits}` : null
+  if (!digits) return null
+  const base = `https://wa.me/${digits}`
+  const message = text?.trim()
+  return message ? `${base}?text=${encodeURIComponent(message)}` : base
 }

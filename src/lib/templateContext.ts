@@ -3,6 +3,7 @@ import { inpsBenefitCheck, inpsBenefitLabel } from '../data/inpsBenefits'
 import { school } from '../data/school'
 import type { Course, Person, PersonType } from '../types/db'
 import { fmtDate, fullName } from './format'
+import { FAD_LOGIN_URL } from './fadLogin'
 
 function personVars(person: Person, prefix: string): Record<string, string> {
   const phoneEmail = [person.phone, person.email].filter(Boolean).join(' / ')
@@ -25,6 +26,7 @@ function personVars(person: Person, prefix: string): Record<string, string> {
     [`${prefix}.email`]: person.email,
     [`${prefix}.email_fad`]: person.fad_email || person.email,
     [`${prefix}.password_fad`]: person.fad_password,
+    [`${prefix}.link_fad`]: FAD_LOGIN_URL,
     [`${prefix}.telefono`]: person.phone,
     [`${prefix}.telefono_email`]: phoneEmail,
     [`${prefix}.iban`]: person.iban,
@@ -55,6 +57,7 @@ export function buildTemplateContext(input: {
     'scuola.email': school.email,
     'scuola.telefono': school.phone,
     'scuola.sdi': school.sdiCode,
+    'fad.link': FAD_LOGIN_URL,
     oggi: fmtDate(new Date().toISOString()),
   }
 

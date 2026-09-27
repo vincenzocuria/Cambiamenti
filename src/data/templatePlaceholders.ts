@@ -41,6 +41,7 @@ export const templatePlaceholderGroups = [
       'persona.email',
       'persona.email_fad',
       'persona.password_fad',
+      'persona.link_fad',
       'persona.telefono',
       'persona.telefono_email',
       'persona.iban',
@@ -77,6 +78,10 @@ export const templatePlaceholderGroups = [
       'amministrativo.nome_completo',
       'amministrativo.cf',
     ],
+  },
+  {
+    title: 'Piattaforma FAD',
+    items: ['fad.link'],
   },
   {
     title: 'Date',

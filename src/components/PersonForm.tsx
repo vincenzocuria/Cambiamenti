@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react'
 import type { Person, PersonInput, PersonType } from '../types/db'
 import { inpsBenefitOptions } from '../data/inpsBenefits'
 import { deriveBankInfo, normalizeIban } from '../lib/iban'
+import { FAD_LOGIN_URL } from '../lib/fadLogin'
 import { TextField, SelectField, TextAreaField } from './Field'
 import { PasswordField } from './PasswordField'
 import { PrimaryButton, SecondaryButton } from './Buttons'
@@ -142,6 +143,17 @@ export function PersonForm({ initial, personType, onSave, onCancel }: Props) {
           autoComplete="new-password"
           hint="Credenziali della piattaforma e-learning (non del gestionale)"
         />
+        <p className="col-span-full text-xs text-slate-500">
+          Accesso piattaforma:{' '}
+          <a
+            href={FAD_LOGIN_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="break-all text-indigo-600 hover:underline"
+          >
+            {FAD_LOGIN_URL}
+          </a>
+        </p>
       </Section>
 
       {isStudent && (

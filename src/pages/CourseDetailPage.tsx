@@ -17,6 +17,8 @@ import { BulkGenerateDocumentsForm } from '../components/BulkGenerateDocumentsFo
 import { DangerButton, SecondaryButton } from '../components/Buttons'
 import { courseStatusMeta, isCourseStatus } from '../data/courseStatus'
 import { takenStaffIds } from '../lib/takenStaffIds'
+import { formatCourseShareLabel } from '../lib/fadShareMessage'
+import { FadShareBulk } from '../components/FadShareBulk'
 
 const genRoles: { type: PersonType; label: string }[] = [
   { type: 'teacher', label: 'Docente' },
@@ -83,6 +85,8 @@ export function CourseDetailPage() {
   }, [id])
 
   if (!id || !course) return <p className="text-slate-400">Caricamento…</p>
+
+  const courseLabel = formatCourseShareLabel(course)
 
   async function handleSave(input: CourseInput) {
     const updated = await updateCourse(id!, input)
@@ -154,22 +158,32 @@ export function CourseDetailPage() {
           courseId={id}
           type="teacher"
           takenPersonIds={staffTakenIds}
+          courseLabel={courseLabel}
           onChanged={() => void reloadStaff()}
         />
         <CoursePeople
           courseId={id}
           type="tutor"
           takenPersonIds={staffTakenIds}
+          courseLabel={courseLabel}
           onChanged={() => void reloadStaff()}
         />
         <CoursePeople
           courseId={id}
           type="admin_staff"
           takenPersonIds={staffTakenIds}
+          courseLabel={courseLabel}
           onChanged={() => void reloadStaff()}
         />
-        <CoursePeople courseId={id} type="student" onChanged={() => void reloadStaff()} />
+        <CoursePeople
+          courseId={id}
+          type="student"
+          courseLabel={courseLabel}
+          onChanged={() => void reloadStaff()}
+        />
       </div>
+
+      <FadShareBulk peopleByType={peopleByType} courseLabel={courseLabel} />
 
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
