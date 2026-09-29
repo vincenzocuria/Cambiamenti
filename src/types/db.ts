@@ -33,11 +33,17 @@ export interface Course {
   start_date: string | null
   end_date: string | null
   duration_hours: number | null
+  moodle_course_id: number | null
+  moodle_bbb_id: number | null
+  moodle_shortname: string
   created_at: string
   updated_at: string
 }
 
-export type CourseInput = Omit<Course, 'id' | 'created_at' | 'updated_at'>
+export type CourseInput = Omit<
+  Course,
+  'id' | 'created_at' | 'updated_at' | 'moodle_course_id' | 'moodle_bbb_id' | 'moodle_shortname'
+>
 
 export interface CalendarEvent {
   id: string
@@ -48,11 +54,15 @@ export interface CalendarEvent {
   room: string
   notes: string
   external_uid: string
+  moodle_event_id: number | null
   created_at: string
   updated_at: string
 }
 
-export type CalendarEventInput = Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>
+export type CalendarEventInput = Omit<
+  CalendarEvent,
+  'id' | 'created_at' | 'updated_at' | 'moodle_event_id'
+>
 
 /** Anagrafica o ruolo sul corso. `staff` = personale unificato; teacher/tutor/admin_staff = ruoli. */
 export type PersonType = 'student' | 'staff' | 'teacher' | 'tutor' | 'admin_staff'

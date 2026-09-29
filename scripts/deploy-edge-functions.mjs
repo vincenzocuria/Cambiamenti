@@ -30,6 +30,7 @@ const functions = [
   { name: 'send-notification-email', verifyJwt: false },
   { name: 'send-fad-credentials', verifyJwt: true },
   { name: 'check-doc-expiry', verifyJwt: false },
+  { name: 'sync-fad-course', verifyJwt: true },
 ]
 
 for (const fn of functions) {
@@ -64,6 +65,12 @@ if (resendKey && resendKey !== 're_INCOLLA_API_KEY') {
     process.env.CRON_SECRET?.trim() ||
     process.env.NOTIFICATION_CRON_SECRET?.trim()
   if (cron) pairs.CRON_SECRET = cron
+
+  loadEnvFile(path.join(root, '.env'))
+  for (const key of ['MOODLE_URL', 'MOODLE_WS_TOKEN', 'MOODLE_CATEGORY_ID']) {
+    const value = process.env[key]?.trim()
+    if (value) pairs[key] = value
+  }
 
   console.log('Imposto secrets edge functions...')
   const { writeFileSync, unlinkSync } = await import('node:fs')

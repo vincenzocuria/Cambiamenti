@@ -19,6 +19,7 @@ import { courseStatusMeta, isCourseStatus } from '../data/courseStatus'
 import { takenStaffIds } from '../lib/takenStaffIds'
 import { formatCourseShareLabel } from '../lib/fadShareMessage'
 import { FadShareBulk } from '../components/FadShareBulk'
+import { FadMoodleSync } from '../components/FadMoodleSync'
 
 const genRoles: { type: PersonType; label: string }[] = [
   { type: 'teacher', label: 'Docente' },
@@ -191,6 +192,8 @@ export function CourseDetailPage() {
       </div>
 
       <FadShareBulk peopleByType={peopleByType} courseLabel={courseLabel} />
+
+      <FadMoodleSync courseId={id} />
 
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
