@@ -7,6 +7,8 @@ type Props = {
   person: Pick<Person, 'first_name' | 'email' | 'phone' | 'fad_email' | 'fad_password'>
   courseLabel?: string
   compact?: boolean
+  /** Se false, mostra solo «Apri FAD» (invio credenziali altrove, es. pannello in massa). */
+  shareChannels?: boolean
 }
 
 const buttonClass =
@@ -14,11 +16,16 @@ const buttonClass =
 
 const compactClass = 'text-xs text-indigo-600 hover:underline'
 
-export function FadShareActions({ person, courseLabel, compact = false }: Props) {
+export function FadShareActions({
+  person,
+  courseLabel,
+  compact = false,
+  shareChannels = true,
+}: Props) {
   const share = fadShareForPerson(person, courseLabel)
   const username = effectiveFadEmail(person)
   if (!share && !username) return null
-  if (!share) {
+  if (!share || !shareChannels) {
     return (
       <FadLoginLink
         username={username}

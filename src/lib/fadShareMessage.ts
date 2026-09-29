@@ -2,6 +2,7 @@ import type { Person } from '../types/db'
 import { mailtoUrl, whatsappUrl } from './contactLinks'
 import { effectiveFadEmail, hasCompleteFadCredentials } from './fadCredentials'
 import { fadLoginUrl } from './fadLogin'
+import { formatCourseEdition } from './format'
 
 export const FAD_SHARE_SUBJECT = 'Credenziali accesso FAD — Cambia-Menti Formazione'
 
@@ -40,7 +41,7 @@ export function fadCredentialsText(input: {
 }
 
 export function formatCourseShareLabel(course: { name: string; edition?: string | null }): string {
-  const edition = course.edition?.trim()
+  const edition = formatCourseEdition(course.edition)
   return edition ? `${course.name} · ${edition}` : course.name
 }
 

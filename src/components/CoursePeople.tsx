@@ -17,10 +17,22 @@ interface Props {
   /** Personale già assegnato a un qualsiasi ruolo sul corso. */
   takenPersonIds?: string[]
   courseLabel?: string
+  /** Su false non ripete il messaggio sull’anagrafica condivisa (mostrato una volta in pagina). */
+  showStaffPoolHint?: boolean
+  /** Su false le credenziali si inviano dal pannello in massa sotto. */
+  fadShareChannels?: boolean
   onChanged?: () => void
 }
 
-export function CoursePeople({ courseId, type, takenPersonIds, courseLabel, onChanged }: Props) {
+export function CoursePeople({
+  courseId,
+  type,
+  takenPersonIds,
+  courseLabel,
+  showStaffPoolHint = true,
+  fadShareChannels = true,
+  onChanged,
+}: Props) {
   const [enrolled, setEnrolled] = useState<Person[]>([])
   const [all, setAll] = useState<Person[]>([])
   const [selected, setSelected] = useState('')
@@ -114,7 +126,7 @@ export function CoursePeople({ courseId, type, takenPersonIds, courseLabel, onCh
               Mancano ancora {meta.courseMin - enrolled.length}
             </p>
           )}
-          {isStaffType(type) && (
+          {isStaffType(type) && showStaffPoolHint && (
             <p className="text-xs text-slate-400">
               Stessa anagrafica del personale: su questo corso ogni figura ha un solo ruolo.
             </p>
@@ -181,7 +193,12 @@ export function CoursePeople({ courseId, type, takenPersonIds, courseLabel, onCh
                     {p.email ? <EmailLink value={p.email} className="text-xs" /> : null}
                   </p>
                 )}
-                <FadShareActions person={p} courseLabel={courseLabel} compact />
+                <FadShareActions
+                  person={p}
+                  courseLabel={courseLabel}
+                  compact
+                  shareChannels={fadShareChannels}
+                />
               </div>
               <DangerButton onClick={() => void handleRemove(p.id)}>Rimuovi</DangerButton>
             </li>

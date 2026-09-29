@@ -5,7 +5,7 @@ import { deleteCourse, getCourse, updateCourse } from '../services/courses'
 import { listCoursePeople } from '../services/enrollments'
 import { fetchCourseStaffingCounts } from '../services/courseStaffing'
 import type { CourseStaffingCounts } from '../data/courseStaffing'
-import { fmtDate, fullName } from '../lib/format'
+import { fmtDate, formatCourseEdition, fullName } from '../lib/format'
 import { CourseForm } from '../components/CourseForm'
 import { CoursePeople } from '../components/CoursePeople'
 import { CourseStaffingStatus } from '../components/CourseStaffingStatus'
@@ -87,6 +87,7 @@ export function CourseDetailPage() {
   if (!id || !course) return <p className="text-slate-400">Caricamento…</p>
 
   const courseLabel = formatCourseShareLabel(course)
+  const editionLabel = formatCourseEdition(course.edition)
 
   async function handleSave(input: CourseInput) {
     const updated = await updateCourse(id!, input)
@@ -110,7 +111,7 @@ export function CourseDetailPage() {
           </Link>
           <h1 className="text-2xl font-bold text-slate-800">
             {course.name}{' '}
-            {course.edition && <span className="text-slate-400">· {course.edition}</span>}
+            {editionLabel && <span className="text-slate-400">· {editionLabel}</span>}
           </h1>
           <div className="mt-2 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -138,7 +139,6 @@ export function CourseDetailPage() {
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-4 rounded-2xl border border-slate-200 bg-white p-5 text-sm shadow-sm sm:grid-cols-3 lg:grid-cols-4">
-          <Info label="Stato" value={<CourseStatusBadge status={course.status} />} />
           <Info label="Codice" value={course.code || '—'} />
           <Info label="CUP" value={course.cup || '—'} />
           <Info label="Inizio" value={fmtDate(course.start_date)} />
@@ -153,32 +153,39 @@ export function CourseDetailPage() {
 
       <CourseStaffingStatus counts={staffing} />
 
+      <p className="text-xs text-slate-500">
+        Stessa anagrafica del personale: su questo corso ogni figura ha un solo ruolo.
+      </p>
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <CoursePeople
           courseId={id}
           type="teacher"
           takenPersonIds={staffTakenIds}
-          courseLabel={courseLabel}
+          showStaffPoolHint={false}
+          fadShareChannels={false}
           onChanged={() => void reloadStaff()}
         />
         <CoursePeople
           courseId={id}
           type="tutor"
           takenPersonIds={staffTakenIds}
-          courseLabel={courseLabel}
+          showStaffPoolHint={false}
+          fadShareChannels={false}
           onChanged={() => void reloadStaff()}
         />
         <CoursePeople
           courseId={id}
           type="admin_staff"
           takenPersonIds={staffTakenIds}
-          courseLabel={courseLabel}
+          showStaffPoolHint={false}
+          fadShareChannels={false}
           onChanged={() => void reloadStaff()}
         />
         <CoursePeople
           courseId={id}
           type="student"
-          courseLabel={courseLabel}
+          fadShareChannels={false}
           onChanged={() => void reloadStaff()}
         />
       </div>

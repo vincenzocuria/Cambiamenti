@@ -72,9 +72,9 @@ export function PersonForm({ initial, personType, onSave, onCancel }: Props) {
     setForm((f) => ({
       ...f,
       iban,
-      // Compila banca e BIC solo se ricavati dall'archivio ABI; restano modificabili
-      bank_name: info.valid && info.bankName ? info.bankName : f.bank_name,
-      bic: info.valid && info.bic ? info.bic : f.bic,
+      // Compila banca e BIC se ricavati dall'archivio ABI; svuota se IBAN vuoto o non valido
+      bank_name: !iban ? '' : info.valid && info.bankName ? info.bankName : f.bank_name,
+      bic: !iban ? '' : info.valid && info.bic ? info.bic : f.bic,
     }))
   }
 
@@ -178,7 +178,7 @@ export function PersonForm({ initial, personType, onSave, onCancel }: Props) {
           onChange={(e) => handleIbanChange(e.target.value)}
           hint={ibanHint}
           maxLength={34}
-          placeholder="IT60X0542811101000000123456"
+          placeholder="IT60… o coordinate ABI+CAB+conto (22 cifre)"
         />
         <TextField label="Banca" value={form.bank_name} onChange={(e) => set('bank_name', e.target.value)} />
         <TextField label="BIC / SWIFT" value={form.bic} onChange={(e) => set('bic', e.target.value.toUpperCase())} maxLength={11} />

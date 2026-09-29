@@ -13,3 +13,11 @@ export function fmtBytes(bytes: number): string {
 export function fullName(p: { first_name: string; last_name: string }): string {
   return `${p.last_name} ${p.first_name}`.trim()
 }
+
+/** Edizione da mostrare (es. import JForma con «1.» → «1»). */
+export function formatCourseEdition(edition: string | null | undefined): string {
+  const trimmed = edition?.trim()
+  if (!trimmed) return ''
+  const withoutTrailingDots = trimmed.replace(/\.+$/, '').trim()
+  return withoutTrailingDots || trimmed
+}
