@@ -39,6 +39,21 @@ export interface Course {
 
 export type CourseInput = Omit<Course, 'id' | 'created_at' | 'updated_at'>
 
+export interface CalendarEvent {
+  id: string
+  course_id: string | null
+  title: string
+  starts_at: string
+  ends_at: string
+  room: string
+  notes: string
+  external_uid: string
+  created_at: string
+  updated_at: string
+}
+
+export type CalendarEventInput = Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>
+
 /** Anagrafica o ruolo sul corso. `staff` = personale unificato; teacher/tutor/admin_staff = ruoli. */
 export type PersonType = 'student' | 'staff' | 'teacher' | 'tutor' | 'admin_staff'
 

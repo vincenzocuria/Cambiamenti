@@ -9,6 +9,7 @@ import { NotificationBell } from './NotificationBell'
 const links = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/corsi', label: 'Corsi' },
+  { to: '/import/jforma', label: 'Import JForma' },
   { to: '/alunni', label: 'Alunni' },
   { to: '/personale', label: 'Personale' },
   { to: '/template', label: 'Template' },

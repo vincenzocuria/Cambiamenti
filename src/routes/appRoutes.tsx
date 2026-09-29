@@ -13,6 +13,7 @@ import { UsersPage } from '../pages/UsersPage'
 import { TemplatesPage } from '../pages/TemplatesPage'
 import { TemplateEditPage } from '../pages/TemplateEditPage'
 import { RedirectToPersonale } from './RedirectToPersonale'
+import { JformaImportPage } from '../pages/JformaImportPage'
 
 function page(element: React.ReactNode, adminOnly = false) {
   return (
@@ -31,6 +32,7 @@ export function AppRoutes() {
       <Route path="/" element={page(<DashboardPage />)} />
       <Route path="/corsi" element={page(<CoursesPage />)} />
       <Route path="/corsi/:id" element={page(<CourseDetailPage />)} />
+      <Route path="/import/jforma" element={page(<JformaImportPage />)} />
       <Route path="/alunni" element={page(<PeopleListPage type="student" />)} />
       <Route path="/alunni/:id" element={page(<PersonDetailPage type="student" />)} />
       <Route path="/personale" element={page(<PeopleListPage type="staff" />)} />
