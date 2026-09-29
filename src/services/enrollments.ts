@@ -65,6 +65,14 @@ export async function listPersonCourses(type: PersonType, personId: string): Pro
   return [...byId.values()]
 }
 
+export async function addStudentsToCourse(courseId: string, studentIds: string[]): Promise<void> {
+  if (studentIds.length === 0) return
+  const { error } = await supabase
+    .from('course_students')
+    .insert(studentIds.map((student_id) => ({ course_id: courseId, student_id })))
+  if (error) throw error
+}
+
 export async function addToCourse(type: PersonType, courseId: string, personId: string): Promise<void> {
   if (type === 'student') {
     const { error } = await supabase

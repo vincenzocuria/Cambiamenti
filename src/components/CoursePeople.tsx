@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { Person, PersonInput, PersonType } from '../types/db'
-import { addToCourse, listCoursePeople, removeFromCourse } from '../services/enrollments'
+import { addStudentsToCourse, addToCourse, listCoursePeople, removeFromCourse } from '../services/enrollments'
 import { createPerson, listPeople } from '../services/people'
 import { isStaffType, metaFor } from '../data/personTypes'
 import { fullName } from '../lib/format'
@@ -9,6 +9,7 @@ import { DangerButton, SecondaryButton } from './Buttons'
 import { EmailLink, WhatsAppLink } from './ContactLinks'
 import { PersonForm } from './PersonForm'
 import { FadShareActions } from './FadShareActions'
+import { CourseStudentPicker } from './CourseStudentPicker'
 
 interface Props {
   courseId: string
@@ -47,6 +48,18 @@ export function CoursePeople({ courseId, type, takenPersonIds, courseLabel, onCh
     if (isStaffType(type) && taken.has(p.id)) return false
     return true
   })
+
+  async function handleAddStudents(ids: string[]) {
+    setError('')
+    try {
+      await addStudentsToCourse(courseId, ids)
+      await reload()
+      onChanged?.()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Associazione fallita')
+      throw err
+    }
+  }
 
   async function handleAdd() {
     if (!selected) return
@@ -125,23 +138,27 @@ export function CoursePeople({ courseId, type, takenPersonIds, courseLabel, onCh
         </div>
       )}
 
-      <div className="mb-3 flex gap-2">
-        <select
-          value={selected}
-          onChange={(e) => setSelected(e.target.value)}
-          className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none"
-        >
-          <option value="">— seleziona dal personale —</option>
-          {available.map((p) => (
-            <option key={p.id} value={p.id}>
-              {fullName(p)} {p.tax_code ? `(${p.tax_code})` : ''}
-            </option>
-          ))}
-        </select>
-        <SecondaryButton onClick={() => void handleAdd()} disabled={!selected}>
-          Associa come {meta.singular}
-        </SecondaryButton>
-      </div>
+      {type === 'student' ? (
+        <CourseStudentPicker people={available} onAssociate={handleAddStudents} />
+      ) : (
+        <div className="mb-3 flex gap-2">
+          <select
+            value={selected}
+            onChange={(e) => setSelected(e.target.value)}
+            className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none"
+          >
+            <option value="">— seleziona dal personale —</option>
+            {available.map((p) => (
+              <option key={p.id} value={p.id}>
+                {fullName(p)} {p.tax_code ? `(${p.tax_code})` : ''}
+              </option>
+            ))}
+          </select>
+          <SecondaryButton onClick={() => void handleAdd()} disabled={!selected}>
+            Associa come {meta.singular}
+          </SecondaryButton>
+        </div>
+      )}
 
       {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
 
