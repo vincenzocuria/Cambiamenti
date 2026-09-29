@@ -1,5 +1,9 @@
 import { supabase } from '../lib/supabase'
-import { documentContentType } from '../lib/documentFileTypes'
+import {
+  documentContentType,
+  fileForDocumentUpload,
+  formatDocumentUploadError,
+} from '../lib/documentFileTypes'
 import { buildDocumentStoragePath } from '../lib/documentStoragePath'
 import type { DocumentCategory, DocumentRow, PersonType } from '../types/db'
 
@@ -44,8 +48,12 @@ export async function uploadDocument(params: {
 
   const contentType = documentContentType(file)
   if (!contentType) {
-    throw new Error(`Formato non consentito: ${file.name}. Usa PDF, Word, Excel, immagini, testo o RAR.`)
+    throw new Error(
+      `Formato non consentito: ${file.name}. Usa PDF, Word, Excel, ZIP, RAR, immagini o testo.`,
+    )
   }
+
+  const uploadFile = fileForDocumentUpload(file, contentType)
 
   const path = buildDocumentStoragePath({
     personType,
@@ -54,10 +62,12 @@ export async function uploadDocument(params: {
     fileName: file.name,
   })
 
-  const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, {
+  const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, uploadFile, {
     contentType,
   })
-  if (uploadError) throw uploadError
+  if (uploadError) {
+    throw new Error(formatDocumentUploadError(uploadError, file.name))
+  }
 
   const { data: userData } = await supabase.auth.getUser()
   const { data, error } = await supabase

@@ -10,7 +10,7 @@ import {
 import { listPersonCourses } from '../services/enrollments'
 import { listCourses } from '../services/courses'
 import { categoryLabels, categoryOptions } from '../data/documentCategories'
-import { DOCUMENT_FILE_ACCEPT } from '../lib/documentFileTypes'
+import { DOCUMENT_FILE_ACCEPT, formatDocumentUploadError } from '../lib/documentFileTypes'
 import { documentPersonType, isStaffType } from '../data/personTypes'
 import { fmtBytes, fmtDate } from '../lib/format'
 import { DangerButton, PrimaryButton } from './Buttons'
@@ -41,7 +41,7 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
   const [courseId, setCourseId] = useState(props.mode === 'course' ? props.courseId : '')
   const [title, setTitle] = useState('')
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const [errors, setErrors] = useState<string[]>([])
   const fileRef = useRef<HTMLInputElement>(null)
 
   async function reload() {
@@ -64,11 +64,11 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
   async function handleUpload() {
     const files = Array.from(fileRef.current?.files ?? [])
     if (files.length === 0) {
-      setError('Seleziona un file da caricare')
+      setErrors(['Seleziona un file da caricare'])
       return
     }
     setBusy(true)
-    setError('')
+    setErrors([])
     const failures: string[] = []
     try {
       const linkedCourse =
@@ -96,7 +96,7 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
           })
         } catch (err) {
           failures.push(
-            `${file.name}: ${err instanceof Error ? err.message : 'Errore durante il caricamento'}`,
+            err instanceof Error ? err.message : formatDocumentUploadError(err, file.name),
           )
         }
       }
@@ -105,9 +105,11 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
         setTitle('')
       }
       await reload()
-      if (failures.length) setError(failures.join(' '))
+      if (failures.length) setErrors(failures)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Errore durante il caricamento')
+      setErrors([
+        err instanceof Error ? err.message : 'Errore durante il caricamento',
+      ])
     } finally {
       setBusy(false)
     }
@@ -184,7 +186,7 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
             className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-indigo-700 hover:file:bg-indigo-100"
           />
           <span className="mt-1 block text-xs text-slate-400">
-            PDF, Word, Excel, immagini, testo o RAR. Puoi selezionare più file.
+            PDF, Word, Excel, ZIP, RAR, immagini o testo. Puoi selezionare più file.
           </span>
         </label>
 
@@ -192,7 +194,19 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
           {busy ? 'Caricamento…' : 'Carica'}
         </PrimaryButton>
       </div>
-      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+      {errors.length > 0 && (
+        <div
+          role="alert"
+          className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
+        >
+          <p className="font-medium">Caricamento non riuscito</p>
+          <ul className="mt-1 list-disc space-y-1 pl-5">
+            {errors.map((msg) => (
+              <li key={msg}>{msg}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {docs.length === 0 ? (
         <p className="text-sm text-slate-400">Nessun documento caricato.</p>
