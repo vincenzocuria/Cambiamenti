@@ -21,6 +21,7 @@ export const ABI_BANKS: Record<string, BankInfo> = {
   '05696': { name: 'Banca Popolare di Sondrio', bic: 'POSOIT22' },
   '06230': { name: 'Crédit Agricole Italia', bic: 'CRPPIT2P' },
   '07601': { name: 'Poste Italiane — BancoPosta', bic: 'BPPIITRR' },
+  '36081': { name: 'Postepay S.p.A. (es. Postepay Evolution)', bic: 'PPAYITR1' },
 }
 
 export function lookupAbi(abi: string): BankInfo | null {
