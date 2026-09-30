@@ -1,3 +1,9 @@
+const ZIP_MIME_TYPES = [
+  'application/zip',
+  'application/x-zip-compressed',
+  'application/x-zip',
+] as const
+
 const MIME_BY_EXT: Record<string, string> = {
   pdf: 'application/pdf',
   doc: 'application/msword',
@@ -71,6 +77,7 @@ async function looksLikeDigitalSignatureContainer(file: File): Promise<boolean> 
   const zipMagic = head[0] === 0x50 && head[1] === 0x4b
   if (zipMagic) return false
 
+  if (ext === 'zip' && zipMagic) return false
   if (ext === 'png' && head[0] === 0x89 && head[1] === 0x50) return false
   if ((ext === 'jpg' || ext === 'jpeg') && head[0] === 0xff && head[1] === 0xd8) return false
   if (ext === 'doc' && head[0] === 0xd0 && head[1] === 0xcf) return false
@@ -88,10 +95,18 @@ export async function digitalSignatureRejectionReason(file: File): Promise<strin
   return null
 }
 
+function contentTypeForExtension(file: File, ext: string): string | null {
+  if (ext === 'zip') {
+    if ((ZIP_MIME_TYPES as readonly string[]).includes(file.type)) return file.type
+    return 'application/zip'
+  }
+  return MIME_BY_EXT[ext] ?? null
+}
+
 /** Tipo inviato a Storage, ricavato dall'estensione (i browser spesso lasciano vuoto .rar e .xlsx). */
 export function documentContentType(file: File): string | null {
   if (fileNameHasDigitalSignatureExtension(file.name)) return null
-  return MIME_BY_EXT[extensionOf(file.name)] ?? null
+  return contentTypeForExtension(file, extensionOf(file.name))
 }
 
 export async function validateDocumentForUpload(
