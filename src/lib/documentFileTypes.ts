@@ -20,6 +20,8 @@ const MIME_BY_EXT: Record<string, string> = {
   rar: 'application/vnd.rar',
 }
 
+const ZIP_FAMILY_EXT = new Set(['zip', 'docx', 'xlsx'])
+
 const DIGITAL_SIGNATURE_EXT = new Set(['p7m', 'p7s', 'p7c', 'm7m'])
 
 export const DIGITAL_SIGNATURE_REJECT_MESSAGE =
@@ -37,21 +39,49 @@ function extensionOf(fileName: string): string {
 
 export function fileNameHasDigitalSignatureExtension(fileName: string): boolean {
   const parts = fileName.toLowerCase().split('.')
-  return parts.slice(1).some((ext) => DIGITAL_SIGNATURE_EXT.has(ext))
+  if (parts.length < 2) return false
+  const finalExt = parts[parts.length - 1]
+  if (DIGITAL_SIGNATURE_EXT.has(finalExt)) return true
+  for (let i = 1; i < parts.length - 1; i++) {
+    if (DIGITAL_SIGNATURE_EXT.has(parts[i])) return true
+  }
+  return false
 }
 
 async function readFileHead(file: File, bytes: number): Promise<Uint8Array> {
-  const buf = await file.slice(0, bytes).arrayBuffer()
+  const size = Math.min(file.size, bytes)
+  if (size <= 0) return new Uint8Array(0)
+  const buf = await file.slice(0, size).arrayBuffer()
   return new Uint8Array(buf)
 }
 
-function looksLikePkcs7Der(head: Uint8Array): boolean {
-  if (head.length < 2 || head[0] !== 0x30) return false
-  const len = head[1]
-  if (len < 0x80) return true
-  if (len === 0x81) return head.length >= 3
-  if (len === 0x82) return head.length >= 4
+/** Cerca intestazione ZIP (anche dopo prefisso SFX). */
+function containsZipMagic(head: Uint8Array): boolean {
+  for (let i = 0; i <= head.length - 4; i++) {
+    if (head[i] !== 0x50 || head[i + 1] !== 0x4b) continue
+    const sig = head[i + 2]
+    if (sig === 0x03 || sig === 0x05 || sig === 0x07) return true
+  }
   return false
+}
+
+function looksLikeRarMagic(head: Uint8Array): boolean {
+  return (
+    head.length >= 7 &&
+    head[0] === 0x52 &&
+    head[1] === 0x61 &&
+    head[2] === 0x72 &&
+    head[3] === 0x21 &&
+    head[4] === 0x1a &&
+    (head[5] === 0x07 || head[5] === 0x00)
+  )
+}
+
+/** PKCS#7/CAdES in DER: SEQUENCE lunga (tipica dei file .p7m), non ogni 0x30 generico. */
+function looksLikePkcs7DerStrict(head: Uint8Array): boolean {
+  if (head.length < 4 || head[0] !== 0x30) return false
+  const len = head[1]
+  return len === 0x81 || len === 0x82
 }
 
 function looksLikePkcs7Pem(head: Uint8Array): boolean {
@@ -60,29 +90,30 @@ function looksLikePkcs7Pem(head: Uint8Array): boolean {
 }
 
 async function looksLikeDigitalSignatureContainer(file: File): Promise<boolean> {
-  const head = await readFileHead(file, 512)
+  const ext = extensionOf(file.name)
+  const head = await readFileHead(file, 65536)
+
   if (head.length === 0) return false
   if (looksLikePkcs7Pem(head)) return true
 
-  const ext = extensionOf(file.name)
+  if (ZIP_FAMILY_EXT.has(ext) && containsZipMagic(head)) return false
+  if (ext === 'rar' && looksLikeRarMagic(head)) return false
+
   const ascii = new TextDecoder('ascii', { fatal: false }).decode(head.slice(0, 8))
 
   if (ext === 'pdf') {
-    if (!ascii.startsWith('%PDF')) {
-      return looksLikePkcs7Der(head) || head[0] === 0x30
-    }
-    return false
+    if (ascii.startsWith('%PDF')) return false
+    return looksLikePkcs7DerStrict(head)
   }
 
-  const zipMagic = head[0] === 0x50 && head[1] === 0x4b
-  if (zipMagic) return false
-
-  if (ext === 'zip' && zipMagic) return false
   if (ext === 'png' && head[0] === 0x89 && head[1] === 0x50) return false
   if ((ext === 'jpg' || ext === 'jpeg') && head[0] === 0xff && head[1] === 0xd8) return false
   if (ext === 'doc' && head[0] === 0xd0 && head[1] === 0xcf) return false
 
-  return looksLikePkcs7Der(head)
+  // Altri formati ammessi: il blocco resta sul nome (.p7m nel percorso), non sul contenuto.
+  if (MIME_BY_EXT[ext]) return false
+
+  return false
 }
 
 export async function digitalSignatureRejectionReason(file: File): Promise<string | null> {
