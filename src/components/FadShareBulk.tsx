@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Person, PersonType } from '../types/db'
 import { metaFor } from '../data/personTypes'
 import { fullName } from '../lib/format'
+import { personSortKeys } from '../lib/sortPeople'
+import { usePeopleBrowse } from '../hooks/usePeopleBrowse'
+import { PersonBrowseBar } from './PersonBrowseBar'
 import { hasCompleteFadCredentials } from '../lib/fadCredentials'
 import { FAD_LOGIN_URL } from '../lib/fadLogin'
 import { fadShareForPerson, type FadShare } from '../lib/fadShareMessage'
@@ -39,6 +42,11 @@ export function FadShareBulk({ peopleByType, courseLabel }: Props) {
 
   const people = peopleByType[role] ?? emptyPeople
   const meta = metaFor(role)
+  const peopleBrowse = usePeopleBrowse(people)
+  const peopleSortKeys = useMemo(
+    () => (role === 'student' ? [...personSortKeys] : personSortKeys.filter((k) => k !== 'inps')),
+    [role],
+  )
   const peopleKey = people
     .map((person) =>
       [
@@ -52,14 +60,15 @@ export function FadShareBulk({ peopleByType, courseLabel }: Props) {
 
   const rows = useMemo(
     () =>
-      people.map((person) => ({
+      peopleBrowse.filtered.map((person) => ({
         person,
         share: fadShareForPerson(person, courseLabel),
       })),
-    [people, courseLabel],
+    [peopleBrowse.filtered, courseLabel],
   )
 
   useEffect(() => {
+    peopleBrowse.setSearch('')
     const ready = people
       .filter((person) => canReceive(fadShareForPerson(person, courseLabel)))
       .map((person) => person.id)
@@ -165,6 +174,18 @@ export function FadShareBulk({ peopleByType, courseLabel }: Props) {
       {people.length === 0 ? (
         <p className="text-sm text-slate-400">Nessun {meta.singular} associato a questo corso.</p>
       ) : (
+        <>
+          <div className="mb-2">
+            <PersonBrowseBar
+              search={peopleBrowse.search}
+              onSearch={peopleBrowse.setSearch}
+              sortKey={peopleBrowse.sortKey}
+              sortDir={peopleBrowse.sortDir}
+              onSortKey={peopleBrowse.setSortKey}
+              onSortDir={peopleBrowse.setSortDir}
+              sortKeys={peopleSortKeys}
+            />
+          </div>
         <ul className="max-h-80 divide-y divide-slate-100 overflow-auto rounded-lg border border-slate-200">
           {rows.map((row) => {
             const share = row.share
@@ -209,6 +230,10 @@ export function FadShareBulk({ peopleByType, courseLabel }: Props) {
             )
           })}
         </ul>
+        {rows.length === 0 && (
+          <p className="mt-2 text-sm text-slate-400">Nessun risultato per la ricerca.</p>
+        )}
+        </>
       )}
 
       <div className="mt-3 flex flex-wrap gap-2">

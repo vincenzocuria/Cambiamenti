@@ -1,4 +1,5 @@
 import { isCourseStaffRole } from '../data/personTypes'
+import { sortPeople } from '../lib/sortPeople'
 import { supabase } from '../lib/supabase'
 import { uniqueCourseRoleMessage } from '../lib/uniqueCourseRole'
 import type { Course, CourseStaffRole, Person, PersonType } from '../types/db'
@@ -24,9 +25,11 @@ export async function listCoursePeople(type: PersonType, courseId: string): Prom
       .select('person:students(*)')
       .eq('course_id', courseId)
     if (error) throw error
-    return (data as unknown as { person: Person }[])
-      .map((r) => r.person)
-      .sort((a, b) => (a.last_name + a.first_name).localeCompare(b.last_name + b.first_name))
+    return sortPeople(
+      (data as unknown as { person: Person }[]).map((r) => r.person),
+      'name',
+      'asc',
+    )
   }
 
   if (!isCourseStaffRole(type)) {
@@ -39,9 +42,11 @@ export async function listCoursePeople(type: PersonType, courseId: string): Prom
     .eq('course_id', courseId)
     .eq('role', type)
   if (error) throw error
-  return (data as unknown as { person: Person }[])
-    .map((r) => r.person)
-    .sort((a, b) => (a.last_name + a.first_name).localeCompare(b.last_name + b.first_name))
+  return sortPeople(
+    (data as unknown as { person: Person }[]).map((r) => r.person),
+    'name',
+    'asc',
+  )
 }
 
 export async function listPersonCourses(type: PersonType, personId: string): Promise<Course[]> {

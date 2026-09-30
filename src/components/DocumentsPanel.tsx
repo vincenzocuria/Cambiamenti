@@ -186,7 +186,8 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
             className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-indigo-700 hover:file:bg-indigo-100"
           />
           <span className="mt-1 block text-xs text-slate-400">
-            PDF, Word, Excel, ZIP, RAR, immagini o testo. Puoi selezionare più file.
+            PDF, Word, Excel, ZIP, RAR, immagini o testo. Non caricare file firmati digitalmente
+            (.p7m, .p7s). Puoi selezionare più file.
           </span>
         </label>
 

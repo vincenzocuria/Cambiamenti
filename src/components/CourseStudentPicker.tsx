@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Person } from '../types/db'
 import { fullName } from '../lib/format'
+import { personSortKeys } from '../lib/sortPeople'
 import { toggleId } from '../lib/toggleIdSet'
-import { fieldInputClass } from './Field'
+import { usePeopleBrowse } from '../hooks/usePeopleBrowse'
+import { PersonBrowseBar } from './PersonBrowseBar'
 import { IdCheckboxList } from './IdCheckboxList'
 import { SecondaryButton } from './Buttons'
 
@@ -12,18 +14,17 @@ type Props = {
 }
 
 export function CourseStudentPicker({ people, onAssociate }: Props) {
-  const [query, setQuery] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return people
-    return people.filter((p) => {
-      const hay = `${fullName(p)} ${p.tax_code ?? ''}`.toLowerCase()
-      return hay.includes(q)
-    })
-  }, [people, query])
+  const {
+    search,
+    setSearch,
+    sortKey,
+    setSortKey,
+    sortDir,
+    setSortDir,
+    filtered,
+  } = usePeopleBrowse(people)
 
   useEffect(() => {
     const allowed = new Set(people.map((person) => person.id))
@@ -40,7 +41,7 @@ export function CourseStudentPicker({ people, onAssociate }: Props) {
     try {
       await onAssociate(ids)
       setSelectedIds(new Set())
-      setQuery('')
+      setSearch('')
     } catch {
       // Il messaggio resta nel pannello del corso.
     } finally {
@@ -52,17 +53,20 @@ export function CourseStudentPicker({ people, onAssociate }: Props) {
 
   return (
     <div className="mb-3 space-y-2">
-      <input
-        type="search"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
+      <PersonBrowseBar
+        search={search}
+        onSearch={setSearch}
+        sortKey={sortKey}
+        sortDir={sortDir}
+        onSortKey={setSortKey}
+        onSortDir={setSortDir}
         placeholder="Cerca alunno per nome o codice fiscale"
-        className={fieldInputClass}
+        sortKeys={[...personSortKeys]}
       />
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-slate-500">
           {count} selezionat{count === 1 ? 'o' : 'i'}
-          {query.trim() ? ` · ${filtered.length} trovat${filtered.length === 1 ? 'o' : 'i'}` : ''}
+          {search.trim() ? ` · ${filtered.length} trovat${filtered.length === 1 ? 'o' : 'i'}` : ''}
         </p>
         <div className="flex gap-2">
           <SecondaryButton

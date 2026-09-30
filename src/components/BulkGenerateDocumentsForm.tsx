@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Course, DocumentRow, DocumentTemplate, Person, PersonType } from '../types/db'
 import { metaFor } from '../data/personTypes'
 import { fullName } from '../lib/format'
+import { personSortKeys } from '../lib/sortPeople'
+import { usePeopleBrowse } from '../hooks/usePeopleBrowse'
+import { PersonBrowseBar } from './PersonBrowseBar'
 import { allIds, toggleId } from '../lib/toggleIdSet'
 import { templateFits } from '../lib/templateFits'
 import { buildBulkDocumentJobs, filterBulkJobs } from '../lib/bulkDocumentJobs'
@@ -31,6 +34,11 @@ export function BulkGenerateDocumentsForm({ course, people, peopleType, onGenera
   const [failures, setFailures] = useState<string[]>([])
 
   const meta = metaFor(peopleType)
+  const peopleBrowse = usePeopleBrowse(people)
+  const peopleSortKeys = useMemo(
+    () => (peopleType === 'student' ? [...personSortKeys] : personSortKeys.filter((k) => k !== 'inps')),
+    [peopleType],
+  )
 
   useEffect(() => {
     listTemplates().then(setTemplates).catch(() => setTemplates([]))
@@ -222,11 +230,28 @@ export function BulkGenerateDocumentsForm({ course, people, peopleType, onGenera
               </SecondaryButton>
             </div>
           </div>
+          {people.length > 0 && (
+            <div className="mb-2">
+              <PersonBrowseBar
+                search={peopleBrowse.search}
+                onSearch={peopleBrowse.setSearch}
+                sortKey={peopleBrowse.sortKey}
+                sortDir={peopleBrowse.sortDir}
+                onSortKey={peopleBrowse.setSortKey}
+                onSortDir={peopleBrowse.setSortDir}
+                sortKeys={peopleSortKeys}
+              />
+            </div>
+          )}
           <IdCheckboxList
-            items={people.map((p) => ({ id: p.id, label: fullName(p) }))}
+            items={peopleBrowse.filtered.map((p) => ({ id: p.id, label: fullName(p) }))}
             selectedIds={personIds}
             onToggle={(id) => setPersonIds((cur) => toggleId(cur, id))}
-            emptyText={`Nessun${peopleType === 'student' ? ' alunno iscritto' : 'a figura assegnata'}.`}
+            emptyText={
+              people.length === 0
+                ? `Nessun${peopleType === 'student' ? ' alunno iscritto' : 'a figura assegnata'}.`
+                : 'Nessun risultato per la ricerca.'
+            }
           />
         </div>
       </div>

@@ -1,8 +1,8 @@
 import { supabase } from '../lib/supabase'
 import {
-  documentContentType,
   fileForDocumentUpload,
   formatDocumentUploadError,
+  validateDocumentForUpload,
 } from '../lib/documentFileTypes'
 import { buildDocumentStoragePath } from '../lib/documentStoragePath'
 import type { DocumentCategory, DocumentRow, PersonType } from '../types/db'
@@ -46,12 +46,9 @@ export async function uploadDocument(params: {
 
   if (!personId && !courseId) throw new Error('Indica almeno una persona o un corso')
 
-  const contentType = documentContentType(file)
-  if (!contentType) {
-    throw new Error(
-      `Formato non consentito: ${file.name}. Usa PDF, Word, Excel, ZIP, RAR, immagini o testo.`,
-    )
-  }
+  const validated = await validateDocumentForUpload(file)
+  if ('error' in validated) throw new Error(validated.error)
+  const { contentType } = validated
 
   const uploadFile = fileForDocumentUpload(file, contentType)
 

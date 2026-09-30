@@ -6,6 +6,7 @@ import { generateDocumentsBulk } from '../services/generateDocumentsBulk'
 import { buildBulkDocumentJobs } from '../lib/bulkDocumentJobs'
 import { metaFor } from '../data/personTypes'
 import { fullName } from '../lib/format'
+import { sortPeople } from '../lib/sortPeople'
 import { resolveTemplatePersonType, templateFits } from '../lib/templateFits'
 import { PrimaryButton, SecondaryButton } from './Buttons'
 import { SelectField } from './Field'
@@ -51,7 +52,10 @@ export function GenerateDocumentForm({
   }, [course?.id])
 
   const effectivePersonType = personType ?? peopleType ?? null
-  const selectablePeople = person ? [person] : people
+  const selectablePeople = useMemo(
+    () => (person ? [person] : sortPeople(people, 'name', 'asc')),
+    [person, people],
+  )
   const selectableCourses = course ? [course] : courses
   const canHaveCourse = Boolean(course) || courses.length > 0
   const canPickPerson = Boolean(person) || people.length > 0

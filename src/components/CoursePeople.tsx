@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { Person, PersonInput, PersonType } from '../types/db'
 import { addStudentsToCourse, addToCourse, listCoursePeople, removeFromCourse } from '../services/enrollments'
 import { createPerson, listPeople } from '../services/people'
 import { isStaffType, metaFor } from '../data/personTypes'
 import { fullName } from '../lib/format'
+import { personSortKeys } from '../lib/sortPeople'
+import { usePeopleBrowse } from '../hooks/usePeopleBrowse'
+import { PersonBrowseBar } from './PersonBrowseBar'
 import { DangerButton, SecondaryButton } from './Buttons'
 import { EmailLink, WhatsAppLink } from './ContactLinks'
 import { PersonForm } from './PersonForm'
@@ -54,12 +57,25 @@ export function CoursePeople({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId, type])
 
-  const taken = new Set(takenPersonIds ?? [])
-  const available = all.filter((p) => {
-    if (enrolled.some((e) => e.id === p.id)) return false
-    if (isStaffType(type) && taken.has(p.id)) return false
-    return true
-  })
+  const takenIds = takenPersonIds ?? []
+  const available = useMemo(
+    () => {
+      const taken = new Set(takenIds)
+      return all.filter((p) => {
+        if (enrolled.some((e) => e.id === p.id)) return false
+        if (isStaffType(type) && taken.has(p.id)) return false
+        return true
+      })
+    },
+    [all, enrolled, takenIds, type],
+  )
+
+  const sortKeys = useMemo(
+    () => (type === 'student' ? [...personSortKeys] : personSortKeys.filter((k) => k !== 'inps')),
+    [type],
+  )
+  const availableBrowse = usePeopleBrowse(available)
+  const enrolledBrowse = usePeopleBrowse(enrolled)
 
   async function handleAddStudents(ids: string[]) {
     setError('')
@@ -153,22 +169,33 @@ export function CoursePeople({
       {type === 'student' ? (
         <CourseStudentPicker people={available} onAssociate={handleAddStudents} />
       ) : (
-        <div className="mb-3 flex gap-2">
-          <select
-            value={selected}
-            onChange={(e) => setSelected(e.target.value)}
-            className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none"
-          >
-            <option value="">— seleziona dal personale —</option>
-            {available.map((p) => (
-              <option key={p.id} value={p.id}>
-                {fullName(p)} {p.tax_code ? `(${p.tax_code})` : ''}
-              </option>
-            ))}
-          </select>
-          <SecondaryButton onClick={() => void handleAdd()} disabled={!selected}>
-            Associa come {meta.singular}
-          </SecondaryButton>
+        <div className="mb-3 space-y-2">
+          <PersonBrowseBar
+            search={availableBrowse.search}
+            onSearch={availableBrowse.setSearch}
+            sortKey={availableBrowse.sortKey}
+            sortDir={availableBrowse.sortDir}
+            onSortKey={availableBrowse.setSortKey}
+            onSortDir={availableBrowse.setSortDir}
+            sortKeys={sortKeys}
+          />
+          <div className="flex gap-2">
+            <select
+              value={selected}
+              onChange={(e) => setSelected(e.target.value)}
+              className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none"
+            >
+              <option value="">— seleziona dal personale —</option>
+              {availableBrowse.filtered.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {fullName(p)} {p.tax_code ? `(${p.tax_code})` : ''}
+                </option>
+              ))}
+            </select>
+            <SecondaryButton onClick={() => void handleAdd()} disabled={!selected}>
+              Associa come {meta.singular}
+            </SecondaryButton>
+          </div>
         </div>
       )}
 
@@ -177,8 +204,18 @@ export function CoursePeople({
       {enrolled.length === 0 ? (
         <p className="text-sm text-slate-400">Nessuno associato in questo ruolo.</p>
       ) : (
-        <ul className="divide-y divide-slate-100">
-          {enrolled.map((p) => (
+        <div className="space-y-2">
+          <PersonBrowseBar
+            search={enrolledBrowse.search}
+            onSearch={enrolledBrowse.setSearch}
+            sortKey={enrolledBrowse.sortKey}
+            sortDir={enrolledBrowse.sortDir}
+            onSortKey={enrolledBrowse.setSortKey}
+            onSortDir={enrolledBrowse.setSortDir}
+            sortKeys={sortKeys}
+          />
+          <ul className="divide-y divide-slate-100">
+          {enrolledBrowse.filtered.map((p) => (
             <li key={p.id} className="flex items-center justify-between gap-2 py-2">
               <div className="min-w-0">
                 <Link
@@ -203,7 +240,11 @@ export function CoursePeople({
               <DangerButton onClick={() => void handleRemove(p.id)}>Rimuovi</DangerButton>
             </li>
           ))}
+          {enrolledBrowse.filtered.length === 0 && (
+            <p className="py-2 text-sm text-slate-400">Nessun risultato per la ricerca.</p>
+          )}
         </ul>
+        </div>
       )}
     </div>
   )
