@@ -22,7 +22,7 @@ export function FadMoodleSync({ courseId }: { courseId: string }) {
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold text-slate-800">FAD Moodle</h2>
           <p className="text-sm text-slate-500">

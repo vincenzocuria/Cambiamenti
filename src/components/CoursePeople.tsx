@@ -134,16 +134,21 @@ export function CoursePeople({
   const belowMin = meta.courseMin > 0 && enrolled.length < meta.courseMin
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-700">
+    <div className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="mb-3 flex flex-col gap-3">
+        <div className="min-w-0">
+          <h3
+            className={
+              'text-sm font-semibold leading-5 text-slate-700 ' +
+              (meta.courseMin > 0 ? 'min-h-10' : '')
+            }
+          >
             {meta.title} ({enrolled.length}
             {meta.courseMin > 0 ? ` / min. ${meta.courseMin}` : ''})
           </h3>
-          {belowMin && (
-            <p className="text-xs text-amber-700">
-              Mancano ancora {meta.courseMin - enrolled.length}
+          {meta.courseMin > 0 && (
+            <p className="mt-1 min-h-4 text-xs text-amber-700" aria-hidden={!belowMin}>
+              {belowMin ? `Mancano ancora ${meta.courseMin - enrolled.length}` : '\u00a0'}
             </p>
           )}
           {isStaffType(type) && showStaffPoolHint && (
@@ -152,8 +157,12 @@ export function CoursePeople({
             </p>
           )}
         </div>
-        <SecondaryButton type="button" onClick={() => setCreating((v) => !v)}>
-          {creating ? 'Chiudi' : '+ Crea nuovo'}
+        <SecondaryButton
+          type="button"
+          className={type === 'student' ? 'w-full sm:w-auto' : 'w-full'}
+          onClick={() => setCreating((v) => !v)}
+        >
+          {creating ? 'Chiudi' : 'Crea nuovo'}
         </SecondaryButton>
       </div>
 
@@ -185,6 +194,7 @@ export function CoursePeople({
                 ? 'Cerca alunno per nome o codice fiscale'
                 : 'Cerca per nome, codice fiscale o email…'
             }
+            layout={type === 'student' ? 'row' : 'stack'}
           />
         </div>
       )}
@@ -196,11 +206,11 @@ export function CoursePeople({
           onClearFilters={() => browse.setSearch('')}
         />
       ) : (
-        <div className="mb-3 flex gap-2">
+        <div className="mb-3 flex flex-col gap-2">
           <select
             value={selected}
             onChange={(e) => setSelected(e.target.value)}
-            className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none"
+            className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
           >
             <option value="">— seleziona dal personale —</option>
             {availableFiltered.map((p) => (
@@ -209,8 +219,8 @@ export function CoursePeople({
               </option>
             ))}
           </select>
-          <SecondaryButton onClick={() => void handleAdd()} disabled={!selected}>
-            Associa come {meta.singular}
+          <SecondaryButton className="w-full" onClick={() => void handleAdd()} disabled={!selected}>
+            Associa
           </SecondaryButton>
         </div>
       )}
@@ -220,9 +230,9 @@ export function CoursePeople({
       {enrolled.length === 0 ? (
         <p className="text-sm text-slate-400">Nessuno associato in questo ruolo.</p>
       ) : (
-        <ul className="divide-y divide-slate-100">
+        <ul className="mt-auto divide-y divide-slate-100">
           {enrolledFiltered.map((p) => (
-            <li key={p.id} className="flex items-center justify-between gap-2 py-2">
+            <li key={p.id} className="flex items-center justify-between gap-3 py-2.5">
               <div className="min-w-0">
                 <Link
                   to={`${meta.basePath}/${p.id}`}
@@ -243,7 +253,7 @@ export function CoursePeople({
                   shareChannels={fadShareChannels}
                 />
               </div>
-              <DangerButton onClick={() => void handleRemove(p.id)}>Rimuovi</DangerButton>
+              <DangerButton className="shrink-0" onClick={() => void handleRemove(p.id)}>Rimuovi</DangerButton>
             </li>
           ))}
           {enrolledFiltered.length === 0 && (

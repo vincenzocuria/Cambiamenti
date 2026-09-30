@@ -15,6 +15,7 @@ import { DocumentsPanel } from '../components/DocumentsPanel'
 import { GenerateDocumentForm } from '../components/GenerateDocumentForm'
 import { BulkGenerateDocumentsForm } from '../components/BulkGenerateDocumentsForm'
 import { DangerButton, SecondaryButton } from '../components/Buttons'
+import { SegmentedControl } from '../components/SegmentedControl'
 import { courseStatusMeta, isCourseStatus } from '../data/courseStatus'
 import { takenStaffIds } from '../lib/takenStaffIds'
 import { formatCourseShareLabel } from '../lib/fadShareMessage'
@@ -104,33 +105,35 @@ export function CourseDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <Link to="/corsi" className="text-xs text-indigo-600 hover:underline">
-            ← Tutti i corsi
-          </Link>
-          <h1 className="text-2xl font-bold text-slate-800">
-            {course.name}{' '}
-            {editionLabel && <span className="text-slate-400">· {editionLabel}</span>}
-          </h1>
-          <div className="mt-2 space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <CourseStatusBadge status={course.status} />
-              {isCourseStatus(course.status) && (
-                <span className="text-xs text-slate-500">
-                  {courseStatusMeta[course.status].description}
-                </span>
-              )}
-            </div>
-            {isCourseStatus(course.status) && (
-              <CourseStatusPipeline status={course.status} />
+    <div className="space-y-8">
+      <div>
+        <Link to="/corsi" className="text-xs font-medium text-indigo-600 hover:underline">
+          ← Tutti i corsi
+        </Link>
+        <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <h1 className="min-w-0 text-2xl font-bold leading-tight text-slate-800">
+            {course.name}
+            {editionLabel && (
+              <span className="font-medium text-slate-400"> · {editionLabel}</span>
             )}
+          </h1>
+          <div className="flex shrink-0 items-center gap-2">
+            {!editing && <SecondaryButton onClick={() => setEditing(true)}>Modifica</SecondaryButton>}
+            <DangerButton size="md" onClick={() => void handleDelete()}>
+              Elimina corso
+            </DangerButton>
           </div>
         </div>
-        <div className="flex gap-2">
-          {!editing && <SecondaryButton onClick={() => setEditing(true)}>Modifica</SecondaryButton>}
-          <DangerButton onClick={() => void handleDelete()}>Elimina corso</DangerButton>
+        <div className="mt-3 space-y-2">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <CourseStatusBadge status={course.status} />
+            {isCourseStatus(course.status) && (
+              <span className="text-xs text-slate-500">
+                {courseStatusMeta[course.status].description}
+              </span>
+            )}
+          </div>
+          {isCourseStatus(course.status) && <CourseStatusPipeline status={course.status} />}
         </div>
       </div>
 
@@ -139,7 +142,7 @@ export function CourseDetailPage() {
           <CourseForm initial={course} onSave={handleSave} onCancel={() => setEditing(false)} />
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 rounded-2xl border border-slate-200 bg-white p-5 text-sm shadow-sm sm:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-2xl border border-slate-200 bg-white p-5 text-sm shadow-sm sm:grid-cols-3 lg:grid-cols-4">
           <Info label="Codice" value={course.code || '—'} />
           <Info label="CUP" value={course.cup || '—'} />
           <Info label="Inizio" value={fmtDate(course.start_date)} />
@@ -148,80 +151,80 @@ export function CourseDetailPage() {
             label="Durata"
             value={course.duration_hours != null ? `${course.duration_hours} ore` : '—'}
           />
-          <Info label="Note" value={course.notes || '—'} />
+          <Info label="Note" value={course.notes || '—'} className="col-span-2 sm:col-span-2 lg:col-span-3" />
         </div>
       )}
 
       <CourseStaffingStatus counts={staffing} />
 
-      <p className="text-xs text-slate-500">
-        Stessa anagrafica del personale: su questo corso ogni figura ha un solo ruolo.
-      </p>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <CoursePeople
-          courseId={id}
-          type="teacher"
-          takenPersonIds={staffTakenIds}
-          showStaffPoolHint={false}
-          fadShareChannels={false}
-          onChanged={() => void reloadStaff()}
-        />
-        <CoursePeople
-          courseId={id}
-          type="tutor"
-          takenPersonIds={staffTakenIds}
-          showStaffPoolHint={false}
-          fadShareChannels={false}
-          onChanged={() => void reloadStaff()}
-        />
-        <CoursePeople
-          courseId={id}
-          type="admin_staff"
-          takenPersonIds={staffTakenIds}
-          showStaffPoolHint={false}
-          fadShareChannels={false}
-          onChanged={() => void reloadStaff()}
-        />
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-800">Persone del corso</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Stessa anagrafica del personale: su questo corso ogni figura ha un solo ruolo.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-3">
+          <CoursePeople
+            courseId={id}
+            type="teacher"
+            takenPersonIds={staffTakenIds}
+            showStaffPoolHint={false}
+            fadShareChannels={false}
+            onChanged={() => void reloadStaff()}
+          />
+          <CoursePeople
+            courseId={id}
+            type="tutor"
+            takenPersonIds={staffTakenIds}
+            showStaffPoolHint={false}
+            fadShareChannels={false}
+            onChanged={() => void reloadStaff()}
+          />
+          <CoursePeople
+            courseId={id}
+            type="admin_staff"
+            takenPersonIds={staffTakenIds}
+            showStaffPoolHint={false}
+            fadShareChannels={false}
+            onChanged={() => void reloadStaff()}
+          />
+        </div>
         <CoursePeople
           courseId={id}
           type="student"
           fadShareChannels={false}
           onChanged={() => void reloadStaff()}
         />
-      </div>
+      </section>
 
       <FadShareBulk peopleByType={peopleByType} courseLabel={courseLabel} />
 
       <FadMoodleSync courseId={id} />
 
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {genRoles.map((r) => (
-            <SecondaryButton
-              key={r.type}
-              type="button"
-              onClick={() => setPeopleType(r.type)}
-              className={peopleType === r.type ? 'border-indigo-300 bg-indigo-50' : ''}
-            >
-              Genera per {r.label.toLowerCase()}
-            </SecondaryButton>
-          ))}
-          <span className="hidden h-6 w-px bg-slate-200 sm:block" />
-          <SecondaryButton
-            type="button"
-            onClick={() => setGenMode('bulk')}
-            className={genMode === 'bulk' ? 'border-indigo-300 bg-indigo-50' : ''}
-          >
-            In massa
-          </SecondaryButton>
-          <SecondaryButton
-            type="button"
-            onClick={() => setGenMode('single')}
-            className={genMode === 'single' ? 'border-indigo-300 bg-indigo-50' : ''}
-          >
-            Singolo
-          </SecondaryButton>
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-800">Documenti da generare</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Scegli il ruolo e se creare i documenti in massa o uno alla volta.
+          </p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <SegmentedControl
+            ariaLabel="Ruolo dei documenti"
+            value={peopleType}
+            onChange={setPeopleType}
+            options={genRoles.map((role) => ({ value: role.type, label: role.label }))}
+          />
+          <SegmentedControl
+            ariaLabel="Modalità di generazione"
+            value={genMode}
+            onChange={setGenMode}
+            options={[
+              { value: 'bulk', label: 'In massa' },
+              { value: 'single', label: 'Singolo' },
+            ]}
+          />
         </div>
         {genMode === 'bulk' ? (
           <BulkGenerateDocumentsForm
@@ -238,7 +241,7 @@ export function CourseDetailPage() {
             onGenerated={() => setDocsKey((n) => n + 1)}
           />
         )}
-      </div>
+      </section>
 
       <DocumentsPanel
         key={docsKey}
@@ -250,11 +253,19 @@ export function CourseDetailPage() {
   )
 }
 
-function Info({ label, value }: { label: string; value: ReactNode }) {
+function Info({
+  label,
+  value,
+  className = '',
+}: {
+  label: string
+  value: ReactNode
+  className?: string
+}) {
   return (
-    <div>
-      <p className="text-xs text-slate-400">{label}</p>
-      <div className="font-medium text-slate-700">{value}</div>
+    <div className={`min-w-0 ${className}`}>
+      <p className="text-xs font-medium text-slate-400">{label}</p>
+      <div className="mt-1 break-words font-medium text-slate-800">{value}</div>
     </div>
   )
 }

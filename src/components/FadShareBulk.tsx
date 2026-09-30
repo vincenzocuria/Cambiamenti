@@ -12,6 +12,7 @@ import { toggleId } from '../lib/toggleIdSet'
 import { openExternalHref } from '../lib/openExternalHref'
 import { sendFadCredentialsEmails } from '../services/sendFadCredentialsEmail'
 import { PrimaryButton, SecondaryButton } from './Buttons'
+import { SegmentedControl } from './SegmentedControl'
 
 const roles: { type: PersonType; label: string }[] = [
   { type: 'student', label: 'Alunni' },
@@ -140,7 +141,7 @@ export function FadShareBulk({ peopleByType, courseLabel }: Props) {
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold text-slate-700">Invia credenziali FAD</h3>
@@ -158,17 +159,13 @@ export function FadShareBulk({ peopleByType, courseLabel }: Props) {
         </div>
       </div>
 
-      <div className="mb-3 flex flex-wrap gap-2">
-        {roles.map((item) => (
-          <SecondaryButton
-            key={item.type}
-            type="button"
-            onClick={() => setRole(item.type)}
-            className={role === item.type ? 'border-indigo-300 bg-indigo-50' : ''}
-          >
-            {item.label}
-          </SecondaryButton>
-        ))}
+      <div className="mb-3">
+        <SegmentedControl
+          ariaLabel="Ruolo per l'invio credenziali"
+          value={role}
+          onChange={setRole}
+          options={roles.map((item) => ({ value: item.type, label: item.label }))}
+        />
       </div>
 
       {people.length === 0 ? (
@@ -191,10 +188,11 @@ export function FadShareBulk({ peopleByType, courseLabel }: Props) {
             const share = row.share
             const enabled = canReceive(share)
             return (
-              <li key={row.person.id} className="flex flex-wrap items-center gap-2 px-3 py-2">
-                <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-sm text-slate-700">
+              <li key={row.person.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5">
+                <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-2.5 text-sm text-slate-700">
                   <input
                     type="checkbox"
+                    className="mt-0.5"
                     disabled={!enabled}
                     checked={enabled && selected.has(row.person.id)}
                     onChange={() => setSelected((current) => toggleId(current, row.person.id))}

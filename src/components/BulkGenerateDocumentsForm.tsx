@@ -163,39 +163,49 @@ export function BulkGenerateDocumentsForm({ course, people, peopleType, onGenera
 
   if (available.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
+      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500 shadow-sm">
         Nessun template compatibile. Caricane uno nella sezione Template.
       </div>
     )
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <h3 className="mb-1 text-sm font-semibold text-slate-700">Genera in massa</h3>
       <p className="mb-3 text-xs text-slate-500">
         Crea gli stessi modelli per più {meta.title.toLowerCase()} del corso, senza
         ripeterli uno per uno.
       </p>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {people.length > 0 && (
+        <div className="mb-4">
+          <PersonBrowseBar
+            search={peopleBrowse.search}
+            onSearch={peopleBrowse.setSearch}
+            sortKey={peopleBrowse.sortKey}
+            sortDir={peopleBrowse.sortDir}
+            onSortKey={peopleBrowse.setSortKey}
+            onSortDir={peopleBrowse.setSortDir}
+            sortKeys={peopleSortKeys}
+          />
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
         <div>
-          <div className="mb-2 flex items-center justify-between">
+          <div className="mb-2 flex min-h-8 items-center justify-between gap-2">
             <p className="text-xs font-medium text-slate-600">
               Modelli ({templateIds.size}/{available.length})
             </p>
             <div className="flex gap-2">
               <SecondaryButton
                 type="button"
-                className="px-2 py-1 text-xs"
+                size="sm"
                 onClick={() => setTemplateIds(allIds(available))}
               >
                 Tutti
               </SecondaryButton>
-              <SecondaryButton
-                type="button"
-                className="px-2 py-1 text-xs"
-                onClick={() => setTemplateIds(new Set())}
-              >
+              <SecondaryButton type="button" size="sm" onClick={() => setTemplateIds(new Set())}>
                 Nessuno
               </SecondaryButton>
             </div>
@@ -209,40 +219,19 @@ export function BulkGenerateDocumentsForm({ course, people, peopleType, onGenera
         </div>
 
         <div>
-          <div className="mb-2 flex items-center justify-between">
+          <div className="mb-2 flex min-h-8 items-center justify-between gap-2">
             <p className="text-xs font-medium text-slate-600">
               Destinatari ({personIds.size}/{people.length})
             </p>
             <div className="flex gap-2">
-              <SecondaryButton
-                type="button"
-                className="px-2 py-1 text-xs"
-                onClick={() => setPersonIds(allIds(people))}
-              >
+              <SecondaryButton type="button" size="sm" onClick={() => setPersonIds(allIds(people))}>
                 Tutti
               </SecondaryButton>
-              <SecondaryButton
-                type="button"
-                className="px-2 py-1 text-xs"
-                onClick={() => setPersonIds(new Set())}
-              >
+              <SecondaryButton type="button" size="sm" onClick={() => setPersonIds(new Set())}>
                 Nessuno
               </SecondaryButton>
             </div>
           </div>
-          {people.length > 0 && (
-            <div className="mb-2">
-              <PersonBrowseBar
-                search={peopleBrowse.search}
-                onSearch={peopleBrowse.setSearch}
-                sortKey={peopleBrowse.sortKey}
-                sortDir={peopleBrowse.sortDir}
-                onSortKey={peopleBrowse.setSortKey}
-                onSortDir={peopleBrowse.setSortDir}
-                sortKeys={peopleSortKeys}
-              />
-            </div>
-          )}
           <IdCheckboxList
             items={peopleBrowse.filtered.map((p) => ({ id: p.id, label: fullName(p) }))}
             selectedIds={personIds}

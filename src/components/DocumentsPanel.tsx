@@ -24,6 +24,7 @@ import { documentPersonType, isStaffType } from '../data/personTypes'
 import { fmtBytes, fmtDate } from '../lib/format'
 import { DangerButton, PrimaryButton } from './Buttons'
 import { fieldInputClass, SelectField, TextField } from './Field'
+import { SortField } from './SortField'
 import { tableClass, tdCompactClass, thCompactClass, theadRowClass, trClass } from '../lib/tableStyles'
 
 export type DocumentsPanelProps =
@@ -181,7 +182,7 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
       : `${visibleDocs.length} di ${docs.length}`
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <h3 className="mb-4 text-sm font-semibold text-slate-700">Documenti allegati</h3>
 
       <div className="mb-4 space-y-4 rounded-lg border border-slate-100 bg-slate-50/80 p-4">
@@ -229,31 +230,33 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
           />
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-slate-200/80 pt-4 sm:flex-row sm:items-end">
-          <label className="block min-w-0 flex-1">
-            <span className="mb-1 block text-xs font-medium text-slate-600">File</span>
-            <div className="rounded-lg border border-slate-300 bg-white px-3 py-2 shadow-sm focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100">
-              <input
-                ref={fileRef}
-                type="file"
-                multiple
-                accept={DOCUMENT_FILE_ACCEPT}
-                className={fileInputClass}
-              />
-            </div>
-            <p className="mt-2 text-xs leading-relaxed text-slate-500">
-              PDF, Word, Excel, ZIP, RAR, file firmati (.p7m, .p7s), immagini o testo. Puoi
-              selezionare più file.
-            </p>
-          </label>
-          <PrimaryButton
-            type="button"
-            className="w-full shrink-0 sm:w-auto"
-            onClick={() => void handleUpload()}
-            disabled={busy}
-          >
-            {busy ? 'Caricamento…' : 'Carica'}
-          </PrimaryButton>
+        <div className="border-t border-slate-200/80 pt-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <label className="block min-w-0 flex-1">
+              <span className="mb-1 block text-xs font-medium text-slate-600">File</span>
+              <div className="flex h-10 items-center rounded-lg border border-slate-300 bg-white px-3 shadow-sm focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100">
+                <input
+                  ref={fileRef}
+                  type="file"
+                  multiple
+                  accept={DOCUMENT_FILE_ACCEPT}
+                  className={fileInputClass}
+                />
+              </div>
+            </label>
+            <PrimaryButton
+              type="button"
+              className="w-full shrink-0 sm:w-auto"
+              onClick={() => void handleUpload()}
+              disabled={busy}
+            >
+              {busy ? 'Caricamento…' : 'Carica'}
+            </PrimaryButton>
+          </div>
+          <p className="mt-2 text-xs leading-relaxed text-slate-500">
+            PDF, Word, Excel, ZIP, RAR, file firmati (.p7m, .p7s), immagini o testo. Puoi
+            selezionare più file.
+          </p>
         </div>
       </div>
 
@@ -275,43 +278,38 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
         <p className="text-sm text-slate-400">Nessun documento caricato.</p>
       ) : (
         <>
-          <div className="mb-3 flex flex-wrap items-center gap-2">
+          <div className="mb-3 flex flex-col gap-2 lg:flex-row lg:items-center">
             <input
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Cerca per nome file, titolo o categoria…"
-              className={`${fieldInputClass} min-w-[12rem] flex-1`}
+              className={`${fieldInputClass} h-10 min-w-0 flex-1`}
             />
-            <label className="flex items-center gap-1.5 text-xs text-slate-500">
-              <span className="whitespace-nowrap">Ordina per</span>
-              <select
+            <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+              <SortField
                 value={sortKey}
-                onChange={(e) => setSortKey(e.target.value as DocumentSortKey)}
-                className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-700 shadow-sm focus:border-indigo-500 focus:outline-none"
-              >
-                {documentSortKeys.map((key) => (
-                  <option key={key} value={key}>
-                    {documentSortLabel(key)}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={() => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
-                className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-600 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                aria-label={sortDir === 'asc' ? 'Ordine crescente' : 'Ordine decrescente'}
-              >
-                {sortKey === 'date' || sortKey === 'size'
-                  ? sortDir === 'asc'
-                    ? '↑'
-                    : '↓'
-                  : sortDir === 'asc'
-                    ? 'A→Z'
-                    : 'Z→A'}
-              </button>
-            </label>
-            <span className="text-xs text-slate-400">{countLabel}</span>
+                options={documentSortKeys.map((key) => ({
+                  value: key,
+                  label: documentSortLabel(key),
+                }))}
+                onChange={(value) => setSortKey(value as DocumentSortKey)}
+                directionLabel={
+                  sortKey === 'date' || sortKey === 'size'
+                    ? sortDir === 'asc'
+                      ? '↑'
+                      : '↓'
+                    : sortDir === 'asc'
+                      ? 'A→Z'
+                      : 'Z→A'
+                }
+                directionTitle={sortDir === 'asc' ? 'Ordine crescente' : 'Ordine decrescente'}
+                onToggleDirection={() => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
+              />
+              <span className="shrink-0 text-xs tabular-nums text-slate-400 sm:ml-auto">
+                {countLabel}
+              </span>
+            </div>
           </div>
 
           <div className="overflow-x-auto">

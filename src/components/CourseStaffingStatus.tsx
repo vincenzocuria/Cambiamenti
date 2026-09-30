@@ -7,7 +7,7 @@ export function CourseStaffingStatus({ counts }: { counts: CourseStaffingCounts 
   return (
     <div
       className={
-        'rounded-xl border p-4 ' +
+        'rounded-2xl border p-4 shadow-sm sm:p-5 ' +
         (ok ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50')
       }
     >

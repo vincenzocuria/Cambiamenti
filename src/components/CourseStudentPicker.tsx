@@ -49,7 +49,7 @@ export function CourseStudentPicker({ people, onAssociate, onClearFilters }: Pro
         <div className="flex gap-2">
           <SecondaryButton
             type="button"
-            className="px-2 py-1 text-xs"
+            size="sm"
             disabled={people.length === 0}
             onClick={() =>
               setSelectedIds((cur) => {
@@ -63,7 +63,7 @@ export function CourseStudentPicker({ people, onAssociate, onClearFilters }: Pro
           </SecondaryButton>
           <SecondaryButton
             type="button"
-            className="px-2 py-1 text-xs"
+            size="sm"
             disabled={count === 0}
             onClick={() => setSelectedIds(new Set())}
           >
@@ -81,7 +81,12 @@ export function CourseStudentPicker({ people, onAssociate, onClearFilters }: Pro
         emptyText="Nessun alunno disponibile."
         maxHeightClass="max-h-72"
       />
-      <SecondaryButton type="button" disabled={count === 0 || busy} onClick={() => void handleAssociate()}>
+      <SecondaryButton
+        type="button"
+        className="w-full sm:w-auto"
+        disabled={count === 0 || busy}
+        onClick={() => void handleAssociate()}
+      >
         {busy
           ? 'Associazione…'
           : count === 0

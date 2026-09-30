@@ -164,14 +164,14 @@ export function GenerateDocumentForm({
 
   if (available.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
+      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500 shadow-sm">
         Nessun template compatibile. Caricane uno nella sezione Template.
       </div>
     )
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <h3 className="mb-3 text-sm font-semibold text-slate-700">Genera da template</h3>
       <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <SelectField

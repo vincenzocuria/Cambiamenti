@@ -5,7 +5,7 @@ export function PrimaryButton(props: ButtonHTMLAttributes<HTMLButtonElement>) {
     <button
       {...props}
       className={
-        'inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm ' +
+        'inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-4 text-sm font-medium text-white shadow-sm ' +
         'hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 ' +
         (props.className ?? '')
       }
@@ -13,27 +13,41 @@ export function PrimaryButton(props: ButtonHTMLAttributes<HTMLButtonElement>) {
   )
 }
 
-export function SecondaryButton(props: ButtonHTMLAttributes<HTMLButtonElement>) {
+export function SecondaryButton({
+  size = 'md',
+  className,
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & { size?: 'sm' | 'md' }) {
+  const pad = size === 'sm' ? 'px-2.5 py-1 text-xs' : 'h-10 px-4 text-sm'
   return (
     <button
       {...props}
       className={
-        'inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm ' +
+        'inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white font-medium text-slate-700 shadow-sm ' +
         'hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 ' +
-        (props.className ?? '')
+        pad +
+        ' ' +
+        (className ?? '')
       }
     />
   )
 }
 
-export function DangerButton(props: ButtonHTMLAttributes<HTMLButtonElement>) {
+export function DangerButton({
+  size = 'sm',
+  className,
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & { size?: 'sm' | 'md' }) {
+  const pad = size === 'md' ? 'h-10 px-4 text-sm' : 'px-3 py-1.5 text-xs'
   return (
     <button
       {...props}
       className={
-        'inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 ' +
+        'inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-white font-medium text-red-600 ' +
         'hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 ' +
-        (props.className ?? '')
+        pad +
+        ' ' +
+        (className ?? '')
       }
     />
   )

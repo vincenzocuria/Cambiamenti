@@ -25,13 +25,14 @@ export function IdCheckboxList({
     >
       {items.map((item) => (
         <li key={item.id}>
-          <label className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+          <label className="flex cursor-pointer items-start gap-2.5 px-3 py-2 text-sm leading-5 text-slate-700 hover:bg-slate-50">
             <input
               type="checkbox"
+              className="mt-0.5"
               checked={selectedIds.has(item.id)}
               onChange={() => onToggle(item.id)}
             />
-            <span>{item.label}</span>
+            <span className="min-w-0">{item.label}</span>
           </label>
         </li>
       ))}
