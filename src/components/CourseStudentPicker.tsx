@@ -1,30 +1,19 @@
 import { useEffect, useState } from 'react'
 import type { Person } from '../types/db'
 import { fullName } from '../lib/format'
-import { personSortKeys } from '../lib/sortPeople'
 import { toggleId } from '../lib/toggleIdSet'
-import { usePeopleBrowse } from '../hooks/usePeopleBrowse'
-import { PersonBrowseBar } from './PersonBrowseBar'
 import { IdCheckboxList } from './IdCheckboxList'
 import { SecondaryButton } from './Buttons'
 
 type Props = {
   people: Person[]
   onAssociate: (ids: string[]) => Promise<void>
+  onClearFilters?: () => void
 }
 
-export function CourseStudentPicker({ people, onAssociate }: Props) {
+export function CourseStudentPicker({ people, onAssociate, onClearFilters }: Props) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
-  const {
-    search,
-    setSearch,
-    sortKey,
-    setSortKey,
-    sortDir,
-    setSortDir,
-    filtered,
-  } = usePeopleBrowse(people)
 
   useEffect(() => {
     const allowed = new Set(people.map((person) => person.id))
@@ -41,7 +30,7 @@ export function CourseStudentPicker({ people, onAssociate }: Props) {
     try {
       await onAssociate(ids)
       setSelectedIds(new Set())
-      setSearch('')
+      onClearFilters?.()
     } catch {
       // Il messaggio resta nel pannello del corso.
     } finally {
@@ -53,30 +42,19 @@ export function CourseStudentPicker({ people, onAssociate }: Props) {
 
   return (
     <div className="mb-3 space-y-2">
-      <PersonBrowseBar
-        search={search}
-        onSearch={setSearch}
-        sortKey={sortKey}
-        sortDir={sortDir}
-        onSortKey={setSortKey}
-        onSortDir={setSortDir}
-        placeholder="Cerca alunno per nome o codice fiscale"
-        sortKeys={[...personSortKeys]}
-      />
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-slate-500">
           {count} selezionat{count === 1 ? 'o' : 'i'}
-          {search.trim() ? ` · ${filtered.length} trovat${filtered.length === 1 ? 'o' : 'i'}` : ''}
         </p>
         <div className="flex gap-2">
           <SecondaryButton
             type="button"
             className="px-2 py-1 text-xs"
-            disabled={filtered.length === 0}
+            disabled={people.length === 0}
             onClick={() =>
               setSelectedIds((cur) => {
                 const next = new Set(cur)
-                for (const person of filtered) next.add(person.id)
+                for (const person of people) next.add(person.id)
                 return next
               })
             }
@@ -94,7 +72,7 @@ export function CourseStudentPicker({ people, onAssociate }: Props) {
         </div>
       </div>
       <IdCheckboxList
-        items={filtered.map((p) => ({
+        items={people.map((p) => ({
           id: p.id,
           label: `${fullName(p)}${p.tax_code ? ` (${p.tax_code})` : ''}`,
         }))}

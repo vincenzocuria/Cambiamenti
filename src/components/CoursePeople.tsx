@@ -6,7 +6,7 @@ import { createPerson, listPeople } from '../services/people'
 import { isStaffType, metaFor } from '../data/personTypes'
 import { fullName } from '../lib/format'
 import { personSortKeys } from '../lib/sortPeople'
-import { usePeopleBrowse } from '../hooks/usePeopleBrowse'
+import { usePeopleBrowseControls } from '../hooks/usePeopleBrowse'
 import { PersonBrowseBar } from './PersonBrowseBar'
 import { DangerButton, SecondaryButton } from './Buttons'
 import { EmailLink, WhatsAppLink } from './ContactLinks'
@@ -42,6 +42,7 @@ export function CoursePeople({
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
   const meta = metaFor(type)
+  const browse = usePeopleBrowseControls()
 
   async function reload() {
     setEnrolled(await listCoursePeople(type, courseId))
@@ -49,11 +50,11 @@ export function CoursePeople({
 
   useEffect(() => {
     void reload()
-    // Pool condiviso per tutto il personale
     listPeople(isStaffType(type) ? 'staff' : type).then(setAll)
     setCreating(false)
     setSelected('')
     setError('')
+    browse.setSearch('')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId, type])
 
@@ -74,8 +75,11 @@ export function CoursePeople({
     () => (type === 'student' ? [...personSortKeys] : personSortKeys.filter((k) => k !== 'inps')),
     [type],
   )
-  const availableBrowse = usePeopleBrowse(available)
-  const enrolledBrowse = usePeopleBrowse(enrolled)
+
+  const availableFiltered = useMemo(() => browse.browse(available), [browse, available])
+  const enrolledFiltered = useMemo(() => browse.browse(enrolled), [browse, enrolled])
+
+  const showBrowseBar = available.length > 0 || enrolled.length > 0
 
   async function handleAddStudents(ids: string[]) {
     setError('')
@@ -166,36 +170,48 @@ export function CoursePeople({
         </div>
       )}
 
-      {type === 'student' ? (
-        <CourseStudentPicker people={available} onAssociate={handleAddStudents} />
-      ) : (
-        <div className="mb-3 space-y-2">
+      {showBrowseBar && (
+        <div className="mb-3">
           <PersonBrowseBar
-            search={availableBrowse.search}
-            onSearch={availableBrowse.setSearch}
-            sortKey={availableBrowse.sortKey}
-            sortDir={availableBrowse.sortDir}
-            onSortKey={availableBrowse.setSortKey}
-            onSortDir={availableBrowse.setSortDir}
+            search={browse.search}
+            onSearch={browse.setSearch}
+            sortKey={browse.sortKey}
+            sortDir={browse.sortDir}
+            onSortKey={browse.setSortKey}
+            onSortDir={browse.setSortDir}
             sortKeys={sortKeys}
+            placeholder={
+              type === 'student'
+                ? 'Cerca alunno per nome o codice fiscale'
+                : 'Cerca per nome, codice fiscale o email…'
+            }
           />
-          <div className="flex gap-2">
-            <select
-              value={selected}
-              onChange={(e) => setSelected(e.target.value)}
-              className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none"
-            >
-              <option value="">— seleziona dal personale —</option>
-              {availableBrowse.filtered.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {fullName(p)} {p.tax_code ? `(${p.tax_code})` : ''}
-                </option>
-              ))}
-            </select>
-            <SecondaryButton onClick={() => void handleAdd()} disabled={!selected}>
-              Associa come {meta.singular}
-            </SecondaryButton>
-          </div>
+        </div>
+      )}
+
+      {type === 'student' ? (
+        <CourseStudentPicker
+          people={availableFiltered}
+          onAssociate={handleAddStudents}
+          onClearFilters={() => browse.setSearch('')}
+        />
+      ) : (
+        <div className="mb-3 flex gap-2">
+          <select
+            value={selected}
+            onChange={(e) => setSelected(e.target.value)}
+            className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none"
+          >
+            <option value="">— seleziona dal personale —</option>
+            {availableFiltered.map((p) => (
+              <option key={p.id} value={p.id}>
+                {fullName(p)} {p.tax_code ? `(${p.tax_code})` : ''}
+              </option>
+            ))}
+          </select>
+          <SecondaryButton onClick={() => void handleAdd()} disabled={!selected}>
+            Associa come {meta.singular}
+          </SecondaryButton>
         </div>
       )}
 
@@ -204,18 +220,8 @@ export function CoursePeople({
       {enrolled.length === 0 ? (
         <p className="text-sm text-slate-400">Nessuno associato in questo ruolo.</p>
       ) : (
-        <div className="space-y-2">
-          <PersonBrowseBar
-            search={enrolledBrowse.search}
-            onSearch={enrolledBrowse.setSearch}
-            sortKey={enrolledBrowse.sortKey}
-            sortDir={enrolledBrowse.sortDir}
-            onSortKey={enrolledBrowse.setSortKey}
-            onSortDir={enrolledBrowse.setSortDir}
-            sortKeys={sortKeys}
-          />
-          <ul className="divide-y divide-slate-100">
-          {enrolledBrowse.filtered.map((p) => (
+        <ul className="divide-y divide-slate-100">
+          {enrolledFiltered.map((p) => (
             <li key={p.id} className="flex items-center justify-between gap-2 py-2">
               <div className="min-w-0">
                 <Link
@@ -240,11 +246,10 @@ export function CoursePeople({
               <DangerButton onClick={() => void handleRemove(p.id)}>Rimuovi</DangerButton>
             </li>
           ))}
-          {enrolledBrowse.filtered.length === 0 && (
+          {enrolledFiltered.length === 0 && (
             <p className="py-2 text-sm text-slate-400">Nessun risultato per la ricerca.</p>
           )}
         </ul>
-        </div>
       )}
     </div>
   )
