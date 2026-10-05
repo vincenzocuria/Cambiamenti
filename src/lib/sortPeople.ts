@@ -1,5 +1,6 @@
 import { inpsBenefitLabel } from '../data/inpsBenefits'
 import { hasCompleteFadCredentials } from './fadCredentials'
+import { checkStudentDocuments } from './studentDocumentStatus'
 import type { Person } from '../types/db'
 
 export const personSortKeys = [
@@ -11,6 +12,7 @@ export const personSortKeys = [
   'phone',
   'city',
   'inps',
+  'documenti',
 ] as const
 
 export type PersonSortKey = (typeof personSortKeys)[number]
@@ -26,6 +28,19 @@ export function isPersonSortKey(value: string): value is PersonSortKey {
 
 export function isSortDirection(value: string): value is SortDirection {
   return value === 'asc' || value === 'desc'
+}
+
+export type PersonSortContext = {
+  hasIdentityFile?: (personId: string) => boolean
+}
+
+/** Schede corso e selezioni: lo stato documenti si ordina solo in anagrafica alunni. */
+export function personBrowseSortKeys(includeInps: boolean): PersonSortKey[] {
+  return personSortKeys.filter((key) => {
+    if (key === 'documenti') return false
+    if (key === 'inps') return includeInps
+    return true
+  })
 }
 
 function isBlank(value: string | null | undefined): boolean {
@@ -52,7 +67,7 @@ function compareText(a: string, b: string, dir: SortDirection): number {
   return compareBlankLast(aEmpty, bEmpty, () => a.localeCompare(b, 'it'), dir)
 }
 
-function sortValueForKey(person: Person, key: PersonSortKey): string {
+function sortValueForKey(person: Person, key: PersonSortKey, context?: PersonSortContext): string {
   switch (key) {
     case 'name':
       return `${person.last_name}\t${person.first_name}`
@@ -70,6 +85,10 @@ function sortValueForKey(person: Person, key: PersonSortKey): string {
       return person.city ?? ''
     case 'inps':
       return inpsBenefitLabel(person.inps_benefit) || person.inps_benefit || ''
+    case 'documenti':
+      return checkStudentDocuments(person, context?.hasIdentityFile?.(person.id) ?? false).ok
+        ? '0'
+        : '1'
   }
 }
 
@@ -78,6 +97,7 @@ export function comparePeople(
   b: Person,
   key: PersonSortKey,
   dir: SortDirection,
+  context?: PersonSortContext,
 ): number {
   if (key === 'birth_date') {
     const aEmpty = isBlank(a.birth_date)
@@ -89,15 +109,16 @@ export function comparePeople(
       dir,
     )
   }
-  return compareText(sortValueForKey(a, key), sortValueForKey(b, key), dir)
+  return compareText(sortValueForKey(a, key, context), sortValueForKey(b, key, context), dir)
 }
 
 export function sortPeople(
   people: Person[],
   key: PersonSortKey,
   dir: SortDirection,
+  context?: PersonSortContext,
 ): Person[] {
   const copy = [...people]
-  copy.sort((a, b) => comparePeople(a, b, key, dir))
+  copy.sort((a, b) => comparePeople(a, b, key, dir, context))
   return copy
 }

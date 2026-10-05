@@ -5,7 +5,7 @@ import { addStudentsToCourse, addToCourse, listCoursePeople, removeFromCourse } 
 import { createPerson, listPeople } from '../services/people'
 import { isStaffType, metaFor } from '../data/personTypes'
 import { fullName } from '../lib/format'
-import { personSortKeys } from '../lib/sortPeople'
+import { personBrowseSortKeys } from '../lib/sortPeople'
 import { usePeopleBrowseControls } from '../hooks/usePeopleBrowse'
 import { PersonBrowseBar } from './PersonBrowseBar'
 import { DangerButton, SecondaryButton } from './Buttons'
@@ -71,10 +71,7 @@ export function CoursePeople({
     [all, enrolled, takenIds, type],
   )
 
-  const sortKeys = useMemo(
-    () => (type === 'student' ? [...personSortKeys] : personSortKeys.filter((k) => k !== 'inps')),
-    [type],
-  )
+  const sortKeys = useMemo(() => personBrowseSortKeys(type === 'student'), [type])
 
   const availableFiltered = useMemo(() => browse.browse(available), [browse, available])
   const enrolledFiltered = useMemo(() => browse.browse(enrolled), [browse, enrolled])

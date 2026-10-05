@@ -35,6 +35,37 @@ const MIME_BY_EXT: Record<string, string> = {
   ...DEFAULT_PKCS7_MIME,
 }
 
+export type DocumentPreviewKind = 'pdf' | 'image' | 'text' | 'html'
+
+const PREVIEW_BY_EXT: Record<string, DocumentPreviewKind> = {
+  pdf: 'pdf',
+  jpg: 'image',
+  jpeg: 'image',
+  png: 'image',
+  txt: 'text',
+  html: 'html',
+  htm: 'html',
+}
+
+const PREVIEW_BY_MIME: Record<string, DocumentPreviewKind> = {
+  'application/pdf': 'pdf',
+  'image/jpeg': 'image',
+  'image/png': 'image',
+  'text/plain': 'text',
+  'text/html': 'html',
+}
+
+/** Formati che il browser mostra senza scaricare il file. */
+export function documentPreviewKind(fileName: string, mimeType = ''): DocumentPreviewKind | null {
+  const fromExt = PREVIEW_BY_EXT[extensionOf(fileName)]
+  if (fromExt) return fromExt
+  return PREVIEW_BY_MIME[mimeType] ?? null
+}
+
+export function canPreviewDocument(fileName: string, mimeType = ''): boolean {
+  return documentPreviewKind(fileName, mimeType) !== null
+}
+
 export const DOCUMENT_FILE_ACCEPT = Object.keys(MIME_BY_EXT)
   .map((ext) => `.${ext}`)
   .join(',')

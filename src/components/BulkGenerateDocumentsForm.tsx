@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Course, DocumentRow, DocumentTemplate, Person, PersonType } from '../types/db'
 import { metaFor } from '../data/personTypes'
 import { fullName } from '../lib/format'
-import { personSortKeys } from '../lib/sortPeople'
+import { personBrowseSortKeys } from '../lib/sortPeople'
 import { usePeopleBrowse } from '../hooks/usePeopleBrowse'
 import { PersonBrowseBar } from './PersonBrowseBar'
 import { allIds, toggleId } from '../lib/toggleIdSet'
@@ -36,7 +36,7 @@ export function BulkGenerateDocumentsForm({ course, people, peopleType, onGenera
   const meta = metaFor(peopleType)
   const peopleBrowse = usePeopleBrowse(people)
   const peopleSortKeys = useMemo(
-    () => (peopleType === 'student' ? [...personSortKeys] : personSortKeys.filter((k) => k !== 'inps')),
+    () => personBrowseSortKeys(peopleType === 'student'),
     [peopleType],
   )
 

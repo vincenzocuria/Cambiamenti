@@ -13,6 +13,43 @@ export type DocumentFilter =
   | { mode: 'person'; personType: PersonType; personId: string }
   | { mode: 'course'; courseId: string }
 
+/** Alunni che hanno già almeno un file in categoria documento d'identità. */
+export async function listStudentIdsWithIdentityFile(): Promise<Set<string>> {
+  const ids = new Set<string>()
+  const pageSize = 1000
+  let from = 0
+  for (;;) {
+    const { data, error } = await supabase
+      .from('documents')
+      .select('person_id')
+      .eq('person_type', 'student')
+      .eq('category', 'identity')
+      .not('person_id', 'is', null)
+      .range(from, from + pageSize - 1)
+    if (error) throw error
+    for (const row of data) {
+      if (row.person_id) ids.add(row.person_id)
+    }
+    if (data.length < pageSize) break
+    from += pageSize
+  }
+  return ids
+}
+
+export async function hasIdentityDocument(
+  personType: PersonType,
+  personId: string,
+): Promise<boolean> {
+  const { count, error } = await supabase
+    .from('documents')
+    .select('id', { count: 'exact', head: true })
+    .eq('person_type', personType)
+    .eq('person_id', personId)
+    .eq('category', 'identity')
+  if (error) throw error
+  return (count ?? 0) > 0
+}
+
 export async function listDocuments(filter: DocumentFilter): Promise<DocumentRow[]> {
   let query = supabase.from('documents').select('*').order('created_at', { ascending: false })
   if (filter.mode === 'person') {
@@ -91,12 +128,23 @@ export async function uploadDocument(params: {
   return data
 }
 
-export async function getDownloadUrl(doc: DocumentRow): Promise<string> {
-  const { data, error } = await supabase.storage
-    .from(BUCKET)
-    .createSignedUrl(doc.storage_path, 300, { download: doc.file_name })
+async function signedDocumentUrl(doc: DocumentRow, download: boolean): Promise<string> {
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(
+    doc.storage_path,
+    300,
+    download ? { download: doc.file_name } : undefined,
+  )
   if (error) throw error
   return data.signedUrl
+}
+
+export function getDownloadUrl(doc: DocumentRow): Promise<string> {
+  return signedDocumentUrl(doc, true)
+}
+
+/** Link firmato senza Content-Disposition di download, per l'anteprima nel browser. */
+export function getPreviewUrl(doc: DocumentRow): Promise<string> {
+  return signedDocumentUrl(doc, false)
 }
 
 export async function deleteDocument(doc: DocumentRow): Promise<void> {

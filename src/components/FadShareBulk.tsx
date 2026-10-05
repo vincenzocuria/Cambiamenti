@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Person, PersonType } from '../types/db'
 import { metaFor } from '../data/personTypes'
 import { fullName } from '../lib/format'
-import { personSortKeys } from '../lib/sortPeople'
+import { personBrowseSortKeys } from '../lib/sortPeople'
 import { usePeopleBrowse } from '../hooks/usePeopleBrowse'
 import { PersonBrowseBar } from './PersonBrowseBar'
 import { hasCompleteFadCredentials } from '../lib/fadCredentials'
@@ -44,10 +44,7 @@ export function FadShareBulk({ peopleByType, courseLabel }: Props) {
   const people = peopleByType[role] ?? emptyPeople
   const meta = metaFor(role)
   const peopleBrowse = usePeopleBrowse(people)
-  const peopleSortKeys = useMemo(
-    () => (role === 'student' ? [...personSortKeys] : personSortKeys.filter((k) => k !== 'inps')),
-    [role],
-  )
+  const peopleSortKeys = useMemo(() => personBrowseSortKeys(role === 'student'), [role])
   const peopleKey = people
     .map((person) =>
       [

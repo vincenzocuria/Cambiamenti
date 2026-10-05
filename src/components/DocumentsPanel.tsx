@@ -22,14 +22,17 @@ import {
 } from '../lib/documentListBrowse'
 import { documentPersonType, isStaffType } from '../data/personTypes'
 import { fmtBytes, fmtDate } from '../lib/format'
-import { DangerButton, PrimaryButton } from './Buttons'
+import { canPreviewDocument } from '../lib/documentFileTypes'
+import { DangerButton, PrimaryButton, SecondaryButton } from './Buttons'
+import { DocumentPreview } from './DocumentPreview'
 import { fieldInputClass, SelectField, TextField } from './Field'
 import { SortField } from './SortField'
 import { tableClass, tdCompactClass, thCompactClass, theadRowClass, trClass } from '../lib/tableStyles'
 
-export type DocumentsPanelProps =
+export type DocumentsPanelProps = (
   | { mode: 'person'; personType: PersonType; personId: string }
   | { mode: 'course'; courseId: string; personNames?: Record<string, string> }
+) & { onChanged?: () => void }
 
 function toFilter(props: DocumentsPanelProps): DocumentFilter {
   return props.mode === 'person'
@@ -58,6 +61,7 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState<DocumentSortKey>(DEFAULT_DOCUMENT_SORT)
   const [sortDir, setSortDir] = useState<DocumentSortDir>(DEFAULT_DOCUMENT_SORT_DIR)
+  const [preview, setPreview] = useState<DocumentRow | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   async function reload() {
@@ -139,6 +143,7 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
       if (failures.length < files.length) {
         if (fileRef.current) fileRef.current.value = ''
         setTitle('')
+        props.onChanged?.()
       }
       await reload()
       if (failures.length) setErrors(failures)
@@ -155,10 +160,19 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
     window.open(await getDownloadUrl(doc), '_blank')
   }
 
+  function handleOpen(doc: DocumentRow) {
+    if (canPreviewDocument(doc.file_name, doc.mime_type)) {
+      setPreview(doc)
+      return
+    }
+    void handleDownload(doc)
+  }
+
   async function handleDelete(doc: DocumentRow) {
     if (!window.confirm(`Eliminare "${doc.file_name}"?`)) return
     await deleteDocument(doc)
     await reload()
+    props.onChanged?.()
   }
 
   function personCell(doc: DocumentRow): string {
@@ -331,9 +345,13 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
                     <td className={tdCompactClass}>
                       <button
                         type="button"
-                        onClick={() => void handleDownload(d)}
+                        onClick={() => handleOpen(d)}
                         className="max-w-[16rem] truncate text-left font-medium text-indigo-600 hover:underline sm:max-w-xs"
-                        title={d.file_name}
+                        title={
+                          canPreviewDocument(d.file_name, d.mime_type)
+                            ? `Apri ${d.file_name}`
+                            : `Scarica ${d.file_name}`
+                        }
                       >
                         {d.title || d.file_name}
                       </button>
@@ -354,7 +372,12 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
                       {fmtDate(d.created_at)}
                     </td>
                     <td className={`${tdCompactClass} text-right`}>
-                      <DangerButton onClick={() => void handleDelete(d)}>Elimina</DangerButton>
+                      <div className="flex justify-end gap-2">
+                        <SecondaryButton size="sm" onClick={() => void handleDownload(d)}>
+                          Scarica
+                        </SecondaryButton>
+                        <DangerButton onClick={() => void handleDelete(d)}>Elimina</DangerButton>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -373,6 +396,7 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
           </div>
         </>
       )}
+      {preview && <DocumentPreview doc={preview} onClose={() => setPreview(null)} />}
     </div>
   )
 }

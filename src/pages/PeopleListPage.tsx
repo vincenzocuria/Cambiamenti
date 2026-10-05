@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { Person, PersonInput, PersonType } from '../types/db'
 import { createPerson, listPeople } from '../services/people'
+import { listStudentIdsWithIdentityFile } from '../services/documents'
 import { metaFor } from '../data/personTypes'
 import { inpsBenefitLabel } from '../data/inpsBenefits'
 import { fmtDate, fullName } from '../lib/format'
@@ -9,10 +10,12 @@ import { hasCompleteFadCredentials } from '../lib/fadCredentials'
 import { matchesSearch } from '../lib/matchesSearch'
 import { describeFilters, exportFilteredList } from '../lib/listExport'
 import { countPersonStatuses, isPersonListStatus, matchesPersonStatus } from '../lib/personListStatus'
+import { checkStudentDocuments, studentDocumentExportValue } from '../lib/studentDocumentStatus'
 import { useListQuery } from '../hooks/useListQuery'
 import { usePagedSlice } from '../hooks/usePagedSlice'
 import { useTableSort } from '../hooks/useTableSort'
-import { sortPeople } from '../lib/sortPeople'
+import { sortPeople, type PersonSortContext } from '../lib/sortPeople'
+import { DocumentStatusBadge } from '../components/DocumentStatusBadge'
 import { SortableTh } from '../components/SortableTh'
 import { EmailLink, WhatsAppLink } from '../components/ContactLinks'
 import { PersonForm } from '../components/PersonForm'
@@ -46,15 +49,22 @@ function fadBadge(person: Person) {
 
 export function PeopleListPage({ type }: Props) {
   const [people, setPeople] = useState<Person[]>([])
+  const [identityIds, setIdentityIds] = useState<Set<string>>(() => new Set())
   const [creating, setCreating] = useState(false)
   const { search, status: rawStatus, setSearch, setStatus } = useListQuery()
   const { sortKey, sortDir, toggleSort } = useTableSort()
-  const status = isPersonListStatus(rawStatus) ? rawStatus : ''
   const l = metaFor(type)
   const isStudent = type === 'student'
+  const status =
+    isPersonListStatus(rawStatus) && (isStudent || !rawStatus.startsWith('documenti_'))
+      ? rawStatus
+      : ''
 
   async function reload() {
-    setPeople(await listPeople(type))
+    const rows = await listPeople(type)
+    const ids = type === 'student' ? await listStudentIdsWithIdentityFile() : new Set<string>()
+    setPeople(rows)
+    setIdentityIds(ids)
   }
 
   useEffect(() => {
@@ -80,21 +90,33 @@ export function PeopleListPage({ type }: Props) {
     [people, search],
   )
 
-  const filtered = useMemo(
-    () => searched.filter((p) => matchesPersonStatus(p, status)),
-    [searched, status],
+  const listContext = useMemo<PersonSortContext>(
+    () => ({ hasIdentityFile: (id) => identityIds.has(id) }),
+    [identityIds],
   )
+
+  const filtered = useMemo(
+    () => searched.filter((p) => matchesPersonStatus(p, status, listContext)),
+    [searched, status, listContext],
+  )
+
+  const activeSortKey = !isStudent && sortKey === 'documenti' ? 'name' : sortKey
 
   const sorted = useMemo(
-    () => sortPeople(filtered, sortKey, sortDir),
-    [filtered, sortKey, sortDir],
+    () => sortPeople(filtered, activeSortKey, sortDir, listContext),
+    [filtered, activeSortKey, sortDir, listContext],
   )
 
-  const { fad_ok: fadOk, fad_da_compilare: fadMissing, senza_email: noEmail, con_inps: withInps } =
-    useMemo(() => countPersonStatuses(people), [people])
+  const {
+    fad_ok: fadOk,
+    fad_da_compilare: fadMissing,
+    senza_email: noEmail,
+    con_inps: withInps,
+    documenti_mancanti: docsMissing,
+  } = useMemo(() => countPersonStatuses(people, listContext), [people, listContext])
   const { page, setPage, pages, slice, pageSize } = usePagedSlice(
     sorted,
-    `${type}|${search}|${status}|${sortKey}|${sortDir}`,
+    `${type}|${search}|${status}|${activeSortKey}|${sortDir}|${identityIds.size}`,
   )
 
   const statusLabel =
@@ -106,7 +128,11 @@ export function PeopleListPage({ type }: Props) {
           ? 'Senza email'
           : status === 'con_inps'
             ? 'Con prestazione INPS'
-            : ''
+            : status === 'documenti_ok'
+              ? 'Documenti ok'
+              : status === 'documenti_mancanti'
+                ? 'Documenti mancanti'
+                : ''
 
   function toggleStatus(key: string) {
     setStatus(status === key ? '' : key)
@@ -127,7 +153,16 @@ export function PeopleListPage({ type }: Props) {
         { header: 'Telefono', value: (p) => p.phone || '' },
         { header: 'Città', value: (p) => p.city || '' },
         ...(isStudent
-          ? [{ header: 'INPS', value: (p: Person) => inpsBenefitLabel(p.inps_benefit) || '—' }]
+          ? [
+              { header: 'INPS', value: (p: Person) => inpsBenefitLabel(p.inps_benefit) || '—' },
+              {
+                header: 'Documenti',
+                value: (p: Person) =>
+                  studentDocumentExportValue(
+                    checkStudentDocuments(p, listContext.hasIdentityFile?.(p.id) ?? false),
+                  ),
+              },
+            ]
           : []),
       ],
     })
@@ -188,6 +223,19 @@ export function PeopleListPage({ type }: Props) {
                 active: status === 'senza_email',
                 onClick: () => toggleStatus('senza_email'),
               },
+          ...(isStudent
+            ? [
+                {
+                  key: 'documenti_mancanti',
+                  label: 'Documenti mancanti',
+                  hint: 'File, dati o scadenza',
+                  value: docsMissing,
+                  tone: docsMissing > 0 ? ('warn' as const) : ('ok' as const),
+                  active: status === 'documenti_mancanti',
+                  onClick: () => toggleStatus('documenti_mancanti'),
+                },
+              ]
+            : []),
         ]}
       />
 
@@ -278,6 +326,15 @@ export function PeopleListPage({ type }: Props) {
                   onSort={toggleSort}
                 />
               )}
+              {isStudent && (
+                <SortableTh
+                  label="Documenti"
+                  column="documenti"
+                  activeKey={sortKey}
+                  direction={sortDir}
+                  onSort={toggleSort}
+                />
+              )}
             </tr>
           </thead>
           <tbody>
@@ -308,12 +365,19 @@ export function PeopleListPage({ type }: Props) {
                 {isStudent && (
                   <td className={tdClass}>{inpsBenefitLabel(p.inps_benefit) || '—'}</td>
                 )}
+                {isStudent && (
+                  <td className={tdClass}>
+                    <DocumentStatusBadge
+                      check={checkStudentDocuments(p, identityIds.has(p.id))}
+                    />
+                  </td>
+                )}
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
                 <td
-                  colSpan={isStudent ? 8 : 7}
+                  colSpan={isStudent ? 9 : 7}
                   className={`${tdClass} py-10 text-center text-slate-400`}
                 >
                   {people.length === 0

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { Course, Person, PersonInput, PersonType } from '../types/db'
 import { deletePerson, getPerson, listStaffRoles, updatePerson } from '../services/people'
+import { hasIdentityDocument } from '../services/documents'
 import { listPersonCourses } from '../services/enrollments'
 import { inpsBenefitLabel } from '../data/inpsBenefits'
 import { isStaffType, metaFor } from '../data/personTypes'
@@ -16,6 +17,8 @@ import { effectiveFadEmail, hasCompleteFadCredentials } from '../lib/fadCredenti
 import { formatCourseShareLabel } from '../lib/fadShareMessage'
 import { FadLoginLink } from '../components/FadLoginLink'
 import { FadShareActions } from '../components/FadShareActions'
+import { DocumentStatusBadge } from '../components/DocumentStatusBadge'
+import { checkStudentDocuments } from '../lib/studentDocumentStatus'
 
 interface Props {
   type: PersonType
@@ -37,6 +40,7 @@ export function PersonDetailPage({ type }: Props) {
   >([])
   const [editing, setEditing] = useState(false)
   const [docsKey, setDocsKey] = useState(0)
+  const [hasIdentityFile, setHasIdentityFile] = useState<boolean | null>(null)
   const registryType: PersonType = isStaffType(type) ? 'staff' : type
   const meta = metaFor(registryType)
 
@@ -48,6 +52,14 @@ export function PersonDetailPage({ type }: Props) {
       listStaffRoles(id).then(setRoleRows)
     } else {
       setRoleRows([])
+    }
+    if (registryType === 'student') {
+      setHasIdentityFile(null)
+      hasIdentityDocument('student', id)
+        .then(setHasIdentityFile)
+        .catch(() => setHasIdentityFile(false))
+    } else {
+      setHasIdentityFile(null)
     }
   }, [id, type, registryType])
 
@@ -77,7 +89,12 @@ export function PersonDetailPage({ type }: Props) {
           <Link to={meta.basePath} className="text-xs text-indigo-600 hover:underline">
             ← {meta.title}
           </Link>
-          <h1 className="text-2xl font-bold text-slate-800">{fullName(person)}</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-bold text-slate-800">{fullName(person)}</h1>
+            {registryType === 'student' && hasIdentityFile !== null && (
+              <DocumentStatusBadge check={checkStudentDocuments(person, hasIdentityFile)} />
+            )}
+          </div>
           {isStaffType(type) && roleRows.length > 0 && (
             <p className="mt-1 flex flex-wrap gap-1 text-xs">
               {[...new Set(roleRows.map((r) => r.role))].map((role) => (
@@ -246,7 +263,18 @@ export function PersonDetailPage({ type }: Props) {
         </p>
       )}
 
-      <DocumentsPanel key={docsKey} mode="person" personType={registryType} personId={id} />
+      <DocumentsPanel
+        key={docsKey}
+        mode="person"
+        personType={registryType}
+        personId={id}
+        onChanged={() => {
+          if (registryType !== 'student') return
+          hasIdentityDocument('student', id)
+            .then(setHasIdentityFile)
+            .catch(() => setHasIdentityFile(false))
+        }}
+      />
     </div>
   )
 }
