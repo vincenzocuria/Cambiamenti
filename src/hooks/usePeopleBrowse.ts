@@ -14,12 +14,13 @@ export function filterBrowsePeople(
   search: string,
   sortKey: PersonSortKey,
   sortDir: SortDirection,
+  extraHaystack?: (person: Person) => string,
 ): Person[] {
   const q = search.trim()
   const base = q
     ? people.filter((p) =>
         matchesSearch(
-          `${p.first_name} ${p.last_name} ${p.tax_code} ${p.email} ${p.fad_email}`,
+          `${p.first_name} ${p.last_name} ${p.tax_code} ${p.email} ${p.fad_email} ${extraHaystack?.(p) ?? ''}`,
           q,
         ),
       )
@@ -33,7 +34,8 @@ export function usePeopleBrowseControls() {
   const [sortDir, setSortDir] = useState<SortDirection>(DEFAULT_SORT_DIRECTION)
 
   const browse = useCallback(
-    (people: Person[]) => filterBrowsePeople(people, search, sortKey, sortDir),
+    (people: Person[], extraHaystack?: (person: Person) => string) =>
+      filterBrowsePeople(people, search, sortKey, sortDir, extraHaystack),
     [search, sortKey, sortDir],
   )
 

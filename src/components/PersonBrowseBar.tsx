@@ -16,6 +16,7 @@ const SORT_LABELS: Record<PersonSortKey, string> = {
   city: 'Città',
   inps: 'INPS',
   documenti: 'Documenti',
+  corso: 'Corso',
 }
 
 type Props = {

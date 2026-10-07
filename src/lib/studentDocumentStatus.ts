@@ -39,8 +39,18 @@ export function checkStudentDocuments(
   return { ok: gaps.length === 0, gaps }
 }
 
-export function studentDocumentStatusLabel(ok: boolean): 'Documenti ok' | 'Documenti mancanti' {
-  return ok ? 'Documenti ok' : 'Documenti mancanti'
+export type StudentDocumentStatusLabel =
+  | 'Documenti ok'
+  | 'Documenti mancanti'
+  | 'Dati incompleti'
+  | 'Documento scaduto'
+
+/** Etichetta visibile: il file caricato non va confuso con dati incompleti o scadenza passata. */
+export function studentDocumentStatusLabel(check: StudentDocumentCheck): StudentDocumentStatusLabel {
+  if (check.ok) return 'Documenti ok'
+  if (check.gaps.includes('file')) return 'Documenti mancanti'
+  if (check.gaps.includes('dati') || check.gaps.includes('scadenza')) return 'Dati incompleti'
+  return 'Documento scaduto'
 }
 
 export function studentDocumentGapSummary(gaps: StudentDocumentGap[]): string {
@@ -48,8 +58,9 @@ export function studentDocumentGapSummary(gaps: StudentDocumentGap[]): string {
 }
 
 export function studentDocumentExportValue(check: StudentDocumentCheck): string {
-  const label = studentDocumentStatusLabel(check.ok)
+  const label = studentDocumentStatusLabel(check)
   if (check.ok) return label
   const summary = studentDocumentGapSummary(check.gaps)
-  return summary ? `${label}: ${summary}` : label
+  if (!summary || summary === label) return label
+  return `${label}: ${summary}`
 }

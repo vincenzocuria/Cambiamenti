@@ -1,9 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { Person, PersonInput, PersonType } from '../types/db'
-import { addStudentsToCourse, addToCourse, listCoursePeople, removeFromCourse } from '../services/enrollments'
+import {
+  addStudentsToCourse,
+  addToCourse,
+  listCoursePeople,
+  listStudentCourseMap,
+  removeFromCourse,
+} from '../services/enrollments'
 import { createPerson, listPeople } from '../services/people'
 import { isStaffType, metaFor } from '../data/personTypes'
+import { formatCourseMembership, type CourseMembership } from '../lib/courseMembershipLabel'
 import { fullName } from '../lib/format'
 import { personBrowseSortKeys } from '../lib/sortPeople'
 import { usePeopleBrowseControls } from '../hooks/usePeopleBrowse'
@@ -38,6 +45,9 @@ export function CoursePeople({
 }: Props) {
   const [enrolled, setEnrolled] = useState<Person[]>([])
   const [all, setAll] = useState<Person[]>([])
+  const [coursesByStudent, setCoursesByStudent] = useState<Map<string, CourseMembership[]>>(
+    () => new Map(),
+  )
   const [selected, setSelected] = useState('')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
@@ -45,7 +55,12 @@ export function CoursePeople({
   const browse = usePeopleBrowseControls()
 
   async function reload() {
-    setEnrolled(await listCoursePeople(type, courseId))
+    const [people, courses] = await Promise.all([
+      listCoursePeople(type, courseId),
+      type === 'student' ? listStudentCourseMap() : Promise.resolve(null),
+    ])
+    setEnrolled(people)
+    if (courses) setCoursesByStudent(courses)
   }
 
   useEffect(() => {
@@ -73,8 +88,20 @@ export function CoursePeople({
 
   const sortKeys = useMemo(() => personBrowseSortKeys(type === 'student'), [type])
 
-  const availableFiltered = useMemo(() => browse.browse(available), [browse, available])
-  const enrolledFiltered = useMemo(() => browse.browse(enrolled), [browse, enrolled])
+  const courseHaystack = useMemo(
+    () => (person: Person) =>
+      formatCourseMembership(coursesByStudent.get(person.id), 'Nessun corso'),
+    [coursesByStudent],
+  )
+
+  const availableFiltered = useMemo(
+    () => browse.browse(available, type === 'student' ? courseHaystack : undefined),
+    [browse, available, type, courseHaystack],
+  )
+  const enrolledFiltered = useMemo(
+    () => browse.browse(enrolled, type === 'student' ? courseHaystack : undefined),
+    [browse, enrolled, type, courseHaystack],
+  )
 
   const showBrowseBar = available.length > 0 || enrolled.length > 0
 
@@ -188,7 +215,7 @@ export function CoursePeople({
             sortKeys={sortKeys}
             placeholder={
               type === 'student'
-                ? 'Cerca alunno per nome o codice fiscale'
+                ? 'Cerca alunno per nome, codice fiscale o corso'
                 : 'Cerca per nome, codice fiscale o email…'
             }
             layout={type === 'student' ? 'row' : 'stack'}
@@ -199,6 +226,9 @@ export function CoursePeople({
       {type === 'student' ? (
         <CourseStudentPicker
           people={availableFiltered}
+          courseHint={(person) =>
+            formatCourseMembership(coursesByStudent.get(person.id), 'Nessun corso')
+          }
           onAssociate={handleAddStudents}
           onClearFilters={() => browse.setSearch('')}
         />

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import type { Person, PersonInput, PersonType } from '../types/db'
 import { createPerson, listPeople } from '../services/people'
 import { listStudentIdsWithIdentityFile } from '../services/documents'
+import { listStudentCourseMap } from '../services/enrollments'
 import { metaFor } from '../data/personTypes'
 import { inpsBenefitLabel } from '../data/inpsBenefits'
 import { fmtDate, fullName } from '../lib/format'
@@ -11,6 +12,7 @@ import { matchesSearch } from '../lib/matchesSearch'
 import { describeFilters, exportFilteredList } from '../lib/listExport'
 import { countPersonStatuses, isPersonListStatus, matchesPersonStatus } from '../lib/personListStatus'
 import { checkStudentDocuments, studentDocumentExportValue } from '../lib/studentDocumentStatus'
+import { formatCourseMembership, type CourseMembership } from '../lib/courseMembershipLabel'
 import { useListQuery } from '../hooks/useListQuery'
 import { usePagedSlice } from '../hooks/usePagedSlice'
 import { useTableSort } from '../hooks/useTableSort'
@@ -50,6 +52,9 @@ function fadBadge(person: Person) {
 export function PeopleListPage({ type }: Props) {
   const [people, setPeople] = useState<Person[]>([])
   const [identityIds, setIdentityIds] = useState<Set<string>>(() => new Set())
+  const [coursesByStudent, setCoursesByStudent] = useState<Map<string, CourseMembership[]>>(
+    () => new Map(),
+  )
   const [creating, setCreating] = useState(false)
   const { search, status: rawStatus, setSearch, setStatus } = useListQuery()
   const { sortKey, sortDir, toggleSort } = useTableSort()
@@ -62,9 +67,19 @@ export function PeopleListPage({ type }: Props) {
 
   async function reload() {
     const rows = await listPeople(type)
-    const ids = type === 'student' ? await listStudentIdsWithIdentityFile() : new Set<string>()
+    if (type !== 'student') {
+      setPeople(rows)
+      setIdentityIds(new Set())
+      setCoursesByStudent(new Map())
+      return
+    }
+    const [ids, courses] = await Promise.all([
+      listStudentIdsWithIdentityFile(),
+      listStudentCourseMap(),
+    ])
     setPeople(rows)
     setIdentityIds(ids)
+    setCoursesByStudent(courses)
   }
 
   useEffect(() => {
@@ -79,20 +94,28 @@ export function PeopleListPage({ type }: Props) {
     await reload()
   }
 
+  const courseLabelOf = useMemo(
+    () => (id: string) => formatCourseMembership(coursesByStudent.get(id), ''),
+    [coursesByStudent],
+  )
+
   const searched = useMemo(
     () =>
       people.filter((p) =>
         matchesSearch(
-          `${p.first_name} ${p.last_name} ${p.tax_code} ${p.email} ${p.fad_email}`,
+          `${p.first_name} ${p.last_name} ${p.tax_code} ${p.email} ${p.fad_email} ${courseLabelOf(p.id)}`,
           search,
         ),
       ),
-    [people, search],
+    [people, search, courseLabelOf],
   )
 
   const listContext = useMemo<PersonSortContext>(
-    () => ({ hasIdentityFile: (id) => identityIds.has(id) }),
-    [identityIds],
+    () => ({
+      hasIdentityFile: (id) => identityIds.has(id),
+      courseLabel: courseLabelOf,
+    }),
+    [identityIds, courseLabelOf],
   )
 
   const filtered = useMemo(
@@ -100,7 +123,8 @@ export function PeopleListPage({ type }: Props) {
     [searched, status, listContext],
   )
 
-  const activeSortKey = !isStudent && sortKey === 'documenti' ? 'name' : sortKey
+  const activeSortKey =
+    !isStudent && (sortKey === 'documenti' || sortKey === 'corso') ? 'name' : sortKey
 
   const sorted = useMemo(
     () => sortPeople(filtered, activeSortKey, sortDir, listContext),
@@ -116,7 +140,7 @@ export function PeopleListPage({ type }: Props) {
   } = useMemo(() => countPersonStatuses(people, listContext), [people, listContext])
   const { page, setPage, pages, slice, pageSize } = usePagedSlice(
     sorted,
-    `${type}|${search}|${status}|${activeSortKey}|${sortDir}|${identityIds.size}`,
+    `${type}|${search}|${status}|${activeSortKey}|${sortDir}|${identityIds.size}|${coursesByStudent.size}`,
   )
 
   const statusLabel =
@@ -146,6 +170,14 @@ export function PeopleListPage({ type }: Props) {
       filters: describeFilters([statusLabel, search && `ricerca «${search}»`]),
       columns: [
         { header: 'Nominativo', value: (p) => fullName(p) },
+        ...(isStudent
+          ? [
+              {
+                header: 'Corso',
+                value: (p: Person) => formatCourseMembership(coursesByStudent.get(p.id)),
+              },
+            ]
+          : []),
         { header: 'Codice fiscale', value: (p) => p.tax_code || '' },
         { header: 'Nato/a il', value: (p) => fmtDate(p.birth_date) },
         { header: 'Email', value: (p) => p.email || '' },
@@ -228,7 +260,7 @@ export function PeopleListPage({ type }: Props) {
                 {
                   key: 'documenti_mancanti',
                   label: 'Documenti mancanti',
-                  hint: 'File, dati o scadenza',
+                  hint: 'File assente, dati incompleti o scadenza',
                   value: docsMissing,
                   tone: docsMissing > 0 ? ('warn' as const) : ('ok' as const),
                   active: status === 'documenti_mancanti',
@@ -255,7 +287,11 @@ export function PeopleListPage({ type }: Props) {
       <ListToolbar
         search={search}
         onSearch={setSearch}
-        placeholder="Cerca per nome, codice fiscale o email…"
+        placeholder={
+          isStudent
+            ? 'Cerca per nome, codice fiscale, email o corso…'
+            : 'Cerca per nome, codice fiscale o email…'
+        }
         resultCount={filtered.length}
         totalCount={people.length}
         unitSingular={l.singular}
@@ -275,6 +311,15 @@ export function PeopleListPage({ type }: Props) {
                 direction={sortDir}
                 onSort={toggleSort}
               />
+              {isStudent && (
+                <SortableTh
+                  label="Corso"
+                  column="corso"
+                  activeKey={sortKey}
+                  direction={sortDir}
+                  onSort={toggleSort}
+                />
+              )}
               <SortableTh
                 label="Codice fiscale"
                 column="tax_code"
@@ -348,6 +393,9 @@ export function PeopleListPage({ type }: Props) {
                     {fullName(p)}
                   </Link>
                 </td>
+                {isStudent && (
+                  <td className={tdClass}>{formatCourseMembership(coursesByStudent.get(p.id))}</td>
+                )}
                 <td className={`${tdClass} font-mono text-xs tracking-wide`}>
                   {p.tax_code || '—'}
                 </td>
@@ -377,7 +425,7 @@ export function PeopleListPage({ type }: Props) {
             {filtered.length === 0 && (
               <tr>
                 <td
-                  colSpan={isStudent ? 9 : 7}
+                  colSpan={isStudent ? 10 : 7}
                   className={`${tdClass} py-10 text-center text-slate-400`}
                 >
                   {people.length === 0

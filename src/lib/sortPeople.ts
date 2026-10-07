@@ -13,6 +13,7 @@ export const personSortKeys = [
   'city',
   'inps',
   'documenti',
+  'corso',
 ] as const
 
 export type PersonSortKey = (typeof personSortKeys)[number]
@@ -32,12 +33,13 @@ export function isSortDirection(value: string): value is SortDirection {
 
 export type PersonSortContext = {
   hasIdentityFile?: (personId: string) => boolean
+  courseLabel?: (personId: string) => string
 }
 
-/** Schede corso e selezioni: lo stato documenti si ordina solo in anagrafica alunni. */
+/** Schede corso e selezioni: documenti e corso si ordinano solo in anagrafica alunni. */
 export function personBrowseSortKeys(includeInps: boolean): PersonSortKey[] {
   return personSortKeys.filter((key) => {
-    if (key === 'documenti') return false
+    if (key === 'documenti' || key === 'corso') return false
     if (key === 'inps') return includeInps
     return true
   })
@@ -89,6 +91,8 @@ function sortValueForKey(person: Person, key: PersonSortKey, context?: PersonSor
       return checkStudentDocuments(person, context?.hasIdentityFile?.(person.id) ?? false).ok
         ? '0'
         : '1'
+    case 'corso':
+      return context?.courseLabel?.(person.id) ?? ''
   }
 }
 

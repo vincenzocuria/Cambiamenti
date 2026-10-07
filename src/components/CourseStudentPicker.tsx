@@ -7,11 +7,13 @@ import { SecondaryButton } from './Buttons'
 
 type Props = {
   people: Person[]
+  /** Corsi già collegati all’alunno, oppure «Nessun corso». */
+  courseHint?: (person: Person) => string
   onAssociate: (ids: string[]) => Promise<void>
   onClearFilters?: () => void
 }
 
-export function CourseStudentPicker({ people, onAssociate, onClearFilters }: Props) {
+export function CourseStudentPicker({ people, courseHint, onAssociate, onClearFilters }: Props) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
 
@@ -75,6 +77,7 @@ export function CourseStudentPicker({ people, onAssociate, onClearFilters }: Pro
         items={people.map((p) => ({
           id: p.id,
           label: `${fullName(p)}${p.tax_code ? ` (${p.tax_code})` : ''}`,
+          hint: courseHint?.(p) ?? 'Nessun corso',
         }))}
         selectedIds={selectedIds}
         onToggle={(id) => setSelectedIds((cur) => toggleId(cur, id))}

@@ -5,7 +5,7 @@ import {
 } from '../lib/studentDocumentStatus'
 
 export function DocumentStatusBadge({ check }: { check: StudentDocumentCheck }) {
-  const label = studentDocumentStatusLabel(check.ok)
+  const label = studentDocumentStatusLabel(check)
   const title = check.ok ? label : studentDocumentGapSummary(check.gaps) || label
   const tone = check.ok
     ? 'bg-emerald-50 text-emerald-700'

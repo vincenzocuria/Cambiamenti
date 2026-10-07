@@ -1,4 +1,4 @@
-type Item = { id: string; label: string }
+type Item = { id: string; label: string; hint?: string }
 
 type Props = {
   items: Item[]
@@ -32,7 +32,10 @@ export function IdCheckboxList({
               checked={selectedIds.has(item.id)}
               onChange={() => onToggle(item.id)}
             />
-            <span className="min-w-0">{item.label}</span>
+            <span className="min-w-0">
+              {item.label}
+              {item.hint ? <span className="text-slate-500"> · {item.hint}</span> : null}
+            </span>
           </label>
         </li>
       ))}
