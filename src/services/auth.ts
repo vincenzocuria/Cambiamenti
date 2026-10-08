@@ -4,6 +4,14 @@ import { titleCase } from '../lib/text'
 import type { Profile } from '../types/db'
 import { sendNotificationEmail } from './sendNotificationEmail'
 
+interface SignUpOptions {
+  birthDate: string | null
+  isUnder14: boolean
+  parentalConsentGiven: boolean | null
+  parentalGuardianName: string | null
+  parentalGuardianContact: string | null
+}
+
 export async function signIn(email: string, password: string) {
   const { error } = await supabase.auth.signInWithPassword({
     email: normalizeEmail(email),
@@ -12,15 +20,41 @@ export async function signIn(email: string, password: string) {
   if (error) throw error
 }
 
-export async function signUp(email: string, password: string, fullName: string) {
+export async function signUp(
+  email: string,
+  password: string,
+  fullName: string,
+  options?: SignUpOptions,
+) {
   const normalized = normalizeEmail(email)
   const displayName = titleCase(fullName)
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email: normalized,
     password,
-    options: { data: { full_name: displayName } },
+    options: {
+      data: {
+        full_name: displayName,
+        birth_date: options?.birthDate,
+        is_under_14: options?.isUnder14,
+        parental_consent_given: options?.parentalConsentGiven,
+        parental_guardian_name: options?.parentalGuardianName,
+        parental_guardian_contact: options?.parentalGuardianContact,
+        parental_consent_timestamp: options?.parentalConsentGiven ? new Date().toISOString() : null,
+      },
+    },
   })
   if (error) throw error
+
+  if (data.user && options?.isUnder14 && options?.parentalConsentGiven) {
+    await supabase.from('profiles').update({
+      birth_date: options.birthDate,
+      is_under_14: options.isUnder14,
+      parental_consent_given: options.parentalConsentGiven,
+      parental_guardian_name: options.parentalGuardianName,
+      parental_guardian_contact: options.parentalGuardianContact,
+      parental_consent_timestamp: new Date().toISOString(),
+    }).eq('id', data.user.id)
+  }
 
   try {
     await sendNotificationEmail({
