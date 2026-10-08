@@ -1,7 +1,5 @@
 import type { Role } from '../types/db'
-
-/** Unico superadmin dell'app: accesso pieno, non demotabile. */
-export const SUPERADMIN_EMAIL = 'curiavincenzo86@gmail.com'
+import { getSuperAdminEmails, isSuperAdminEmail as checkSuperAdminEmail } from './securityConfig'
 
 export const roleLabels: Record<Role, string> = {
   superadmin: 'Superadmin',
@@ -21,7 +19,15 @@ export function normalizeEmail(email: string): string {
 }
 
 export function isSuperAdminEmail(email: string | null | undefined): boolean {
-  return normalizeEmail(email ?? '') === SUPERADMIN_EMAIL
+  return checkSuperAdminEmail(email)
+}
+
+/**
+ * Ottiene tutte le email dei superadmin configurate.
+ * Usato solo per riferimento; la verifica deve usare isSuperAdminEmail.
+ */
+export function getSuperAdminEmailsList(): string[] {
+  return getSuperAdminEmails()
 }
 
 export function isSuperAdmin(role: Role | null | undefined): boolean {

@@ -1,7 +1,7 @@
-const SUPERADMIN_EMAIL = 'curiavincenzo86@gmail.com'
+import { isSuperAdminEmail } from '../_shared/securityConfig.ts'
 
 function isSuper(role: string, email: string): boolean {
-  return role === 'superadmin' || email.trim().toLowerCase() === SUPERADMIN_EMAIL
+  return role === 'superadmin' || isSuperAdminEmail(email)
 }
 
 export function canResetPassword(opts: {

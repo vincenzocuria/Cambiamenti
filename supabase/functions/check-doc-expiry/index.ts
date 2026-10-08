@@ -1,6 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { corsHeaders, jsonResponse } from './cors.ts'
+import { getCorsHeadersForRequest } from './cors.ts'
+import { verifyCronSecret, jsonResponse } from '../_shared/securityConfig.ts'
 
 const DAYS_AHEAD = 30
 
@@ -13,23 +14,24 @@ interface ExpiringRow {
 }
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get('origin')
+  
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: getCorsHeadersForRequest(req) })
   }
 
   try {
-    if (req.method !== 'POST') return jsonResponse({ error: 'Metodo non consentito' }, 405)
+    if (req.method !== 'POST') return jsonResponse({ error: 'Metodo non consentito' }, 405, origin)
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    const cronSecret = Deno.env.get('CRON_SECRET')
     if (!supabaseUrl || !anonKey || !serviceKey) {
-      return jsonResponse({ error: 'Configurazione server mancante' }, 500)
+      return jsonResponse({ error: 'Configurazione server mancante' }, 500, origin)
     }
 
     const headerSecret = req.headers.get('x-cron-secret')
-    let authorized = Boolean(cronSecret && headerSecret === cronSecret)
+    let authorized = verifyCronSecret(headerSecret)
 
     if (!authorized) {
       const authHeader = req.headers.get('Authorization')
@@ -53,7 +55,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (!authorized) return jsonResponse({ error: 'Non autorizzato' }, 403)
+    if (!authorized) return jsonResponse({ error: 'Non autorizzato' }, 403, origin)
 
     const admin = createClient(supabaseUrl, serviceKey)
     const today = new Date()
@@ -160,9 +162,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    return jsonResponse({ ok: true, count: rows.length })
+    return jsonResponse({ ok: true, count: rows.length }, 200, origin)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Errore controllo scadenze'
-    return jsonResponse({ error: message }, 400)
+    return jsonResponse({ error: message }, 400, origin)
   }
 })
