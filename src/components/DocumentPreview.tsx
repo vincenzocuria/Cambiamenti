@@ -67,7 +67,6 @@ export function DocumentPreview({ doc, onClose }: Props) {
         <iframe
           title={doc.file_name}
           src={url}
-          sandbox="allow-scripts"
           className="h-[70vh] w-full rounded-lg border border-slate-200"
         />
       )}
