@@ -12,6 +12,8 @@ function normalizeInput<T extends Partial<EipassCandidateInput>>(input: T): T {
   if (typeof out.certification === 'string') out.certification = cleanText(out.certification)
   // L'esame non fatto non ha data
   if (out.exam_done === false) out.exam_date = null
+  if (typeof out.invoice_number === 'string') out.invoice_number = out.invoice_number.trim()
+  if (typeof out.amount === 'number' && !Number.isFinite(out.amount)) out.amount = null
   return out
 }
 

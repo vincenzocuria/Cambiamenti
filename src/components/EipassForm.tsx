@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import type { EipassCandidate, EipassCandidateInput } from '../types/db'
 import { calendarDateIso } from '../lib/studentDocumentStatus'
+import { invoiceStatusLabels, paymentMethods } from '../lib/eipassInvoice'
 import { TextField, SelectField, TextAreaField } from './Field'
 import { PrimaryButton, SecondaryButton } from './Buttons'
 
@@ -24,11 +25,20 @@ const empty: EipassCandidateInput = {
   purchase_date: null,
   exam_done: false,
   exam_date: null,
+  amount: null,
+  vat_rate: 22,
+  payment_method: '',
+  payment_date: null,
+  invoice_status: 'da_fatturare',
+  invoice_number: '',
+  invoice_date: null,
   notes: '',
 }
 
 interface Props {
   initial?: EipassCandidate
+  /** Numero proposto quando si compila la fattura a mano. */
+  suggestInvoiceNumber?: () => string
   onSave: (input: EipassCandidateInput) => Promise<void>
   onCancel: () => void
 }
@@ -42,7 +52,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-export function EipassForm({ initial, onSave, onCancel }: Props) {
+export function EipassForm({ initial, suggestInvoiceNumber, onSave, onCancel }: Props) {
   const [form, setForm] = useState<EipassCandidateInput>(() => ({
     ...empty,
     purchase_date: initial ? null : calendarDateIso(),
@@ -110,6 +120,89 @@ export function EipassForm({ initial, onSave, onCancel }: Props) {
             </div>
           )}
         </div>
+      </Section>
+
+      <Section title="Pagamento e fatturazione">
+        <TextField
+          label="Importo pagato (€, IVA inclusa)"
+          type="number"
+          min="0"
+          step="0.01"
+          value={form.amount ?? ''}
+          onChange={(e) => set('amount', e.target.value === '' ? null : Number(e.target.value))}
+        />
+        <SelectField
+          label="Modalità di pagamento"
+          value={form.payment_method}
+          onChange={(e) => set('payment_method', e.target.value)}
+        >
+          <option value="">—</option>
+          {paymentMethods.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label}
+            </option>
+          ))}
+        </SelectField>
+        <TextField
+          label="Data di pagamento"
+          type="date"
+          value={form.payment_date ?? ''}
+          onChange={(e) => set('payment_date', e.target.value || null)}
+        />
+        <SelectField
+          label="IVA"
+          value={String(form.vat_rate)}
+          onChange={(e) => set('vat_rate', Number(e.target.value))}
+          hint="Usata per generare la fattura elettronica"
+        >
+          <option value="22">22%</option>
+          <option value="0">Esente art. 10 (N4)</option>
+        </SelectField>
+        <SelectField
+          label="Fattura"
+          value={form.invoice_status}
+          onChange={(e) => set('invoice_status', e.target.value as EipassCandidateInput['invoice_status'])}
+        >
+          {Object.entries(invoiceStatusLabels).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </SelectField>
+        {form.invoice_status !== 'non_richiesta' && (
+          <>
+            <div className="flex items-end gap-2">
+              <div className="min-w-0 flex-1">
+                <TextField
+                  label="Numero fattura"
+                  value={form.invoice_number}
+                  onChange={(e) => set('invoice_number', e.target.value)}
+                  placeholder="Es. 12"
+                />
+              </div>
+              {suggestInvoiceNumber && !form.invoice_number && (
+                <SecondaryButton
+                  type="button"
+                  onClick={() =>
+                    setForm((f) => ({
+                      ...f,
+                      invoice_number: suggestInvoiceNumber(),
+                      invoice_date: f.invoice_date ?? calendarDateIso(),
+                    }))
+                  }
+                >
+                  Successivo
+                </SecondaryButton>
+              )}
+            </div>
+            <TextField
+              label="Data fattura"
+              type="date"
+              value={form.invoice_date ?? ''}
+              onChange={(e) => set('invoice_date', e.target.value || null)}
+            />
+          </>
+        )}
       </Section>
 
       <Section title="Anagrafica">

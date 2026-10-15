@@ -4,13 +4,24 @@ import type { EipassCandidate, EipassCandidateInput } from '../types/db'
 import {
   deleteEipassCandidate,
   getEipassCandidate,
+  listEipassCandidates,
   updateEipassCandidate,
 } from '../services/eipass'
 import { hasDocumentInCategory } from '../services/documents'
 import { fmtDate, fullName } from '../lib/format'
-import { checkStudentDocuments } from '../lib/studentDocumentStatus'
+import { calendarDateIso, checkStudentDocuments } from '../lib/studentDocumentStatus'
+import {
+  buildEipassInvoiceXml,
+  invoiceAmounts,
+  invoiceFileName,
+  invoiceMissingFields,
+  nextInvoiceNumber,
+  paymentMethodLabel,
+  randomProgressive,
+} from '../lib/eipassInvoice'
+import { downloadBlob } from '../lib/downloadBlob'
 import { EipassForm } from '../components/EipassForm'
-import { EipassExamBadge } from '../components/EipassExamBadge'
+import { EipassExamBadge, InvoiceStatusBadge } from '../components/EipassExamBadge'
 import { DocumentsPanel } from '../components/DocumentsPanel'
 import { DocumentStatusBadge } from '../components/DocumentStatusBadge'
 import { DangerButton, SecondaryButton } from '../components/Buttons'
@@ -23,16 +34,23 @@ export function EipassDetailPage() {
   const [editing, setEditing] = useState(false)
   const [hasIdentityFile, setHasIdentityFile] = useState<boolean | null>(null)
   const [savingExam, setSavingExam] = useState(false)
+  const [hasCertificate, setHasCertificate] = useState(false)
+  const [allCandidates, setAllCandidates] = useState<EipassCandidate[]>([])
+  const [invoiceError, setInvoiceError] = useState('')
 
   function refreshIdentity(candidateId: string) {
     hasDocumentInCategory('eipass', candidateId, 'identity')
       .then(setHasIdentityFile)
       .catch(() => setHasIdentityFile(false))
+    hasDocumentInCategory('eipass', candidateId, 'certificate')
+      .then(setHasCertificate)
+      .catch(() => setHasCertificate(false))
   }
 
   useEffect(() => {
     if (!id) return
     getEipassCandidate(id).then(setCandidate)
+    listEipassCandidates().then(setAllCandidates)
     setHasIdentityFile(null)
     refreshIdentity(id)
   }, [id])
@@ -60,6 +78,54 @@ export function EipassDetailPage() {
     }
   }
 
+  function suggestInvoiceNumber(): string {
+    const today = calendarDateIso()
+    return nextInvoiceNumber(
+      allCandidates.filter((c) => c.id !== id),
+      Number(today.slice(0, 4)),
+    )
+  }
+
+  async function handleInvoiceXml() {
+    if (!candidate) return
+    setInvoiceError('')
+    let current = candidate
+    const missing = invoiceMissingFields({
+      ...current,
+      invoice_number: current.invoice_number || 'auto',
+      invoice_date: current.invoice_date ?? calendarDateIso(),
+    })
+    if (missing.length) {
+      setInvoiceError(`Per generare la fattura mancano: ${missing.join(', ')}`)
+      return
+    }
+    try {
+      // Numero e data proposti in automatico se non ancora assegnati
+      if (!current.invoice_number.trim() || !current.invoice_date) {
+        current = await updateEipassCandidate(id!, {
+          invoice_number: current.invoice_number.trim() || suggestInvoiceNumber(),
+          invoice_date: current.invoice_date ?? calendarDateIso(),
+        })
+        setCandidate(current)
+      }
+      const progressive = randomProgressive()
+      downloadBlob(
+        new Blob([buildEipassInvoiceXml(current, progressive)], { type: 'application/xml' }),
+        invoiceFileName(progressive),
+      )
+      if (
+        current.invoice_status !== 'fatturato' &&
+        window.confirm(
+          `Fattura n. ${current.invoice_number} scaricata. Caricala su Aruba Fatturazione Elettronica. Segnare il corsista come «Fatturato»?`,
+        )
+      ) {
+        setCandidate(await updateEipassCandidate(id!, { invoice_status: 'fatturato' }))
+      }
+    } catch (err) {
+      setInvoiceError(err instanceof Error ? err.message : 'Errore nella generazione della fattura')
+    }
+  }
+
   async function handleDelete() {
     if (!window.confirm('Eliminare questo corsista EIPASS e i documenti caricati?')) return
     await deleteEipassCandidate(id!)
@@ -79,6 +145,11 @@ export function EipassDetailPage() {
             {hasIdentityFile !== null && (
               <DocumentStatusBadge check={checkStudentDocuments(candidate, hasIdentityFile)} />
             )}
+            {hasCertificate && (
+              <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                Attestato caricato
+              </span>
+            )}
           </div>
         </div>
         <div className="flex gap-2">
@@ -88,7 +159,12 @@ export function EipassDetailPage() {
       </div>
 
       {editing ? (
-        <EipassForm initial={candidate} onSave={handleSave} onCancel={() => setEditing(false)} />
+        <EipassForm
+          initial={candidate}
+          suggestInvoiceNumber={suggestInvoiceNumber}
+          onSave={handleSave}
+          onCancel={() => setEditing(false)}
+        />
       ) : (
         <div className="space-y-4">
           <InfoCard title="Acquisto ed esame">
@@ -105,6 +181,60 @@ export function EipassDetailPage() {
                 </SecondaryButton>
               </div>
             </Info>
+          </InfoCard>
+          <InfoCard title="Pagamento e fatturazione">
+            <Info
+              label="Importo pagato"
+              value={
+                candidate.amount != null
+                  ? `${candidate.amount.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}${
+                      candidate.vat_rate === 0
+                        ? ' (esente IVA)'
+                        : ` (imponibile ${invoiceAmounts(candidate.amount, candidate.vat_rate).taxable.toLocaleString('it-IT', { minimumFractionDigits: 2 })} + IVA ${candidate.vat_rate}%)`
+                    }`
+                  : ''
+              }
+            />
+            <Info
+              label="Pagamento"
+              value={[paymentMethodLabel(candidate.payment_method), candidate.payment_date && `il ${fmtDate(candidate.payment_date)}`]
+                .filter(Boolean)
+                .join(' ')}
+            />
+            <Info label="Fattura">
+              <div className="flex flex-wrap items-center gap-2">
+                <InvoiceStatusBadge status={candidate.invoice_status} />
+                {candidate.invoice_number && (
+                  <span className="text-xs text-slate-500">
+                    n. {candidate.invoice_number}
+                    {candidate.invoice_date && ` del ${fmtDate(candidate.invoice_date)}`}
+                  </span>
+                )}
+              </div>
+            </Info>
+            {candidate.invoice_status !== 'non_richiesta' && (
+              <div className="col-span-full space-y-2">
+                <SecondaryButton size="sm" onClick={() => void handleInvoiceXml()}>
+                  Genera fattura XML per Aruba
+                </SecondaryButton>
+                {invoiceMissingFields({
+                  ...candidate,
+                  invoice_number: candidate.invoice_number || 'auto',
+                  invoice_date: candidate.invoice_date ?? calendarDateIso(),
+                }).length > 0 && (
+                  <p className="text-xs text-amber-700">
+                    Per la fattura servono:{' '}
+                    {invoiceMissingFields({
+                      ...candidate,
+                      invoice_number: candidate.invoice_number || 'auto',
+                      invoice_date: candidate.invoice_date ?? calendarDateIso(),
+                    }).join(', ')}
+                    . Usa Modifica per completarli.
+                  </p>
+                )}
+                {invoiceError && <p className="text-xs text-red-600">{invoiceError}</p>}
+              </div>
+            )}
           </InfoCard>
           <InfoCard title="Anagrafica">
             <Info label="Codice fiscale" value={candidate.tax_code} />
@@ -139,6 +269,9 @@ export function EipassDetailPage() {
         </div>
       )}
 
+      <p className="text-sm text-slate-500">
+        Carica qui documento d'identità e copia dell'<strong>attestato</strong> (categoria Attestato).
+      </p>
       <DocumentsPanel mode="eipass" personId={id} onChanged={() => refreshIdentity(id)} />
     </div>
   )

@@ -5,6 +5,8 @@ export const eipassListStatuses = [
   'esame_da_fare',
   'documenti_ok',
   'documenti_mancanti',
+  'da_fatturare',
+  'fatturato',
 ] as const
 
 export type EipassListStatus = (typeof eipassListStatuses)[number]
@@ -18,6 +20,8 @@ export const eipassStatusLabels: Record<EipassListStatus, string> = {
   esame_da_fare: 'Esame da fare',
   documenti_ok: 'Documenti ok',
   documenti_mancanti: 'Documenti mancanti',
+  da_fatturare: 'Da fatturare',
+  fatturato: 'Fatturato',
 }
 
 export function eipassExamLabel(candidate: Pick<EipassCandidate, 'exam_done'>): string {

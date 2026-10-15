@@ -110,6 +110,7 @@ export type DocumentCategory =
   | 'module'
   | 'appointment'
   | 'curriculum'
+  | 'certificate'
   | 'other'
   | 'generated'
 
@@ -174,9 +175,19 @@ export interface EipassCandidate {
   purchase_date: string | null
   exam_done: boolean
   exam_date: string | null
+  /** Totale pagato, IVA inclusa. */
+  amount: number | null
+  vat_rate: number
+  payment_method: string
+  payment_date: string | null
+  invoice_status: EipassInvoiceStatus
+  invoice_number: string
+  invoice_date: string | null
   notes: string
   created_at: string
   updated_at: string
 }
+
+export type EipassInvoiceStatus = 'da_fatturare' | 'fatturato' | 'non_richiesta'
 
 export type EipassCandidateInput = Omit<EipassCandidate, 'id' | 'created_at' | 'updated_at'>
