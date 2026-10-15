@@ -86,8 +86,10 @@ export function invoiceMissingFields(c: EipassCandidate): string[] {
 export function nextInvoiceNumber(
   existing: Pick<EipassCandidate, 'invoice_number' | 'invoice_date'>[],
   year: number,
+  /** Ultimo numero già usato fuori dall'app (es. fatture emesse da Aruba). */
+  floor = 0,
 ): string {
-  let max = 0
+  let max = floor
   for (const row of existing) {
     if (!row.invoice_date?.startsWith(String(year))) continue
     const match = /^\s*(\d+)/.exec(row.invoice_number)
@@ -121,6 +123,7 @@ export function buildEipassInvoiceXml(c: EipassCandidate, progressive = randomPr
   const description = `Certificazione ${c.certification.trim() || 'EIPASS'} - ${c.last_name} ${c.first_name}`
   const exempt = amounts.vatRate === 0
   const seller = school.invoice
+  const [reaOffice, reaNumber] = school.rea.split('-')
   const paymentDate = c.payment_date ?? c.invoice_date!
   const docTotal = amounts.total + amounts.stamp
 
@@ -163,6 +166,7 @@ export function buildEipassInvoiceXml(c: EipassCandidate, progressive = randomPr
           <IdPaese>IT</IdPaese>
           <IdCodice>${school.vatNumber}</IdCodice>
         </IdFiscaleIVA>
+        <CodiceFiscale>${school.vatNumber}</CodiceFiscale>
         <Anagrafica>
           <Denominazione>${text(seller.legalName, 80)}</Denominazione>
         </Anagrafica>
@@ -175,6 +179,11 @@ export function buildEipassInvoiceXml(c: EipassCandidate, progressive = randomPr
         <Provincia>${seller.province}</Provincia>
         <Nazione>IT</Nazione>
       </Sede>
+      <IscrizioneREA>
+        <Ufficio>${reaOffice}</Ufficio>
+        <NumeroREA>${reaNumber}</NumeroREA>
+        <StatoLiquidazione>LN</StatoLiquidazione>
+      </IscrizioneREA>
     </CedentePrestatore>
     <CessionarioCommittente>
       <DatiAnagrafici>

@@ -63,3 +63,44 @@ export async function arubaUploadInvoice(token: string, xml: string): Promise<st
   }
   return body.uploadFileName ?? ''
 }
+
+interface ArubaSentPage {
+  content?: { invoices?: { number?: string; invoiceDate?: string }[] }[]
+  last?: boolean
+  totalPages?: number
+}
+
+/**
+ * Numero più alto tra le fatture emesse nell'anno su Aruba (anche quelle create
+ * fuori dall'app), così la numerazione dell'app prosegue senza duplicati.
+ */
+export async function arubaLastInvoiceNumber(
+  token: string,
+  username: string,
+  year: number,
+): Promise<number> {
+  let max = 0
+  for (let page = 1; page <= 50; page++) {
+    const params = new URLSearchParams({
+      username,
+      page: String(page),
+      size: '100',
+      startDate: `${year}-01-01T00:00:00.000Z`,
+      endDate: new Date().toISOString(),
+    })
+    const res = await fetch(`${WS_URL}/services/invoice/out/findByUsername?${params}`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+    })
+    if (!res.ok) throw new ArubaError(`Elenco fatture Aruba non leggibile (HTTP ${res.status})`)
+    const body = (await res.json()) as ArubaSentPage
+    for (const doc of body.content ?? []) {
+      for (const inv of doc.invoices ?? []) {
+        if (inv.invoiceDate && !inv.invoiceDate.startsWith(String(year))) continue
+        const match = /^\s*(\d+)/.exec(inv.number ?? '')
+        if (match) max = Math.max(max, Number(match[1]))
+      }
+    }
+    if (body.last !== false || !body.content?.length) break
+  }
+  return max
+}

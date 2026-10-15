@@ -14,7 +14,7 @@ import {
   paymentMethodLabel,
 } from '../lib/eipassInvoice'
 import { listPersonIdsWithDocument } from '../services/documents'
-import { checkArubaConnection } from '../services/arubaInvoice'
+import { checkArubaConnection, getArubaLastInvoiceNumber } from '../services/arubaInvoice'
 import { fmtDate, fullName } from '../lib/format'
 import { matchesSearch } from '../lib/matchesSearch'
 import { describeFilters, exportFilteredList } from '../lib/listExport'
@@ -56,12 +56,22 @@ export function EipassListPage() {
   const [importing, setImporting] = useState(false)
   const importRef = useRef<HTMLInputElement>(null)
   const [arubaStatus, setArubaStatus] = useState('')
+  const [arubaLastNumber, setArubaLastNumber] = useState(0)
 
   async function handleCheckAruba() {
     setArubaStatus('Verifica in corso…')
     try {
       const res = await checkArubaConnection()
-      setArubaStatus(`Collegamento Aruba attivo${res.account ? ` (account ${res.account})` : ''}`)
+      const active = `Collegamento Aruba attivo${res.account ? ` (account ${res.account})` : ''}`
+      try {
+        const last = await getArubaLastInvoiceNumber(new Date().getFullYear())
+        setArubaLastNumber(last)
+        setArubaStatus(`${active}. Ultima fattura emessa quest'anno su Aruba: n. ${last}`)
+      } catch (err) {
+        setArubaStatus(
+          `${active}, ma non riesco a leggere l'elenco fatture: ${err instanceof Error ? err.message : 'errore'}`,
+        )
+      }
     } catch (err) {
       setArubaStatus(err instanceof Error ? err.message : 'Collegamento Aruba non riuscito')
     }
@@ -82,10 +92,13 @@ export function EipassListPage() {
 
   useEffect(() => {
     void reload()
+    getArubaLastInvoiceNumber(new Date().getFullYear())
+      .then(setArubaLastNumber)
+      .catch(() => setArubaLastNumber(0))
   }, [])
 
   function suggestInvoiceNumber(): string {
-    return nextInvoiceNumber(candidates, new Date().getFullYear())
+    return nextInvoiceNumber(candidates, new Date().getFullYear(), arubaLastNumber)
   }
 
   /** Importa fatture XML scaricate da Aruba e segna i corsisti come fatturati. */

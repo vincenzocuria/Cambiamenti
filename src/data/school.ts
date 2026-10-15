@@ -10,7 +10,8 @@ export const school = {
   sdiCode: 'KRRH6B9',
   /** Dati cedente per la fattura elettronica (FatturaPA). */
   invoice: {
-    legalName: 'Cambia-Menti Formazione',
+    /** Ragione sociale come registrata su Aruba Fatturazione Elettronica. */
+    legalName: 'Cambia-Menti S.r.l.',
     street: 'C.da Cardame snc',
     postalCode: '87064',
     city: 'Corigliano-Rossano',

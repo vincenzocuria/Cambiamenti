@@ -20,6 +20,12 @@ export function checkArubaConnection(): Promise<{ ok: boolean; account: string |
   return invoke({ action: 'check' })
 }
 
+/** Numero più alto delle fatture emesse su Aruba nell'anno (0 se nessuna). */
+export async function getArubaLastInvoiceNumber(year: number): Promise<number> {
+  const result = await invoke<{ lastNumber: number }>({ action: 'lastNumber', year })
+  return Number(result.lastNumber) || 0
+}
+
 /** Carica la fattura su Aruba (che la firma e la invia allo SdI) e segna il corsista come fatturato. */
 export function sendInvoiceToAruba(
   candidateId: string,

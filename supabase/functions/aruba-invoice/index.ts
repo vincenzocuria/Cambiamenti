@@ -1,12 +1,19 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { corsHeaders, jsonResponse } from './cors.ts'
-import { ArubaError, arubaLogin, arubaUploadInvoice, arubaUserInfo } from './aruba.ts'
+import {
+  ArubaError,
+  arubaLastInvoiceNumber,
+  arubaLogin,
+  arubaUploadInvoice,
+  arubaUserInfo,
+} from './aruba.ts'
 
 /**
  * Invio fatture EIPASS ad Aruba Fatturazione Elettronica.
  * Solo utenti staff. Credenziali nei secrets ARUBA_FE_USERNAME / ARUBA_FE_PASSWORD.
  * - action "check": verifica che il login ad Aruba funzioni
+ * - action "lastNumber": numero più alto delle fatture emesse su Aruba nell'anno
  * - action "send": carica l'XML su Aruba e segna il corsista come fatturato
  */
 Deno.serve(async (req) => {
@@ -28,6 +35,7 @@ Deno.serve(async (req) => {
       action?: string
       candidateId?: string
       xml?: string
+      year?: number
     }
 
     const authHeader = req.headers.get('Authorization')
@@ -62,6 +70,14 @@ Deno.serve(async (req) => {
         vatCode: info.vatCode ?? null,
         description: info.description ?? null,
       })
+    }
+
+    if (body.action === 'lastNumber') {
+      const year = Number(body.year) || new Date().getFullYear()
+      const info = await arubaUserInfo(token)
+      const arubaUser = String(info.username ?? info.userName ?? username)
+      const lastNumber = await arubaLastInvoiceNumber(token, arubaUser, year)
+      return jsonResponse({ ok: true, year, lastNumber })
     }
 
     if (body.action === 'send') {

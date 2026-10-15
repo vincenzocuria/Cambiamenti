@@ -20,7 +20,7 @@ import {
   randomProgressive,
 } from '../lib/eipassInvoice'
 import { downloadBlob } from '../lib/downloadBlob'
-import { sendInvoiceToAruba } from '../services/arubaInvoice'
+import { getArubaLastInvoiceNumber, sendInvoiceToAruba } from '../services/arubaInvoice'
 import { EipassForm } from '../components/EipassForm'
 import { EipassExamBadge, InvoiceStatusBadge } from '../components/EipassExamBadge'
 import { DocumentsPanel } from '../components/DocumentsPanel'
@@ -40,6 +40,7 @@ export function EipassDetailPage() {
   const [invoiceError, setInvoiceError] = useState('')
   const [invoiceInfo, setInvoiceInfo] = useState('')
   const [sendingInvoice, setSendingInvoice] = useState(false)
+  const [arubaLastNumber, setArubaLastNumber] = useState<number | null>(null)
 
   function refreshIdentity(candidateId: string) {
     hasDocumentInCategory('eipass', candidateId, 'identity')
@@ -54,6 +55,9 @@ export function EipassDetailPage() {
     if (!id) return
     getEipassCandidate(id).then(setCandidate)
     listEipassCandidates().then(setAllCandidates)
+    getArubaLastInvoiceNumber(new Date().getFullYear())
+      .then(setArubaLastNumber)
+      .catch(() => setArubaLastNumber(null))
     setHasIdentityFile(null)
     refreshIdentity(id)
   }, [id])
@@ -86,7 +90,23 @@ export function EipassDetailPage() {
     return nextInvoiceNumber(
       allCandidates.filter((c) => c.id !== id),
       Number(today.slice(0, 4)),
+      arubaLastNumber ?? 0,
     )
+  }
+
+  /** Numero automatico: riletto da Aruba al momento, per non duplicare fatture emesse fuori dall'app. */
+  async function autoInvoiceNumber(): Promise<string> {
+    const year = Number(calendarDateIso().slice(0, 4))
+    let last: number
+    try {
+      last = await getArubaLastInvoiceNumber(year)
+    } catch {
+      throw new Error(
+        "Non riesco a leggere da Aruba l'ultimo numero fattura: inserisci il numero a mano con Modifica.",
+      )
+    }
+    setArubaLastNumber(last)
+    return nextInvoiceNumber(allCandidates.filter((c) => c.id !== id), year, last)
   }
 
   /** Prepara numero e data (se mancano) e restituisce il corsista aggiornato. */
@@ -105,7 +125,7 @@ export function EipassDetailPage() {
     }
     if (candidate.invoice_number.trim() && candidate.invoice_date) return candidate
     const updated = await updateEipassCandidate(id!, {
-      invoice_number: candidate.invoice_number.trim() || suggestInvoiceNumber(),
+      invoice_number: candidate.invoice_number.trim() || (await autoInvoiceNumber()),
       invoice_date: candidate.invoice_date ?? calendarDateIso(),
     })
     setCandidate(updated)
@@ -160,7 +180,7 @@ export function EipassDetailPage() {
       // Numero e data proposti in automatico se non ancora assegnati
       if (!current.invoice_number.trim() || !current.invoice_date) {
         current = await updateEipassCandidate(id!, {
-          invoice_number: current.invoice_number.trim() || suggestInvoiceNumber(),
+          invoice_number: current.invoice_number.trim() || (await autoInvoiceNumber()),
           invoice_date: current.invoice_date ?? calendarDateIso(),
         })
         setCandidate(current)
