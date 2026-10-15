@@ -49,31 +49,54 @@ for (const fn of functions) {
   execFileSync('npx', args, { cwd: root, stdio: 'inherit', env: process.env, shell: true })
 }
 
-// Secrets Resend per email notifiche
+// Secrets edge functions
+loadEnvFile(path.join(root, '.env'))
+// File centrale credenziali (Global Res): solo le voci Aruba di Cambia-Menti
+loadEnvFile(path.join(root, '..', 'Global Res', '.env'), [
+  'CAMBIAMENTI_ARUBA_FE_USERNAME',
+  'CAMBIAMENTI_ARUBA_FE_PASSWORD',
+])
+
+const pairs = {}
+
+// Resend per email notifiche
 const resendKey = process.env.SMTP_PASS?.trim()
 const fromEmail = process.env.SMTP_ADMIN_EMAIL?.trim() || 'no-reply@vcuria.app'
 const senderName = 'Cambia-Menti Formazione'
 if (resendKey && resendKey !== 're_INCOLLA_API_KEY') {
   const adminEmail =
     fromEmail === 'onboarding@resend.dev' ? 'no-reply@vcuria.app' : fromEmail
-  const pairs = {
+  Object.assign(pairs, {
     RESEND_API_KEY: resendKey,
     NOTIFICATION_FROM_EMAIL: adminEmail,
     NOTIFICATION_FROM_NAME: senderName,
     APP_ORIGIN: 'https://cambiamenti.vcuria.app',
-  }
+  })
   const cron =
     process.env.CRON_SECRET?.trim() ||
     process.env.NOTIFICATION_CRON_SECRET?.trim()
   if (cron) pairs.CRON_SECRET = cron
+} else {
+  console.warn('SKIP secrets Resend: SMTP_PASS assente o ancora placeholder in secrets.env')
+}
 
-  loadEnvFile(path.join(root, '.env'))
-  for (const key of ['MOODLE_URL', 'MOODLE_WS_TOKEN', 'MOODLE_CATEGORY_ID']) {
-    const value = process.env[key]?.trim()
-    if (value) pairs[key] = value
-  }
+for (const key of ['MOODLE_URL', 'MOODLE_WS_TOKEN', 'MOODLE_CATEGORY_ID']) {
+  const value = process.env[key]?.trim()
+  if (value) pairs[key] = value
+}
 
-  console.log('Imposto secrets edge functions...')
+// Aruba Fatturazione Elettronica (fatture EIPASS privato)
+const arubaUser = process.env.CAMBIAMENTI_ARUBA_FE_USERNAME?.trim()
+const arubaPass = process.env.CAMBIAMENTI_ARUBA_FE_PASSWORD?.trim()
+if (arubaUser && arubaPass) {
+  pairs.ARUBA_FE_USERNAME = arubaUser
+  pairs.ARUBA_FE_PASSWORD = arubaPass
+} else {
+  console.warn('SKIP secrets Aruba: CAMBIAMENTI_ARUBA_FE_USERNAME/PASSWORD vuoti nel file centrale')
+}
+
+if (Object.keys(pairs).length > 0) {
+  console.log(`Imposto secrets edge functions: ${Object.keys(pairs).join(', ')}`)
   const { writeFileSync, unlinkSync } = await import('node:fs')
   const envFile = path.join(
     process.env.TEMP || os.tmpdir(),
@@ -99,8 +122,6 @@ if (resendKey && resendKey !== 're_INCOLLA_API_KEY') {
       /* ignore */
     }
   }
-} else {
-  console.warn('SKIP secrets: SMTP_PASS assente o ancora placeholder in secrets.env')
 }
 
 console.log('OK edge functions')
