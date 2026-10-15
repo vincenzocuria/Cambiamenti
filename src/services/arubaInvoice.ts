@@ -47,3 +47,26 @@ export function sendInvoiceToAruba(
 ): Promise<{ ok: boolean; uploadFileName: string }> {
   return invoke({ action: 'send', candidateId, xml })
 }
+
+/** Importa da Aruba una pagina dell'elenco fatture emesse o ricevute dell'anno. */
+export function syncArubaInvoices(
+  direction: 'out' | 'in',
+  year: number,
+  page: number,
+): Promise<{ last: boolean; received: number; added: number; updated: number }> {
+  return invoke({ action: 'sync', direction, year, page })
+}
+
+/** Scarica da Aruba l'XML di una fattura importata (lo salva anche sul server). */
+export async function fetchArubaInvoiceXml(invoiceId: string): Promise<string> {
+  const result = await invoke<{ xml: string }>({ action: 'file', invoiceId })
+  return result.xml
+}
+
+/** Invia ad Aruba una fattura creata nell'app e la segna come inviata. */
+export function sendAppInvoiceToAruba(
+  invoiceId: string,
+  xml: string,
+): Promise<{ ok: boolean; uploadFileName: string }> {
+  return invoke({ action: 'send', invoiceId, xml })
+}

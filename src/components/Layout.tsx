@@ -13,6 +13,7 @@ const links = [
   { to: '/alunni', label: 'Alunni' },
   { to: '/personale', label: 'Personale' },
   { to: '/eipass', label: 'EIPASS privato' },
+  { to: '/fatturazione', label: 'Fatturazione' },
   { to: '/template', label: 'Template' },
 ]
 

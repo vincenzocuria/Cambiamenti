@@ -25,11 +25,11 @@ export const invoiceStatusLabels = {
 const BOLLO_THRESHOLD = 77.47
 const BOLLO_AMOUNT = 2
 
-function round2(value: number): number {
+export function round2(value: number): number {
   return Math.round(value * 100) / 100
 }
 
-function money(value: number): string {
+export function money(value: number): string {
   return round2(value).toFixed(2)
 }
 
@@ -43,7 +43,7 @@ function xmlEscape(value: string): string {
 }
 
 /** Solo caratteri ammessi dal tracciato (Latin-1 di base), entro la lunghezza massima. */
-function text(value: string, max: number): string {
+export function text(value: string, max: number): string {
   const clean = value
     .normalize('NFKD')
     .replace(/[̀-ͯ]/g, '')
@@ -83,6 +83,33 @@ export function invoiceMissingFields(c: EipassCandidate): string[] {
 }
 
 /** Prossimo numero fattura dell'anno: il più alto numero iniziale trovato, più uno. */
+/**
+ * Progressivo da un numero fattura: «44», «44/2026», «FPR 44/26», «2026/44».
+ * Scarta i gruppi uguali all'anno (4 o 2 cifre) quando ce ne sono altri.
+ */
+export function invoiceProgressive(raw: string, year: number): number | null {
+  const groups = raw.match(/\d+/g)
+  if (!groups) return null
+  const yearForms = new Set([String(year), String(year % 100).padStart(2, '0')])
+  const progressive = groups.length > 1 ? groups.filter((g) => !yearForms.has(g)) : groups
+  return Number(progressive[0] ?? groups[0])
+}
+
+/** Scrive il progressivo nello stesso formato di un numero esistente (es. «FPR 44/26» → «FPR 45/26»). */
+export function formatInvoiceNumber(progressive: number, year: number, sample: string | null): string {
+  const groups = sample?.match(/\d+/g)
+  if (!sample || !groups) return String(progressive)
+  const yearForms = new Set([String(year), String(year % 100).padStart(2, '0')])
+  // Il gruppo da sostituire è il primo che non è l'anno (o l'unico gruppo)
+  const target = groups.length > 1 ? groups.findIndex((g) => !yearForms.has(g)) : 0
+  if (target < 0) return String(progressive)
+  let index = -1
+  return sample.replace(/\d+/g, (g) => {
+    index++
+    return index === target ? String(progressive).padStart(g.length, '0') : g
+  })
+}
+
 export function nextInvoiceNumber(
   existing: Pick<EipassCandidate, 'invoice_number' | 'invoice_date'>[],
   year: number,
@@ -92,8 +119,8 @@ export function nextInvoiceNumber(
   let max = floor
   for (const row of existing) {
     if (!row.invoice_date?.startsWith(String(year))) continue
-    const match = /^\s*(\d+)/.exec(row.invoice_number)
-    if (match) max = Math.max(max, Number(match[1]))
+    const n = invoiceProgressive(row.invoice_number, year)
+    if (n != null) max = Math.max(max, n)
   }
   return String(max + 1)
 }

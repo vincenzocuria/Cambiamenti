@@ -203,3 +203,73 @@ export interface EipassCandidate {
 export type EipassInvoiceStatus = 'da_fatturare' | 'fatturato' | 'non_richiesta'
 
 export type EipassCandidateInput = Omit<EipassCandidate, 'id' | 'created_at' | 'updated_at'>
+
+export interface Customer {
+  id: string
+  company_name: string
+  first_name: string
+  last_name: string
+  vat_number: string
+  tax_code: string
+  address: string
+  postal_code: string
+  city: string
+  province: string
+  country: string
+  sdi_code: string
+  pec: string
+  email: string
+  phone: string
+  notes: string
+  created_at: string
+  updated_at: string
+}
+
+export type CustomerInput = Omit<Customer, 'id' | 'created_at' | 'updated_at'>
+
+export interface InvoiceLine {
+  description: string
+  quantity: number
+  /** Prezzo unitario imponibile (IVA esclusa). */
+  unit_price: number
+  vat_rate: number
+  /** Natura FatturaPA quando l'IVA è 0 (es. N4 esente). */
+  nature: string
+}
+
+export type InvoiceDirection = 'out' | 'in'
+export type InvoiceStatus = 'draft' | 'sent' | 'imported'
+
+export interface Invoice {
+  id: string
+  direction: InvoiceDirection
+  status: InvoiceStatus
+  doc_type: string
+  number: string
+  invoice_date: string | null
+  customer_id: string | null
+  eipass_candidate_id: string | null
+  counterpart_name: string
+  counterpart_vat: string
+  counterpart_tax_code: string
+  taxable: number | null
+  vat_amount: number | null
+  stamp: number | null
+  total: number | null
+  payment_method: string
+  payment_due: string | null
+  causale: string
+  lines: InvoiceLine[]
+  notes: string
+  aruba_filename: string | null
+  sdi_id: string
+  sdi_status: string
+  sdi_status_label: string
+  xml: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type InvoiceInput = Partial<
+  Omit<Invoice, 'id' | 'created_at' | 'updated_at' | 'aruba_filename' | 'sdi_id' | 'sdi_status' | 'sdi_status_label'>
+>

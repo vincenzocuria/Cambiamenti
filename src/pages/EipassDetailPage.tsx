@@ -15,12 +15,17 @@ import {
   invoiceAmounts,
   invoiceFileName,
   invoiceMissingFields,
+  formatInvoiceNumber,
   nextInvoiceNumber,
   paymentMethodLabel,
   randomProgressive,
 } from '../lib/eipassInvoice'
 import { downloadBlob } from '../lib/downloadBlob'
-import { getArubaLastInvoiceNumber, sendInvoiceToAruba } from '../services/arubaInvoice'
+import {
+  getArubaInvoiceSummary,
+  getArubaLastInvoiceNumber,
+  sendInvoiceToAruba,
+} from '../services/arubaInvoice'
 import { EipassForm } from '../components/EipassForm'
 import { EipassExamBadge, InvoiceStatusBadge } from '../components/EipassExamBadge'
 import { DocumentsPanel } from '../components/DocumentsPanel'
@@ -97,16 +102,17 @@ export function EipassDetailPage() {
   /** Numero automatico: riletto da Aruba al momento, per non duplicare fatture emesse fuori dall'app. */
   async function autoInvoiceNumber(): Promise<string> {
     const year = Number(calendarDateIso().slice(0, 4))
-    let last: number
+    let summary: { lastNumber: number; sample: string | null }
     try {
-      last = await getArubaLastInvoiceNumber(year)
+      summary = await getArubaInvoiceSummary(year)
     } catch {
       throw new Error(
         "Non riesco a leggere da Aruba l'ultimo numero fattura: inserisci il numero a mano con Modifica.",
       )
     }
-    setArubaLastNumber(last)
-    return nextInvoiceNumber(allCandidates.filter((c) => c.id !== id), year, last)
+    setArubaLastNumber(summary.lastNumber)
+    const next = nextInvoiceNumber(allCandidates.filter((c) => c.id !== id), year, summary.lastNumber)
+    return formatInvoiceNumber(Number(next), year, summary.sample)
   }
 
   /** Prepara numero e data (se mancano) e restituisce il corsista aggiornato. */
