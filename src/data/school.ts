@@ -12,6 +12,8 @@ export const school = {
   email: 'cambiamenticalabria@gmail.com',
   phone: '+39 379 329 8942',
   sdiCode: 'KRRH6B9',
+  /** Foro competente citato nella lettera di incarico. */
+  court: 'Castrovillari',
   /** Dati cedente per la fattura elettronica (FatturaPA). */
   invoice: {
     /** Ragione sociale come registrata su Aruba Fatturazione Elettronica. */

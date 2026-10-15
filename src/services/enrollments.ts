@@ -3,7 +3,7 @@ import { type CourseMembership } from '../lib/courseMembershipLabel'
 import { sortPeople } from '../lib/sortPeople'
 import { supabase } from '../lib/supabase'
 import { uniqueCourseRoleMessage } from '../lib/uniqueCourseRole'
-import type { Course, CourseStaffRole, Person, PersonType } from '../types/db'
+import type { Course, CourseStaffAssignment, CourseStaffRole, Person, PersonType } from '../types/db'
 
 function asCourseMembership(value: unknown): CourseMembership | null {
   if (Array.isArray(value)) return asCourseMembership(value[0])
@@ -163,4 +163,62 @@ export async function removeFromCourse(
     .eq('person_id', personId)
     .eq('role', type)
   if (error) throw error
+}
+
+/** Dati dell'incarico (moduli, ore, compenso orario) di una figura sul corso. */
+export async function getCourseStaffAssignment(
+  courseId: string,
+  personId: string,
+): Promise<CourseStaffAssignment | null> {
+  const { data, error } = await supabase
+    .from('course_staff')
+    .select('role, modules, hours, hourly_rate')
+    .eq('course_id', courseId)
+    .eq('person_id', personId)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) return null
+  return {
+    role: data.role as CourseStaffRole,
+    modules: data.modules ?? '',
+    hours: data.hours == null ? null : Number(data.hours),
+    hourly_rate: data.hourly_rate == null ? null : Number(data.hourly_rate),
+  }
+}
+
+export async function updateCourseStaffAssignment(
+  courseId: string,
+  personId: string,
+  input: Pick<CourseStaffAssignment, 'modules' | 'hours' | 'hourly_rate'>,
+): Promise<void> {
+  const { error } = await supabase
+    .from('course_staff')
+    .update({ modules: input.modules.trim(), hours: input.hours, hourly_rate: input.hourly_rate })
+    .eq('course_id', courseId)
+    .eq('person_id', personId)
+  if (error) throw error
+}
+
+/** Incarichi di un ruolo sul corso, per persona. */
+export async function listCourseStaffAssignments(
+  courseId: string,
+  role: CourseStaffRole,
+): Promise<Map<string, CourseStaffAssignment>> {
+  const { data, error } = await supabase
+    .from('course_staff')
+    .select('person_id, role, modules, hours, hourly_rate')
+    .eq('course_id', courseId)
+    .eq('role', role)
+  if (error) throw error
+  return new Map(
+    (data ?? []).map((r) => [
+      r.person_id as string,
+      {
+        role: r.role as CourseStaffRole,
+        modules: r.modules ?? '',
+        hours: r.hours == null ? null : Number(r.hours),
+        hourly_rate: r.hourly_rate == null ? null : Number(r.hourly_rate),
+      },
+    ]),
+  )
 }

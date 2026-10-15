@@ -59,7 +59,7 @@ export const golTemplateSeeds: DocumentTemplateInput[] = [
   },
   {
     name: 'Lettera di incarico docente',
-    description: 'Incarico professionale di docenza. Moduli, ore e compenso da compilare a mano.',
+    description: 'Incarico professionale di docenza. Moduli, ore e compenso dall’assegnazione del docente al corso.',
     body: teacherAppointmentBody,
     requires_course: true,
     person_role: 'teacher',

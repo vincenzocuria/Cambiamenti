@@ -4,6 +4,7 @@ import { documentPersonType } from '../data/personTypes'
 import { fullName } from '../lib/format'
 import type { Course, DocumentRow, DocumentTemplate, Person, PersonType } from '../types/db'
 import { uploadDocument } from './documents'
+import { getCourseStaffAssignment } from './enrollments'
 
 function toHtmlDocument(title: string, body: string): string {
   const escaped = body
@@ -64,9 +65,14 @@ export async function generateFromTemplate(input: {
     throw new Error('Tipo persona non compatibile con il template')
   }
 
+  const assignment =
+    course && person && personType && personType !== 'student'
+      ? await getCourseStaffAssignment(course.id, person.id)
+      : null
+
   const filled = fillTemplate(
     template.body,
-    buildTemplateContext({ course, person, personType }),
+    buildTemplateContext({ course, person, personType, assignment }),
   )
 
   const who = person ? fullName(person) : ''

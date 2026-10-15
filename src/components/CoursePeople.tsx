@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import type { Person, PersonInput, PersonType } from '../types/db'
+import type { CourseStaffAssignment, Person, PersonInput, PersonType } from '../types/db'
 import {
   addStudentsToCourse,
   addToCourse,
   listCoursePeople,
+  listCourseStaffAssignments,
   listStudentCourseMap,
   removeFromCourse,
 } from '../services/enrollments'
@@ -20,6 +21,7 @@ import { EmailLink, WhatsAppLink } from './ContactLinks'
 import { PersonForm } from './PersonForm'
 import { FadShareActions } from './FadShareActions'
 import { CourseStudentPicker } from './CourseStudentPicker'
+import { StaffAssignmentEditor } from './StaffAssignmentEditor'
 
 interface Props {
   courseId: string
@@ -49,6 +51,9 @@ export function CoursePeople({
     () => new Map(),
   )
   const [selected, setSelected] = useState('')
+  const [assignments, setAssignments] = useState<Map<string, CourseStaffAssignment>>(
+    () => new Map(),
+  )
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
   const meta = metaFor(type)
@@ -61,6 +66,10 @@ export function CoursePeople({
     ])
     setEnrolled(people)
     if (courses) setCoursesByStudent(courses)
+    // Lettera di incarico: moduli, ore e compenso dei docenti
+    if (type === 'teacher') {
+      setAssignments(await listCourseStaffAssignments(courseId, 'teacher'))
+    }
   }
 
   useEffect(() => {
@@ -272,6 +281,17 @@ export function CoursePeople({
                     {p.phone ? <WhatsAppLink value={p.phone} className="text-xs" /> : null}
                     {p.email ? <EmailLink value={p.email} className="text-xs" /> : null}
                   </p>
+                )}
+                {type === 'teacher' && (
+                  <StaffAssignmentEditor
+                    key={`${p.id}-${assignments.has(p.id)}`}
+                    courseId={courseId}
+                    personId={p.id}
+                    assignment={assignments.get(p.id)}
+                    onSaved={(next) =>
+                      setAssignments((prev) => new Map(prev).set(p.id, next))
+                    }
+                  />
                 )}
                 <FadShareActions
                   person={p}

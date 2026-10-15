@@ -18,6 +18,8 @@ const empty: CourseInput = {
   start_date: null,
   end_date: null,
   duration_hours: null,
+  funding_decree: '',
+  funding_program: '',
 }
 
 interface Props {
@@ -27,7 +29,7 @@ interface Props {
 }
 
 export function CourseForm({ initial, onSave, onCancel }: Props) {
-  const [form, setForm] = useState<CourseInput>(initial ?? empty)
+  const [form, setForm] = useState<CourseInput>(initial ? { ...empty, ...initial } : empty)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -98,6 +100,19 @@ export function CourseForm({ initial, onSave, onCancel }: Props) {
           onChange={(e) => set('duration_hours', e.target.value === '' ? null : Number(e.target.value))}
         />
       </div>
+      <TextField
+        label="Convenzione / Decreto di finanziamento"
+        value={form.funding_decree ?? ''}
+        onChange={(e) => set('funding_decree', e.target.value)}
+        placeholder="Es. n. 12595 del 08/09/2025"
+        hint="Compare nelle dichiarazioni del personale docente e non docente."
+      />
+      <TextAreaField
+        label="Finanziamento (avviso / programma)"
+        value={form.funding_program ?? ''}
+        onChange={(e) => set('funding_program', e.target.value)}
+        placeholder="Es. finanziato dalla Regione Calabria tramite “Avviso Pubblico n.2 …”"
+      />
       <TextAreaField label="Note" value={form.notes} onChange={(e) => set('notes', e.target.value)} />
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-2">

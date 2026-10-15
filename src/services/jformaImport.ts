@@ -45,6 +45,8 @@ export async function importCoursesFromCsv(csvText: string): Promise<CourseImpor
         start_date: row.start_date,
         end_date: row.end_date,
         duration_hours: row.duration_hours,
+        funding_decree: existing?.funding_decree ?? '',
+        funding_program: existing?.funding_program ?? '',
       }
 
       if (existing) {

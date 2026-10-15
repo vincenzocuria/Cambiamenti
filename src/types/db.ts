@@ -33,6 +33,10 @@ export interface Course {
   start_date: string | null
   end_date: string | null
   duration_hours: number | null
+  /** Convenzione/decreto di finanziamento citato nei documenti (es. "Decreto n. 12595 del 08/09/2025"). */
+  funding_decree: string
+  /** Avviso/programma che finanzia il corso, citato nella lettera di incarico. */
+  funding_program: string
   moodle_course_id: number | null
   moodle_bbb_id: number | null
   moodle_shortname: string
@@ -68,6 +72,14 @@ export type CalendarEventInput = Omit<
 export type PersonType = 'student' | 'staff' | 'teacher' | 'tutor' | 'admin_staff'
 
 export type CourseStaffRole = 'teacher' | 'tutor' | 'admin_staff'
+
+/** Dati dell'incarico di una figura su un corso (lettera di incarico). */
+export interface CourseStaffAssignment {
+  role: CourseStaffRole
+  modules: string
+  hours: number | null
+  hourly_rate: number | null
+}
 
 /** Proprietario di un documento: anagrafiche corsi più i corsisti EIPASS privati. */
 export type DocumentPersonType = PersonType | 'eipass'

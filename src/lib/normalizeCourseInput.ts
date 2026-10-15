@@ -13,6 +13,8 @@ export function normalizeCourseInput<T extends Partial<CourseInput>>(input: T): 
   if (typeof out.code === 'string') out.code = upperCode(out.code)
   if (typeof out.cup === 'string') out.cup = upperCode(out.cup)
   if (typeof out.notes === 'string') out.notes = out.notes.trim()
+  if (typeof out.funding_decree === 'string') out.funding_decree = cleanText(out.funding_decree)
+  if (typeof out.funding_program === 'string') out.funding_program = out.funding_program.trim()
 
   return out as T
 }

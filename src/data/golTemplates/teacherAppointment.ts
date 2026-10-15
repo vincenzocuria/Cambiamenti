@@ -1,6 +1,6 @@
 /**
  * Corpo template Lettera di incarico docente.
- * Moduli, ore e compensi cambiano per ogni incarico: restano righe da compilare a mano.
+ * Moduli, ore e compenso vengono dall'assegnazione del docente al corso; se mancano restano righe da compilare.
  */
 export const teacherAppointmentBody = `LETTERA DI INCARICO PROFESSIONALE
 
@@ -11,21 +11,21 @@ di seguito indicato come «Committente»
 
 e
 
-{{docente.nome_completo}}, nato/a a {{docente.luogo_nascita}} il {{docente.data_nascita}} e residente in {{docente.indirizzo}}, C.F. {{docente.cf}},
+{{docente.nome_completo}}, {{docente.nato}} a {{docente.luogo_nascita}} il {{docente.data_nascita}} e residente in {{docente.indirizzo}}, C.F. {{docente.cf}},
 di seguito indicato come «Collaboratore»,
 
 congiuntamente denominati anche «le Parti».
 
 PREMESSO CHE
 
-l'Ente {{scuola.ragione_sociale}} attua il corso «{{corso.nome}}» Ed. {{corso.edizione}} - ID Catalogo Corso {{corso.codice}} - Codice CUP {{corso.cup}}, finanziato dalla Regione Calabria nell'ambito del Programma Garanzia Occupabilità dei Lavoratori (GOL) - Piano Nazionale di Ripresa e Resilienza (PNRR) Missione 5 «Inclusione e coesione» - Componente 1 «Politiche per il Lavoro» - Riforma 1.1 «Politiche Attive del Lavoro e Formazione» - Avviso n. 4 GOL, approvato con Decreto Dirigenziale n. 12595 del 08/09/2025.
+l'Ente {{scuola.ragione_sociale}} attua il corso «{{corso.nome}}» Ed. {{corso.edizione}} - ID Catalogo Corso {{corso.codice}} - Codice CUP {{corso.cup}}, {{corso.finanziamento}}, Decreto {{corso.decreto}}.
 
 Si conviene e si stipula quanto segue:
 
 1) Con il presente atto le Parti intendono, ai sensi della vigente normativa in materia, instaurare un rapporto di lavoro di collaborazione, di alta professionalità, senza vincolo di subordinazione, avente per oggetto una prestazione d'opera ai sensi dell'art. 2222 del Codice Civile e dell'art. 409 del Codice di Procedura Civile.
 
-2) Il Collaboratore sarà coinvolto nelle attività del Committente inerenti le attività di Docenza per i seguenti moduli: ______________________________________________________________
-per n. ______ ore. Il compenso per ogni ora di corso è stabilito in € ________.
+2) Il Collaboratore sarà coinvolto nelle attività del Committente inerenti le attività di Docenza per i seguenti moduli: {{incarico.moduli}}
+per n. {{incarico.ore}} ore. Il compenso per ogni ora di corso è stabilito in € {{incarico.compenso_orario}}.
 
 3) L'attività professionale oggetto del presente incarico dovrà essere svolta dal Collaboratore secondo le modalità stabilite dal Committente e contenute negli obblighi docenti. Il presente incarico avrà durata dalla data odierna fino al termine delle attività didattiche.
 
@@ -35,7 +35,7 @@ per n. ______ ore. Il compenso per ogni ora di corso è stabilito in € _______
 
 6) Nell'esecuzione delle attività previste, il Collaboratore avrà piena facoltà di autodeterminarsi le fasi e le modalità di esercizio del proprio apporto professionale e di lavoro. Rimane escluso l'obbligo del Collaboratore di rispettare gli orari di lavoro stabiliti per i lavoratori dipendenti nonché l'onere di dover giustificare le assenze. Il Collaboratore potrà aver accesso, negli orari di apertura, ai locali della Sede del Committente sita in {{scuola.indirizzo}}. Ai soli fini del rispetto della normativa vigente in materia di sicurezza ex D.Lgs. n. 81/2008, il Collaboratore segnalerà la propria presenza e i relativi orari di permanenza al personale di accoglienza e segreteria delle strutture dove si recherà per espletare i contributi richiesti dalla presente collaborazione.
 
-7) Il compenso pattuito per la realizzazione delle attività previste dagli articoli precedenti è fissato in € ____________ lordi (euro ______________________).
+7) Il compenso pattuito per la realizzazione delle attività previste dagli articoli precedenti è fissato in € {{incarico.compenso_totale}} lordi (euro {{incarico.compenso_totale_lettere}}).
 
 8) Detto compenso sarà sottoposto alle ritenute fiscali e previdenziali a norma di Legge vigenti.
 
@@ -60,7 +60,7 @@ Inoltre, il Committente si riserva a proprio insindacabile giudizio:
 
 14) Il Committente come sopra indicato comunica al Collaboratore le misure per la tutela della salute e della sicurezza di cui al D.Lgs. n. 81/2008.
 
-15) Per ogni controversia sarà competente il Foro di Castrovillari.
+15) Per ogni controversia sarà competente il Foro di {{scuola.foro}}.
 
 {{scuola.citta}}, {{oggi}}
 

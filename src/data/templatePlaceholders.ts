@@ -13,6 +13,7 @@ export const templatePlaceholderGroups = [
       'scuola.email',
       'scuola.telefono',
       'scuola.sdi',
+      'scuola.foro',
     ],
   },
   {
@@ -28,6 +29,8 @@ export const templatePlaceholderGroups = [
       'corso.data_fine',
       'corso.ore',
       'corso.note',
+      'corso.decreto',
+      'corso.finanziamento',
     ],
   },
   {
@@ -37,6 +40,8 @@ export const templatePlaceholderGroups = [
       'persona.cognome',
       'persona.nome_completo',
       'persona.cf',
+      'persona.sottoscritto',
+      'persona.nato',
       'persona.data_nascita',
       'persona.luogo_nascita',
       'persona.indirizzo',
@@ -80,6 +85,16 @@ export const templatePlaceholderGroups = [
       'tutor.cf',
       'amministrativo.nome_completo',
       'amministrativo.cf',
+    ],
+  },
+  {
+    title: 'Incarico sul corso (personale)',
+    items: [
+      'incarico.moduli',
+      'incarico.ore',
+      'incarico.compenso_orario',
+      'incarico.compenso_totale',
+      'incarico.compenso_totale_lettere',
     ],
   },
   {
