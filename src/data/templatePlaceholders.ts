@@ -4,7 +4,10 @@ export const templatePlaceholderGroups = [
     title: 'Scuola',
     items: [
       'scuola.nome',
+      'scuola.ragione_sociale',
+      'scuola.legale_rappresentante',
       'scuola.indirizzo',
+      'scuola.citta',
       'scuola.piva',
       'scuola.rea',
       'scuola.email',

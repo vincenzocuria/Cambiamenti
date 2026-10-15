@@ -2,6 +2,10 @@
 export const school = {
   name: 'Cambia-Menti Formazione',
   shortName: 'Cambia-Menti',
+  /** Ragione sociale e legale rappresentante per lettere di incarico e dichiarazioni. */
+  companyName: 'Cambia-Menti S.r.l.',
+  legalRepresentative: 'Basile Giordano',
+  city: 'Corigliano Rossano',
   address: 'C.da Cardame snc, Corigliano-Rossano',
   vatNumber: '03936190788',
   rea: 'CS-266834',

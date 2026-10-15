@@ -51,6 +51,9 @@ export function buildTemplateContext(input: {
 }): Record<string, string> {
   const vars: Record<string, string> = {
     'scuola.nome': school.name,
+    'scuola.ragione_sociale': school.companyName,
+    'scuola.legale_rappresentante': school.legalRepresentative,
+    'scuola.citta': school.city,
     'scuola.indirizzo': school.address,
     'scuola.piva': school.vatNumber,
     'scuola.rea': school.rea,
