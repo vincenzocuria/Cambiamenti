@@ -31,6 +31,7 @@ const functions = [
   { name: 'send-fad-credentials', verifyJwt: true },
   { name: 'check-doc-expiry', verifyJwt: false },
   { name: 'sync-fad-course', verifyJwt: true },
+  { name: 'aruba-invoice', verifyJwt: true },
 ]
 
 for (const fn of functions) {

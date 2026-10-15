@@ -14,6 +14,7 @@ import {
   paymentMethodLabel,
 } from '../lib/eipassInvoice'
 import { listPersonIdsWithDocument } from '../services/documents'
+import { checkArubaConnection } from '../services/arubaInvoice'
 import { fmtDate, fullName } from '../lib/format'
 import { matchesSearch } from '../lib/matchesSearch'
 import { describeFilters, exportFilteredList } from '../lib/listExport'
@@ -54,6 +55,17 @@ export function EipassListPage() {
   const [importReport, setImportReport] = useState<string[]>([])
   const [importing, setImporting] = useState(false)
   const importRef = useRef<HTMLInputElement>(null)
+  const [arubaStatus, setArubaStatus] = useState('')
+
+  async function handleCheckAruba() {
+    setArubaStatus('Verifica in corso…')
+    try {
+      const res = await checkArubaConnection()
+      setArubaStatus(`Collegamento Aruba attivo${res.account ? ` (account ${res.account})` : ''}`)
+    } catch (err) {
+      setArubaStatus(err instanceof Error ? err.message : 'Collegamento Aruba non riuscito')
+    }
+  }
   const { search, status: rawStatus, setSearch, setStatus } = useListQuery()
   const status: EipassListStatus | '' = isEipassListStatus(rawStatus) ? rawStatus : ''
 
@@ -279,6 +291,10 @@ export function EipassListPage() {
         <SecondaryButton size="sm" disabled={importing} onClick={() => importRef.current?.click()}>
           {importing ? 'Importazione…' : 'Importa XML fatture'}
         </SecondaryButton>
+        <SecondaryButton size="sm" onClick={() => void handleCheckAruba()}>
+          Verifica collegamento Aruba
+        </SecondaryButton>
+        {arubaStatus && <span className="text-xs font-medium text-slate-700">{arubaStatus}</span>}
         <span className="text-xs text-slate-500">
           Scarica da Aruba le fatture emesse in XML: ognuna viene abbinata al corsista con lo stesso
           codice fiscale, che passa a «Fatturato» con numero e data.

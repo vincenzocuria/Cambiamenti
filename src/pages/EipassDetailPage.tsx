@@ -20,6 +20,7 @@ import {
   randomProgressive,
 } from '../lib/eipassInvoice'
 import { downloadBlob } from '../lib/downloadBlob'
+import { sendInvoiceToAruba } from '../services/arubaInvoice'
 import { EipassForm } from '../components/EipassForm'
 import { EipassExamBadge, InvoiceStatusBadge } from '../components/EipassExamBadge'
 import { DocumentsPanel } from '../components/DocumentsPanel'
@@ -37,6 +38,8 @@ export function EipassDetailPage() {
   const [hasCertificate, setHasCertificate] = useState(false)
   const [allCandidates, setAllCandidates] = useState<EipassCandidate[]>([])
   const [invoiceError, setInvoiceError] = useState('')
+  const [invoiceInfo, setInvoiceInfo] = useState('')
+  const [sendingInvoice, setSendingInvoice] = useState(false)
 
   function refreshIdentity(candidateId: string) {
     hasDocumentInCategory('eipass', candidateId, 'identity')
@@ -84,6 +87,60 @@ export function EipassDetailPage() {
       allCandidates.filter((c) => c.id !== id),
       Number(today.slice(0, 4)),
     )
+  }
+
+  /** Prepara numero e data (se mancano) e restituisce il corsista aggiornato. */
+  async function prepareInvoice(): Promise<EipassCandidate | null> {
+    if (!candidate) return null
+    setInvoiceError('')
+    setInvoiceInfo('')
+    const missing = invoiceMissingFields({
+      ...candidate,
+      invoice_number: candidate.invoice_number || 'auto',
+      invoice_date: candidate.invoice_date ?? calendarDateIso(),
+    })
+    if (missing.length) {
+      setInvoiceError(`Per generare la fattura mancano: ${missing.join(', ')}`)
+      return null
+    }
+    if (candidate.invoice_number.trim() && candidate.invoice_date) return candidate
+    const updated = await updateEipassCandidate(id!, {
+      invoice_number: candidate.invoice_number.trim() || suggestInvoiceNumber(),
+      invoice_date: candidate.invoice_date ?? calendarDateIso(),
+    })
+    setCandidate(updated)
+    return updated
+  }
+
+  async function handleSendToAruba() {
+    if (!candidate) return
+    if (
+      candidate.invoice_status === 'fatturato' &&
+      !window.confirm('Il corsista risulta già fatturato. Inviare comunque una nuova fattura ad Aruba?')
+    ) {
+      return
+    }
+    setSendingInvoice(true)
+    try {
+      const current = await prepareInvoice()
+      if (!current) return
+      if (
+        !window.confirm(
+          `Inviare ad Aruba la fattura n. ${current.invoice_number} del ${fmtDate(current.invoice_date)} a ${fullName(current)}? Aruba la firma e la trasmette allo SdI.`,
+        )
+      ) {
+        return
+      }
+      const result = await sendInvoiceToAruba(current.id, buildEipassInvoiceXml(current))
+      setCandidate(await getEipassCandidate(id!))
+      setInvoiceInfo(
+        `Fattura inviata ad Aruba${result.uploadFileName ? ` (${result.uploadFileName})` : ''}. Controlla l'esito SdI su Aruba.`,
+      )
+    } catch (err) {
+      setInvoiceError(err instanceof Error ? err.message : 'Invio ad Aruba non riuscito')
+    } finally {
+      setSendingInvoice(false)
+    }
   }
 
   async function handleInvoiceXml() {
@@ -214,9 +271,18 @@ export function EipassDetailPage() {
             </Info>
             {candidate.invoice_status !== 'non_richiesta' && (
               <div className="col-span-full space-y-2">
-                <SecondaryButton size="sm" onClick={() => void handleInvoiceXml()}>
-                  Genera fattura XML per Aruba
-                </SecondaryButton>
+                <div className="flex flex-wrap gap-2">
+                  <SecondaryButton
+                    size="sm"
+                    disabled={sendingInvoice}
+                    onClick={() => void handleSendToAruba()}
+                  >
+                    {sendingInvoice ? 'Invio ad Aruba…' : 'Invia fattura ad Aruba'}
+                  </SecondaryButton>
+                  <SecondaryButton size="sm" onClick={() => void handleInvoiceXml()}>
+                    Scarica XML
+                  </SecondaryButton>
+                </div>
                 {invoiceMissingFields({
                   ...candidate,
                   invoice_number: candidate.invoice_number || 'auto',
@@ -233,6 +299,7 @@ export function EipassDetailPage() {
                   </p>
                 )}
                 {invoiceError && <p className="text-xs text-red-600">{invoiceError}</p>}
+                {invoiceInfo && <p className="text-xs text-emerald-700">{invoiceInfo}</p>}
               </div>
             )}
           </InfoCard>
