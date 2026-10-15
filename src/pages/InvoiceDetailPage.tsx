@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import type { Customer, CustomerInput, Invoice, InvoiceLine } from '../types/db'
 import {
-  applyParsedXml,
   createCustomer,
   createInvoice,
   deleteInvoice,
@@ -10,7 +9,6 @@ import {
   listCustomers,
   updateInvoice,
 } from '../services/invoices'
-import { fetchArubaInvoiceXml, sendAppInvoiceToAruba } from '../services/arubaInvoice'
 import { suggestNextInvoiceNumber } from '../services/invoiceNumbering'
 import {
   buildInvoiceXml,
@@ -124,25 +122,16 @@ export function InvoiceDetailPage() {
   )
 }
 
-/** Fattura importata da Aruba o già inviata: sola lettura. */
+/** Fattura importata da Aruba o già caricata su Aruba: sola lettura. */
 function InvoiceView({ invoice, onChange }: { invoice: Invoice; onChange: (i: Invoice) => void }) {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
-
-  async function ensureXml(): Promise<string | null> {
-    if (invoice.xml) return invoice.xml
-    if (!invoice.aruba_filename) return null
-    const xml = await fetchArubaInvoiceXml(invoice.id)
-    const updated = await applyParsedXml(invoice, xml)
-    onChange(updated)
-    return xml
-  }
 
   async function handleDownload() {
     setBusy(true)
     setMessage('')
     try {
-      const xml = await ensureXml()
+      const xml = invoice.xml
       if (!xml) {
         setMessage('XML non disponibile per questa fattura')
         return
@@ -158,13 +147,15 @@ function InvoiceView({ invoice, onChange }: { invoice: Invoice; onChange: (i: In
     }
   }
 
-  async function handleRead() {
+  /** Una fattura segnata per errore come caricata torna bozza modificabile. */
+  async function handleReopen() {
+    if (!window.confirm('Riportare la fattura in bozza? Fallo solo se non l’hai caricata su Aruba.')) return
     setBusy(true)
     setMessage('')
     try {
-      await ensureXml()
+      onChange(await updateInvoice(invoice.id, { status: 'draft' }))
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Lettura non riuscita')
+      setMessage(err instanceof Error ? err.message : 'Operazione non riuscita')
     } finally {
       setBusy(false)
     }
@@ -187,6 +178,11 @@ function InvoiceView({ invoice, onChange }: { invoice: Invoice; onChange: (i: In
           <SecondaryButton disabled={busy} onClick={() => void handleDownload()}>
             Scarica XML
           </SecondaryButton>
+          {out && invoice.status === 'sent' && !invoice.aruba_filename && (
+            <SecondaryButton disabled={busy} onClick={() => void handleReopen()}>
+              Riporta in bozza
+            </SecondaryButton>
+          )}
           {out && (
             <>
               <Link to={`/fatturazione/nuova?da=${invoice.id}`}>
@@ -224,17 +220,16 @@ function InvoiceView({ invoice, onChange }: { invoice: Invoice; onChange: (i: In
             <dt className="font-medium text-slate-700">Totale</dt>
             <dd className="text-right font-semibold">{euro(invoice.total)}</dd>
           </dl>
-          {invoice.total == null && invoice.aruba_filename && (
-            <SecondaryButton className="mt-3" disabled={busy} onClick={() => void handleRead()}>
-              Leggi importi da Aruba
-            </SecondaryButton>
-          )}
         </Card>
         <Card title="Trasmissione">
           <dl className="space-y-1 text-sm">
             <div>
-              <dt className="inline text-slate-500">Stato SdI: </dt>
-              <dd className="inline">{invoice.sdi_status_label || invoice.sdi_status || '—'}</dd>
+              <dt className="inline text-slate-500">Stato: </dt>
+              <dd className="inline">
+                {invoice.status === 'sent' && !invoice.aruba_filename
+                  ? 'Caricata su Aruba. Importa da Aruba il file inviato per chiudere il giro.'
+                  : invoice.sdi_status_label || invoice.sdi_status || (invoice.aruba_filename ? 'File di Aruba importato' : '—')}
+              </dd>
             </div>
             {invoice.sdi_id && (
               <div>
@@ -302,7 +297,7 @@ interface EditorProps {
   onDeleted: () => void
 }
 
-/** Fattura manuale (bozza): cliente, righe, IVA; poi XML o invio ad Aruba. */
+/** Fattura manuale (bozza): cliente, righe, IVA; poi XML da caricare su Aruba. */
 function InvoiceEditor({ initial, customers, onCustomersChanged, onSaved, onDeleted }: EditorProps) {
   const [invoiceId, setInvoiceId] = useState(initial?.id || '')
   const [customerId, setCustomerId] = useState(initial?.customer_id ?? '')
@@ -336,9 +331,13 @@ function InvoiceEditor({ initial, customers, onCustomersChanged, onSaved, onDele
   async function proposeNumber() {
     setError('')
     const year = Number((draft.invoice_date ?? calendarDateIso()).slice(0, 4))
-    const { number, arubaChecked } = await suggestNextInvoiceNumber(year)
+    const { number, registered } = await suggestNextInvoiceNumber(year)
     set('number', number)
-    setInfo(arubaChecked ? '' : 'Aruba non ha risposto: numero calcolato solo sulle fatture nell’app, controllalo.')
+    setInfo(
+      registered
+        ? 'Numero calcolato sulle fatture nel registro: se hai emesso fatture su Aruba dopo l’ultima importazione, importale prima.'
+        : 'Nessuna fattura emessa nel registro per quest’anno: importa prima da Aruba le fatture già emesse, poi ricalcola il numero.',
+    )
   }
 
   function payload() {
@@ -386,22 +385,29 @@ function InvoiceEditor({ initial, customers, onCustomersChanged, onSaved, onDele
 
   const missing = draftMissingFields(draft, customer)
 
-  async function handleSend() {
-    if (missing.length) throw new Error(`Per inviare mancano: ${missing.join(', ')}`)
+  /** Salva la bozza e scarica l'XML da caricare nel pannello Aruba. */
+  async function handleDownload() {
+    if (missing.length) throw new Error(`Per l'XML mancano: ${missing.join(', ')}`)
+    const progressive = randomProgressive()
+    const xml = buildInvoiceXml(draft, customer!, progressive)
+    const saved = await save()
+    await updateInvoice(saved.id, { xml })
+    downloadBlob(new Blob([xml], { type: 'application/xml' }), invoiceFileName(progressive))
+    setInfo(
+      'XML scaricato. Caricalo su Aruba (Fatture emesse → Carica fattura), poi premi «Segna come caricata su Aruba».',
+    )
+  }
+
+  /** Dopo il caricamento su Aruba la fattura non è più modificabile. */
+  async function handleMarkUploaded() {
     const ok = window.confirm(
-      `Inviare ad Aruba la ${docTypeLabel(draft.doc_type).toLowerCase()} n. ${draft.number} a ${customerDisplayName(customer!)} per € ${formatEuro(totals.total)}? Aruba la firma e la trasmette allo SdI: dopo non si può più modificare.`,
+      `Hai caricato su Aruba la ${docTypeLabel(draft.doc_type).toLowerCase()} n. ${draft.number} a ${customerDisplayName(customer!)} per € ${formatEuro(totals.total)}? Da ora non sarà più modificabile.`,
     )
     if (!ok) return
     const saved = await save()
-    const xml = buildInvoiceXml(draft, customer!)
-    await sendAppInvoiceToAruba(saved.id, xml)
-    onSaved(await getInvoice(saved.id))
-  }
-
-  async function handleDownload() {
-    const progressive = randomProgressive()
-    const xml = buildInvoiceXml(draft, customer!, progressive)
-    downloadBlob(new Blob([xml], { type: 'application/xml' }), invoiceFileName(progressive))
+    const current = await getInvoice(saved.id)
+    const xml = current.xml || buildInvoiceXml(draft, customer!)
+    onSaved(await updateInvoice(saved.id, { status: 'sent', xml }))
   }
 
   async function saveNewCustomer(input: CustomerInput) {
@@ -426,14 +432,14 @@ function InvoiceEditor({ initial, customers, onCustomersChanged, onSaved, onDele
             title={missing.length ? `Mancano: ${missing.join(', ')}` : undefined}
             onClick={() => void run(handleDownload)}
           >
-            Scarica XML
+            Scarica XML per Aruba
           </SecondaryButton>
           <PrimaryButton
             disabled={busy || missing.length > 0}
             title={missing.length ? `Mancano: ${missing.join(', ')}` : undefined}
-            onClick={() => void run(handleSend)}
+            onClick={() => void run(handleMarkUploaded)}
           >
-            Invia ad Aruba
+            Segna come caricata su Aruba
           </PrimaryButton>
           {invoiceId && (
             <DangerButton
@@ -452,7 +458,7 @@ function InvoiceEditor({ initial, customers, onCustomersChanged, onSaved, onDele
         </div>
       </div>
       {missing.length > 0 && (
-        <p className="text-sm text-amber-700">Per inviarla mancano: {missing.join(', ')}.</p>
+        <p className="text-sm text-amber-700">Per preparare l'XML mancano: {missing.join(', ')}.</p>
       )}
       {error && <p className="text-sm text-red-600">{error}</p>}
       {info && <p className="text-sm text-emerald-700">{info}</p>}

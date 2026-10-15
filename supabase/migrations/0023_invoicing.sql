@@ -1,4 +1,4 @@
--- Fatturazione: clienti, fatture emesse/ricevute (anche importate da Aruba)
+-- Fatturazione: clienti, fatture emesse/ricevute (anche importate dai file scaricati da Aruba)
 
 create table public.customers (
   id uuid primary key default gen_random_uuid(),
@@ -35,7 +35,7 @@ create table public.invoices (
   id uuid primary key default gen_random_uuid(),
   -- out = emessa, in = ricevuta
   direction text not null check (direction in ('out', 'in')),
-  -- draft = bozza nell'app, sent = inviata ad Aruba dall'app, imported = letta da Aruba
+  -- draft = bozza nell'app, sent = preparata nell'app e caricata su Aruba, imported = importata dai file Aruba
   status text not null default 'draft' check (status in ('draft', 'sent', 'imported')),
   doc_type text not null default 'TD01',
   number text not null default '',

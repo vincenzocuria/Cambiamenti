@@ -15,17 +15,12 @@ import {
   invoiceAmounts,
   invoiceFileName,
   invoiceMissingFields,
-  formatInvoiceNumber,
   nextInvoiceNumber,
   paymentMethodLabel,
   randomProgressive,
 } from '../lib/eipassInvoice'
 import { downloadBlob } from '../lib/downloadBlob'
-import {
-  getArubaInvoiceSummary,
-  getArubaLastInvoiceNumber,
-  sendInvoiceToAruba,
-} from '../services/arubaInvoice'
+import { suggestNextInvoiceNumber } from '../services/invoiceNumbering'
 import { EipassForm } from '../components/EipassForm'
 import { EipassExamBadge, InvoiceStatusBadge } from '../components/EipassExamBadge'
 import { DocumentsPanel } from '../components/DocumentsPanel'
@@ -44,8 +39,7 @@ export function EipassDetailPage() {
   const [allCandidates, setAllCandidates] = useState<EipassCandidate[]>([])
   const [invoiceError, setInvoiceError] = useState('')
   const [invoiceInfo, setInvoiceInfo] = useState('')
-  const [sendingInvoice, setSendingInvoice] = useState(false)
-  const [arubaLastNumber, setArubaLastNumber] = useState<number | null>(null)
+  const [suggestedNumber, setSuggestedNumber] = useState('')
 
   function refreshIdentity(candidateId: string) {
     hasDocumentInCategory('eipass', candidateId, 'identity')
@@ -60,9 +54,9 @@ export function EipassDetailPage() {
     if (!id) return
     getEipassCandidate(id).then(setCandidate)
     listEipassCandidates().then(setAllCandidates)
-    getArubaLastInvoiceNumber(new Date().getFullYear())
-      .then(setArubaLastNumber)
-      .catch(() => setArubaLastNumber(null))
+    suggestNextInvoiceNumber(new Date().getFullYear())
+      .then((r) => setSuggestedNumber(r.number))
+      .catch(() => setSuggestedNumber(''))
     setHasIdentityFile(null)
     refreshIdentity(id)
   }, [id])
@@ -92,86 +86,30 @@ export function EipassDetailPage() {
 
   function suggestInvoiceNumber(): string {
     const today = calendarDateIso()
-    return nextInvoiceNumber(
-      allCandidates.filter((c) => c.id !== id),
-      Number(today.slice(0, 4)),
-      arubaLastNumber ?? 0,
+    return (
+      suggestedNumber ||
+      nextInvoiceNumber(
+        allCandidates.filter((c) => c.id !== id),
+        Number(today.slice(0, 4)),
+      )
     )
   }
 
-  /** Numero automatico: riletto da Aruba al momento, per non duplicare fatture emesse fuori dall'app. */
+  /**
+   * Numero automatico dal registro fatture (create nell'app o importate da Aruba) e dalle
+   * fatture EIPASS: ricalcolato al momento per non duplicare numeri.
+   */
   async function autoInvoiceNumber(): Promise<string> {
     const year = Number(calendarDateIso().slice(0, 4))
-    let summary: { lastNumber: number; sample: string | null }
-    try {
-      summary = await getArubaInvoiceSummary(year)
-    } catch {
-      throw new Error(
-        "Non riesco a leggere da Aruba l'ultimo numero fattura: inserisci il numero a mano con Modifica.",
-      )
-    }
-    setArubaLastNumber(summary.lastNumber)
-    const next = nextInvoiceNumber(allCandidates.filter((c) => c.id !== id), year, summary.lastNumber)
-    return formatInvoiceNumber(Number(next), year, summary.sample)
-  }
-
-  /** Prepara numero e data (se mancano) e restituisce il corsista aggiornato. */
-  async function prepareInvoice(): Promise<EipassCandidate | null> {
-    if (!candidate) return null
-    setInvoiceError('')
-    setInvoiceInfo('')
-    const missing = invoiceMissingFields({
-      ...candidate,
-      invoice_number: candidate.invoice_number || 'auto',
-      invoice_date: candidate.invoice_date ?? calendarDateIso(),
-    })
-    if (missing.length) {
-      setInvoiceError(`Per generare la fattura mancano: ${missing.join(', ')}`)
-      return null
-    }
-    if (candidate.invoice_number.trim() && candidate.invoice_date) return candidate
-    const updated = await updateEipassCandidate(id!, {
-      invoice_number: candidate.invoice_number.trim() || (await autoInvoiceNumber()),
-      invoice_date: candidate.invoice_date ?? calendarDateIso(),
-    })
-    setCandidate(updated)
-    return updated
-  }
-
-  async function handleSendToAruba() {
-    if (!candidate) return
-    if (
-      candidate.invoice_status === 'fatturato' &&
-      !window.confirm('Il corsista risulta già fatturato. Inviare comunque una nuova fattura ad Aruba?')
-    ) {
-      return
-    }
-    setSendingInvoice(true)
-    try {
-      const current = await prepareInvoice()
-      if (!current) return
-      if (
-        !window.confirm(
-          `Inviare ad Aruba la fattura n. ${current.invoice_number} del ${fmtDate(current.invoice_date)} a ${fullName(current)}? Aruba la firma e la trasmette allo SdI.`,
-        )
-      ) {
-        return
-      }
-      const result = await sendInvoiceToAruba(current.id, buildEipassInvoiceXml(current))
-      setCandidate(await getEipassCandidate(id!))
-      setInvoiceInfo(
-        `Fattura inviata ad Aruba${result.uploadFileName ? ` (${result.uploadFileName})` : ''}. Controlla l'esito SdI su Aruba.`,
-      )
-    } catch (err) {
-      setInvoiceError(err instanceof Error ? err.message : 'Invio ad Aruba non riuscito')
-    } finally {
-      setSendingInvoice(false)
-    }
+    const { number } = await suggestNextInvoiceNumber(year)
+    setSuggestedNumber(number)
+    return number
   }
 
   async function handleInvoiceXml() {
     if (!candidate) return
     setInvoiceError('')
+    setInvoiceInfo('')
     let current = candidate
     const missing = invoiceMissingFields({
       ...current,
@@ -195,6 +133,9 @@ export function EipassDetailPage() {
       downloadBlob(
         new Blob([buildEipassInvoiceXml(current, progressive)], { type: 'application/xml' }),
         invoiceFileName(progressive),
+      )
+      setInvoiceInfo(
+        `Fattura n. ${current.invoice_number} scaricata: caricala su Aruba (Fatture emesse → Carica fattura).`,
       )
       if (
         current.invoice_status !== 'fatturato' &&
@@ -298,15 +239,8 @@ export function EipassDetailPage() {
             {candidate.invoice_status !== 'non_richiesta' && (
               <div className="col-span-full space-y-2">
                 <div className="flex flex-wrap gap-2">
-                  <SecondaryButton
-                    size="sm"
-                    disabled={sendingInvoice}
-                    onClick={() => void handleSendToAruba()}
-                  >
-                    {sendingInvoice ? 'Invio ad Aruba…' : 'Invia fattura ad Aruba'}
-                  </SecondaryButton>
                   <SecondaryButton size="sm" onClick={() => void handleInvoiceXml()}>
-                    Scarica XML
+                    Scarica XML per Aruba
                   </SecondaryButton>
                 </div>
                 {invoiceMissingFields({

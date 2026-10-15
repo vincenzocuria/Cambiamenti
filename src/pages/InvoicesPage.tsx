@@ -1,15 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import type { Customer, CustomerInput, Invoice, InvoiceDirection } from '../types/db'
 import {
-  applyParsedXml,
   createCustomer,
   deleteCustomer,
   listCustomers,
   listInvoices,
   updateCustomer,
 } from '../services/invoices'
-import { fetchArubaInvoiceXml, syncArubaInvoices } from '../services/arubaInvoice'
+import { importInvoiceFiles } from '../services/invoiceImport'
 import { customerDisplayName, docTypeLabel } from '../lib/fatturaPa'
 import { formatEuro } from '../lib/euroInWords'
 import { fmtDate } from '../lib/format'
@@ -37,8 +36,6 @@ const tabs: { value: Tab; label: string }[] = [
   { value: 'customers', label: 'Clienti' },
 ]
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
-
 function euro(value: number | null): string {
   return value == null ? '—' : `€ ${formatEuro(value)}`
 }
@@ -53,8 +50,10 @@ export function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
-  const [syncing, setSyncing] = useState(false)
-  const [syncMessage, setSyncMessage] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [importMessage, setImportMessage] = useState('')
+  const [importReport, setImportReport] = useState<string[]>([])
+  const fileRef = useRef<HTMLInputElement>(null)
   const [editingCustomer, setEditingCustomer] = useState<Customer | 'new' | null>(null)
 
   function setParam(key: string, value: string) {
@@ -79,55 +78,29 @@ export function InvoicesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, year])
 
-  /** Importa l'elenco da Aruba, poi scarica gli XML mancanti per totali e righe. */
-  async function handleSync() {
-    if (tab === 'customers') return
-    const direction = tab as InvoiceDirection
-    setSyncing(true)
-    setSyncMessage('Lettura elenco da Aruba…')
+  /** Importa le fatture scaricate dal pannello Aruba (XML, P7M o ZIP), emesse e ricevute insieme. */
+  async function handleImport() {
+    const files = Array.from(fileRef.current?.files ?? [])
+    if (files.length === 0) return
+    setImporting(true)
+    setImportReport([])
+    setImportMessage('Lettura dei file…')
     try {
-      let added = 0
-      let updated = 0
-      for (let page = 1; page <= 50; page++) {
-        const res = await syncArubaInvoices(direction, year, page)
-        added += res.added
-        updated += res.updated
-        setSyncMessage(`Elenco Aruba: ${added} nuove, ${updated} aggiornate…`)
-        if (res.last) break
-      }
-      let rows = await listInvoices(direction, year)
-      setInvoices(rows)
-      const missing = rows.filter((r) => r.aruba_filename && r.total == null)
-      let done = 0
-      for (const row of missing) {
-        setSyncMessage(
-          `${added} nuove, ${updated} aggiornate. Lettura importi: ${done}/${missing.length}…`,
-        )
-        try {
-          const xml = await fetchArubaInvoiceXml(row.id)
-          await applyParsedXml(row, xml)
-        } catch (err) {
-          const message = err instanceof Error ? err.message : ''
-          if (/troppe richieste/i.test(message)) {
-            setSyncMessage(`Aruba chiede una pausa: riprendo tra un minuto (${done}/${missing.length})…`)
-            await sleep(61_000)
-            continue
-          }
-        }
-        done++
-        await sleep(1500)
-      }
-      rows = await listInvoices(direction, year)
-      setInvoices(rows)
-      setSyncMessage(
-        `Aggiornamento completato: ${added} nuove, ${updated} aggiornate${
-          missing.length ? `, importi letti per ${done} fatture` : ''
-        }.`,
+      const res = await importInvoiceFiles(files, (done, total) =>
+        setImportMessage(`Importazione fatture: ${done}/${total}…`),
       )
+      setImportMessage(
+        `Importazione completata: ${res.added} nuove, ${res.updated} già presenti aggiornate` +
+          (res.eipassLinked ? `, ${res.eipassLinked} abbinate a corsisti EIPASS` : '') +
+          '.',
+      )
+      setImportReport(res.report)
+      await reload()
     } catch (err) {
-      setSyncMessage(err instanceof Error ? err.message : 'Aggiornamento da Aruba non riuscito')
+      setImportMessage(err instanceof Error ? err.message : 'Importazione non riuscita')
     } finally {
-      setSyncing(false)
+      if (fileRef.current) fileRef.current.value = ''
+      setImporting(false)
     }
   }
 
@@ -160,7 +133,7 @@ export function InvoicesPage() {
       { key: 'count', label: tab === 'out' ? 'Fatture emesse' : 'Fatture ricevute', value: valid.length, hint: `Anno ${year}` },
       { key: 'taxable', label: 'Imponibile', value: `€ ${formatEuro(sum('taxable'))}`, hint: 'Note di credito sottratte' },
       { key: 'vat', label: 'IVA', value: `€ ${formatEuro(sum('vat_amount'))}` },
-      { key: 'total', label: 'Totale documenti', value: `€ ${formatEuro(sum('total'))}`, hint: unread ? `${unread} senza importi: premi Aggiorna` : undefined },
+      { key: 'total', label: 'Totale documenti', value: `€ ${formatEuro(sum('total'))}`, hint: unread ? `${unread} senza importi` : undefined },
       ...(tab === 'out' ? [{ key: 'drafts', label: 'Bozze', value: drafts, tone: drafts ? ('warn' as const) : ('default' as const) }] : []),
     ]
   }, [filteredInvoices, tab, year])
@@ -192,9 +165,19 @@ export function InvoicesPage() {
             <PrimaryButton onClick={() => setEditingCustomer('new')}>+ Nuovo cliente</PrimaryButton>
           )}
           {tab !== 'customers' && (
-            <SecondaryButton disabled={syncing} onClick={() => void handleSync()}>
-              {syncing ? 'Aggiornamento…' : 'Aggiorna da Aruba'}
-            </SecondaryButton>
+            <>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".xml,.p7m,.zip"
+                multiple
+                className="hidden"
+                onChange={() => void handleImport()}
+              />
+              <SecondaryButton disabled={importing} onClick={() => fileRef.current?.click()}>
+                {importing ? 'Importazione…' : 'Importa da Aruba'}
+              </SecondaryButton>
+            </>
           )}
         </div>
       </div>
@@ -229,7 +212,20 @@ export function InvoicesPage() {
         />
       </div>
 
-      {syncMessage && <p className="text-sm text-slate-600">{syncMessage}</p>}
+      {tab !== 'customers' && (
+        <p className="text-xs text-slate-500">
+          Su Aruba seleziona le fatture (emesse o ricevute) e scaricale: qui puoi caricare i file XML, P7M o lo ZIP
+          così com'è. Le fatture già presenti non vengono duplicate.
+        </p>
+      )}
+      {importMessage && <p className="text-sm text-slate-600">{importMessage}</p>}
+      {importReport.length > 0 && (
+        <ul className="max-h-48 list-disc space-y-0.5 overflow-y-auto pl-5 text-xs text-slate-600">
+          {importReport.map((line, i) => (
+            <li key={i}>{line}</li>
+          ))}
+        </ul>
+      )}
 
       {tab !== 'customers' && <KpiCards items={kpis} />}
 
@@ -313,7 +309,7 @@ export function InvoicesPage() {
               {filteredInvoices.length === 0 && (
                 <tr>
                   <td className={tdClass} colSpan={7}>
-                    Nessuna fattura per il {year}. Premi «Aggiorna da Aruba» per importarle.
+                    Nessuna fattura per il {year}. Premi «Importa da Aruba» e carica i file scaricati da Aruba.
                   </td>
                 </tr>
               )}

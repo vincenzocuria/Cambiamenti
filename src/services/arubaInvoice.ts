@@ -1,3 +1,4 @@
+/** Client delle API Aruba: oggi non usato, l'utenza base non ha accesso ai Web Service (errore 0093). */
 import { supabase } from '../lib/supabase'
 
 async function invoke<T>(body: Record<string, unknown>): Promise<T> {

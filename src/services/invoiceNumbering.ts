@@ -1,30 +1,21 @@
 import { formatInvoiceNumber, nextInvoiceNumber } from '../lib/eipassInvoice'
-import { getArubaInvoiceSummary } from './arubaInvoice'
 import { listEipassCandidates } from './eipass'
 import { listOutInvoiceNumbers } from './invoices'
 
 /**
- * Prossimo numero fattura dell'anno: tiene conto delle fatture nell'app, di quelle EIPASS
- * e dell'ultima emessa su Aruba (anche fuori dall'app), nello stesso formato di quelle Aruba.
- * Se Aruba non risponde lo segnala.
+ * Prossimo numero fattura dell'anno, calcolato sulle fatture emesse nel registro (create
+ * nell'app o importate dagli XML di Aruba) e su quelle EIPASS, nello stesso formato
+ * dell'ultima emessa. Le fatture fatte su Aruba e non ancora importate non sono contate.
  */
-export async function suggestNextInvoiceNumber(
-  year: number,
-): Promise<{ number: string; arubaChecked: boolean }> {
+export async function suggestNextInvoiceNumber(year: number): Promise<{ number: string; registered: number }> {
   const [own, eipass] = await Promise.all([
+    // Senza registro (es. tabella non ancora creata) conta solo le fatture EIPASS
     listOutInvoiceNumbers(year).catch(() => []),
     listEipassCandidates(),
   ])
-  let aruba = 0
-  let sample: string | null = null
-  let arubaChecked = true
-  try {
-    const summary = await getArubaInvoiceSummary(year)
-    aruba = summary.lastNumber
-    sample = summary.sample
-  } catch {
-    arubaChecked = false
-  }
-  const next = Number(nextInvoiceNumber([...own, ...eipass], year, aruba))
-  return { number: formatInvoiceNumber(next, year, sample), arubaChecked }
+  const latest = [...own]
+    .filter((r) => r.invoice_number)
+    .sort((a, b) => (b.invoice_date ?? '').localeCompare(a.invoice_date ?? ''))[0]
+  const next = Number(nextInvoiceNumber([...own, ...eipass], year))
+  return { number: formatInvoiceNumber(next, year, latest?.invoice_number ?? null), registered: own.length }
 }

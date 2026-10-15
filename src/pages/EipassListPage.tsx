@@ -4,21 +4,11 @@ import type { EipassCandidate, EipassCandidateInput } from '../types/db'
 import {
   createEipassCandidate,
   listEipassCandidates,
-  updateEipassCandidate,
 } from '../services/eipass'
-import {
-  invoiceStatusLabels,
-  matchInvoiceToCandidate,
-  nextInvoiceNumber,
-  parseInvoiceXml,
-  paymentMethodLabel,
-} from '../lib/eipassInvoice'
+import { invoiceStatusLabels, nextInvoiceNumber, paymentMethodLabel } from '../lib/eipassInvoice'
 import { listPersonIdsWithDocument } from '../services/documents'
-import {
-  checkArubaConnection,
-  getArubaInvoiceSummary,
-  getArubaLastInvoiceNumber,
-} from '../services/arubaInvoice'
+import { importInvoiceFiles } from '../services/invoiceImport'
+import { suggestNextInvoiceNumber } from '../services/invoiceNumbering'
 import { fmtDate, fullName } from '../lib/format'
 import { matchesSearch } from '../lib/matchesSearch'
 import { describeFilters, exportFilteredList } from '../lib/listExport'
@@ -59,32 +49,7 @@ export function EipassListPage() {
   const [importReport, setImportReport] = useState<string[]>([])
   const [importing, setImporting] = useState(false)
   const importRef = useRef<HTMLInputElement>(null)
-  const [arubaStatus, setArubaStatus] = useState('')
-  const [arubaLastNumber, setArubaLastNumber] = useState(0)
-
-  async function handleCheckAruba() {
-    setArubaStatus('Verifica in corso…')
-    try {
-      const res = await checkArubaConnection()
-      const active = `Collegamento Aruba attivo${res.account ? ` (account ${res.account})` : ''}`
-      try {
-        const summary = await getArubaInvoiceSummary(new Date().getFullYear())
-        setArubaLastNumber(summary.lastNumber)
-        setArubaStatus(
-          summary.found === 0
-            ? `${active}. Aruba non ha restituito fatture emesse quest'anno: la numerazione dell'app parte da 1.`
-            : `${active}. Lette ${summary.found} fatture emesse quest'anno su Aruba, l'ultima è la n. ${summary.lastNumber}` +
-                (summary.sample ? ` (formato numero: «${summary.sample}»)` : ''),
-        )
-      } catch (err) {
-        setArubaStatus(
-          `${active}, ma non riesco a leggere l'elenco fatture: ${err instanceof Error ? err.message : 'errore'}`,
-        )
-      }
-    } catch (err) {
-      setArubaStatus(err instanceof Error ? err.message : 'Collegamento Aruba non riuscito')
-    }
-  }
+  const [suggestedNumber, setSuggestedNumber] = useState('')
   const { search, status: rawStatus, setSearch, setStatus } = useListQuery()
   const status: EipassListStatus | '' = isEipassListStatus(rawStatus) ? rawStatus : ''
 
@@ -101,53 +66,37 @@ export function EipassListPage() {
 
   useEffect(() => {
     void reload()
-    getArubaLastInvoiceNumber(new Date().getFullYear())
-      .then(setArubaLastNumber)
-      .catch(() => setArubaLastNumber(0))
+    suggestNextInvoiceNumber(new Date().getFullYear())
+      .then((r) => setSuggestedNumber(r.number))
+      .catch(() => setSuggestedNumber(''))
   }, [])
 
   function suggestInvoiceNumber(): string {
-    return nextInvoiceNumber(candidates, new Date().getFullYear(), arubaLastNumber)
+    return suggestedNumber || nextInvoiceNumber(candidates, new Date().getFullYear())
   }
 
-  /** Importa fatture XML scaricate da Aruba e segna i corsisti come fatturati. */
+  /** Importa le fatture scaricate da Aruba (XML, P7M o ZIP) e segna i corsisti come fatturati. */
   async function handleImport() {
     const files = Array.from(importRef.current?.files ?? [])
     if (files.length === 0) return
     setImporting(true)
-    const report: string[] = []
+    let report: string[] = []
     try {
-      let pool = candidates
-      for (const file of files) {
-        try {
-          if (!/\.xml$/i.test(file.name)) {
-            report.push(`${file.name}: serve il file .xml (non firmato .p7m)`)
-            continue
-          }
-          const invoice = parseInvoiceXml(await file.text(), file.name)
-          const match = matchInvoiceToCandidate(invoice, pool)
-          if (!match) {
-            report.push(
-              `${file.name}: fattura n. ${invoice.number}, nessun corsista con codice fiscale ${invoice.taxCode || '—'}`,
-            )
-            continue
-          }
-          const updated = await updateEipassCandidate(match.id, {
-            invoice_status: 'fatturato',
-            invoice_number: invoice.number,
-            invoice_date: invoice.date,
-          })
-          pool = pool.map((c) => (c.id === updated.id ? updated : c))
-          report.push(`${file.name}: fattura n. ${invoice.number} associata a ${fullName(updated)}`)
-        } catch (err) {
-          report.push(err instanceof Error ? err.message : `${file.name}: errore`)
-        }
-      }
+      const res = await importInvoiceFiles(files)
+      report = [
+        `${res.added + res.updated} fatture lette (aggiunte anche in Fatturazione), ${res.eipassLinked} abbinate a corsisti EIPASS.`,
+        ...res.report,
+      ]
+    } catch (err) {
+      report = [err instanceof Error ? err.message : 'Importazione non riuscita']
     } finally {
       if (importRef.current) importRef.current.value = ''
       setImportReport(report)
       setImporting(false)
       await reload()
+      suggestNextInvoiceNumber(new Date().getFullYear())
+        .then((r) => setSuggestedNumber(r.number))
+        .catch(() => undefined)
     }
   }
 
@@ -309,17 +258,14 @@ export function EipassListPage() {
 
       <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm">
         <span className="font-medium text-slate-700">Fatture da Aruba</span>
-        <input ref={importRef} type="file" accept=".xml" multiple className="hidden" onChange={() => void handleImport()} />
+        <input ref={importRef} type="file" accept=".xml,.p7m,.zip" multiple className="hidden" onChange={() => void handleImport()} />
         <SecondaryButton size="sm" disabled={importing} onClick={() => importRef.current?.click()}>
           {importing ? 'Importazione…' : 'Importa XML fatture'}
         </SecondaryButton>
-        <SecondaryButton size="sm" onClick={() => void handleCheckAruba()}>
-          Verifica collegamento Aruba
-        </SecondaryButton>
-        {arubaStatus && <span className="text-xs font-medium text-slate-700">{arubaStatus}</span>}
         <span className="text-xs text-slate-500">
-          Scarica da Aruba le fatture emesse in XML: ognuna viene abbinata al corsista con lo stesso
-          codice fiscale, che passa a «Fatturato» con numero e data.
+          Scarica da Aruba le fatture emesse (XML, P7M o lo ZIP così com'è): ognuna viene abbinata al
+          corsista con lo stesso codice fiscale, che passa a «Fatturato» con numero e data. Importale
+          prima di fatturare: il numero successivo si calcola da qui.
         </span>
         {importReport.length > 0 && (
           <ul className="w-full list-disc space-y-1 pl-5 text-xs text-slate-600">

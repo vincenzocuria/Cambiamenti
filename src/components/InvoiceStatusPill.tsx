@@ -1,13 +1,13 @@
 import type { Invoice } from '../types/db'
 
-/** Stato di una fattura: bozza, inviata dall'app o stato SdI letto da Aruba. */
+/** Stato di una fattura: bozza, caricata su Aruba o importata dai file di Aruba. */
 export function InvoiceStatusPill({ invoice }: { invoice: Pick<Invoice, 'status' | 'sdi_status' | 'sdi_status_label'> }) {
   const label =
     invoice.status === 'draft'
       ? 'Bozza'
-      : invoice.sdi_status_label || invoice.sdi_status || (invoice.status === 'sent' ? 'Inviata ad Aruba' : 'Importata')
+      : invoice.sdi_status_label || invoice.sdi_status || (invoice.status === 'sent' ? 'Caricata su Aruba' : 'Da Aruba')
   const bad = /scart|rifiut|errore|non consegn/i.test(label)
-  const good = /consegn|accett|ricevut|inviata/i.test(label) && !bad
+  const good = /consegn|accett|ricevut|caricata|aruba/i.test(label) && !bad
   const tone =
     invoice.status === 'draft'
       ? 'bg-amber-50 text-amber-800 ring-amber-200'
