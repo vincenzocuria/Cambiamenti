@@ -6,6 +6,15 @@ import type { EipassCandidate, EipassCandidateInput, PersonInput } from '../type
 
 const TABLE = 'eipass_candidates'
 
+/** Le colonne numeric possono arrivare come stringa: le riporta a numero. */
+function fromRow(row: EipassCandidate): EipassCandidate {
+  return {
+    ...row,
+    amount: row.amount == null ? null : Number(row.amount),
+    vat_rate: row.vat_rate == null ? 22 : Number(row.vat_rate),
+  }
+}
+
 function normalizeInput<T extends Partial<EipassCandidateInput>>(input: T): T {
   // Stesse regole dell'anagrafica alunni/personale (Title Case, codici in maiuscolo, email)
   const out = normalizePersonInput(input as Partial<PersonInput>) as T
@@ -24,13 +33,13 @@ export async function listEipassCandidates(): Promise<EipassCandidate[]> {
     .order('last_name')
     .order('first_name')
   if (error) throw error
-  return data as EipassCandidate[]
+  return (data as EipassCandidate[]).map(fromRow)
 }
 
 export async function getEipassCandidate(id: string): Promise<EipassCandidate> {
   const { data, error } = await supabase.from(TABLE).select('*').eq('id', id).single()
   if (error) throw error
-  return data as EipassCandidate
+  return fromRow(data as EipassCandidate)
 }
 
 export async function createEipassCandidate(
@@ -38,7 +47,7 @@ export async function createEipassCandidate(
 ): Promise<EipassCandidate> {
   const { data, error } = await supabase.from(TABLE).insert(normalizeInput(input)).select().single()
   if (error) throw error
-  return data as EipassCandidate
+  return fromRow(data as EipassCandidate)
 }
 
 export async function updateEipassCandidate(
@@ -52,7 +61,7 @@ export async function updateEipassCandidate(
     .select()
     .single()
   if (error) throw error
-  return data as EipassCandidate
+  return fromRow(data as EipassCandidate)
 }
 
 /** Elimina il corsista e i file caricati sulla sua scheda. */
