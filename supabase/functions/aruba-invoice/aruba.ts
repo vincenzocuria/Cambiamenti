@@ -259,6 +259,7 @@ export async function arubaListInvoices(
   const known = workingVariant[direction]
   const candidates = known != null ? [known] : listVariants.map((_, i) => i)
   let lastError = ''
+  let anyOk = false
   for (const variant of candidates) {
     const { status, body } = await fetchListPage(token, direction, account, variant, year, page)
     if (body?.errorCode && body.errorCode !== '0000') {
@@ -269,6 +270,7 @@ export async function arubaListInvoices(
       lastError = `HTTP ${status}`
       continue
     }
+    anyOk = true
     const docs = body.content ?? []
     // Pagina vuota alla prima richiesta: provo la variante successiva
     if (docs.length === 0 && known == null && page === 1) continue
@@ -278,7 +280,7 @@ export async function arubaListInvoices(
       .filter((h): h is ArubaInvoiceHeader => h !== null)
     return { items, last: body.last !== false || items.length === 0 }
   }
-  if (lastError) throw new ArubaError(`Elenco fatture Aruba non leggibile: ${lastError}`)
+  if (!anyOk && lastError) throw new ArubaError(`Elenco fatture Aruba non leggibile: ${lastError}`)
   return { items: [], last: true }
 }
 
