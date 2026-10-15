@@ -14,7 +14,11 @@ import {
   paymentMethodLabel,
 } from '../lib/eipassInvoice'
 import { listPersonIdsWithDocument } from '../services/documents'
-import { checkArubaConnection, getArubaLastInvoiceNumber } from '../services/arubaInvoice'
+import {
+  checkArubaConnection,
+  getArubaInvoiceSummary,
+  getArubaLastInvoiceNumber,
+} from '../services/arubaInvoice'
 import { fmtDate, fullName } from '../lib/format'
 import { matchesSearch } from '../lib/matchesSearch'
 import { describeFilters, exportFilteredList } from '../lib/listExport'
@@ -64,9 +68,14 @@ export function EipassListPage() {
       const res = await checkArubaConnection()
       const active = `Collegamento Aruba attivo${res.account ? ` (account ${res.account})` : ''}`
       try {
-        const last = await getArubaLastInvoiceNumber(new Date().getFullYear())
-        setArubaLastNumber(last)
-        setArubaStatus(`${active}. Ultima fattura emessa quest'anno su Aruba: n. ${last}`)
+        const summary = await getArubaInvoiceSummary(new Date().getFullYear())
+        setArubaLastNumber(summary.lastNumber)
+        setArubaStatus(
+          summary.found === 0
+            ? `${active}. Aruba non ha restituito fatture emesse quest'anno: la numerazione dell'app parte da 1.`
+            : `${active}. Lette ${summary.found} fatture emesse quest'anno su Aruba, l'ultima è la n. ${summary.lastNumber}` +
+                (summary.sample ? ` (formato numero: «${summary.sample}»)` : ''),
+        )
       } catch (err) {
         setArubaStatus(
           `${active}, ma non riesco a leggere l'elenco fatture: ${err instanceof Error ? err.message : 'errore'}`,

@@ -65,9 +65,33 @@ export async function arubaUploadInvoice(token: string, xml: string): Promise<st
 }
 
 interface ArubaSentPage {
+  errorCode?: string
+  errorDescription?: string
   content?: { invoices?: { number?: string; invoiceDate?: string }[] }[]
   last?: boolean
   totalPages?: number
+  totalElements?: number
+}
+
+/**
+ * Numero progressivo da un numero fattura Aruba: «44», «44/2026», «FPR 44/26», «2026/44».
+ * Scarta i gruppi che coincidono con l'anno (4 o 2 cifre) quando ce ne sono altri.
+ */
+export function parseInvoiceNumber(raw: string, year: number): number | null {
+  const groups = raw.match(/\d+/g)
+  if (!groups) return null
+  const yearForms = new Set([String(year), String(year % 100).padStart(2, '0')])
+  const progressive = groups.length > 1 ? groups.filter((g) => !yearForms.has(g)) : groups
+  const pick = progressive[0] ?? groups[0]
+  return Number(pick)
+}
+
+export interface ArubaLastNumber {
+  lastNumber: number
+  /** Fatture lette su Aruba nell'anno: serve a capire un risultato 0. */
+  found: number
+  /** Esempio di numero letto, per controllare il formato. */
+  sample: string | null
 }
 
 /**
@@ -78,8 +102,11 @@ export async function arubaLastInvoiceNumber(
   token: string,
   username: string,
   year: number,
-): Promise<number> {
+  sender: { countryCode: string; vatCode: string },
+): Promise<ArubaLastNumber> {
   let max = 0
+  let found = 0
+  let sample: string | null = null
   for (let page = 1; page <= 50; page++) {
     const params = new URLSearchParams({
       username,
@@ -88,19 +115,31 @@ export async function arubaLastInvoiceNumber(
       startDate: `${year}-01-01T00:00:00.000Z`,
       endDate: new Date().toISOString(),
     })
+    // Obbligatori per le utenze Premium, innocui per le altre
+    if (sender.vatCode) {
+      params.set('countrySender', sender.countryCode)
+      params.set('vatcodeSender', sender.vatCode)
+    }
     const res = await fetch(`${WS_URL}/services/invoice/out/findByUsername?${params}`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
     })
     if (!res.ok) throw new ArubaError(`Elenco fatture Aruba non leggibile (HTTP ${res.status})`)
     const body = (await res.json()) as ArubaSentPage
+    if (body.errorCode && body.errorCode !== '0000') {
+      throw new ArubaError(
+        `Elenco fatture Aruba non leggibile: ${body.errorDescription || body.errorCode}`,
+      )
+    }
     for (const doc of body.content ?? []) {
       for (const inv of doc.invoices ?? []) {
         if (inv.invoiceDate && !inv.invoiceDate.startsWith(String(year))) continue
-        const match = /^\s*(\d+)/.exec(inv.number ?? '')
-        if (match) max = Math.max(max, Number(match[1]))
+        found++
+        sample ??= inv.number ?? null
+        const n = parseInvoiceNumber(inv.number ?? '', year)
+        if (n != null) max = Math.max(max, n)
       }
     }
     if (body.last !== false || !body.content?.length) break
   }
-  return max
+  return { lastNumber: max, found, sample }
 }

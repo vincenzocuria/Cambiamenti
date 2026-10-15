@@ -76,8 +76,11 @@ Deno.serve(async (req) => {
       const year = Number(body.year) || new Date().getFullYear()
       const info = await arubaUserInfo(token)
       const arubaUser = String(info.username ?? info.userName ?? username)
-      const lastNumber = await arubaLastInvoiceNumber(token, arubaUser, year)
-      return jsonResponse({ ok: true, year, lastNumber })
+      const result = await arubaLastInvoiceNumber(token, arubaUser, year, {
+        countryCode: 'IT',
+        vatCode: String(info.vatCode ?? ''),
+      })
+      return jsonResponse({ ok: true, year, ...result })
     }
 
     if (body.action === 'send') {
