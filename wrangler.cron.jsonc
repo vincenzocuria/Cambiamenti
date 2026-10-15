@@ -2,6 +2,8 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "cambiamenti-cron",
   "main": "workers/cron-check-doc-expiry.ts",
+  // Account Cloudflare personale: evita la scelta tra più account in wrangler
+  "account_id": "a8400e419eff530311725e4b43d5c4f0",
   "compatibility_date": "2026-08-07",
   "triggers": {
     "crons": ["0 5 * * *"]
