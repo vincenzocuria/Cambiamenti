@@ -245,9 +245,6 @@ async function fetchListPage(
       body?.content?.[0] ? `, itemKeys=${Object.keys(body.content[0]).join(',')}` : ''
     }`,
   )
-  if (body?.errorCode && body.errorCode !== '0000') {
-    throw new ArubaError(`Elenco fatture Aruba non leggibile: ${body.errorDescription || body.errorCode}`)
-  }
   return { status: res.status, body }
 }
 
@@ -261,11 +258,17 @@ export async function arubaListInvoices(
 ): Promise<{ items: ArubaInvoiceHeader[]; last: boolean }> {
   const known = workingVariant[direction]
   const candidates = known != null ? [known] : listVariants.map((_, i) => i)
-  let lastStatus = 0
+  let lastError = ''
   for (const variant of candidates) {
     const { status, body } = await fetchListPage(token, direction, account, variant, year, page)
-    lastStatus = status
-    if (status >= 400 || !body) continue
+    if (body?.errorCode && body.errorCode !== '0000') {
+      lastError = body.errorDescription || body.errorCode
+      continue
+    }
+    if (status >= 400 || !body) {
+      lastError = `HTTP ${status}`
+      continue
+    }
     const docs = body.content ?? []
     // Pagina vuota alla prima richiesta: provo la variante successiva
     if (docs.length === 0 && known == null && page === 1) continue
@@ -275,7 +278,7 @@ export async function arubaListInvoices(
       .filter((h): h is ArubaInvoiceHeader => h !== null)
     return { items, last: body.last !== false || items.length === 0 }
   }
-  if (lastStatus >= 400) throw new ArubaError(`Elenco fatture Aruba non leggibile (HTTP ${lastStatus})`)
+  if (lastError) throw new ArubaError(`Elenco fatture Aruba non leggibile: ${lastError}`)
   return { items: [], last: true }
 }
 
