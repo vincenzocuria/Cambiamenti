@@ -1,7 +1,7 @@
-import type { PersonType } from '../types/db'
+import type { DocumentPersonType } from '../types/db'
 
 export function buildDocumentStoragePath(input: {
-  personType?: PersonType | null
+  personType?: DocumentPersonType | null
   personId?: string | null
   courseId?: string | null
   fileName: string

@@ -12,6 +12,7 @@ const links = [
   { to: '/import/jforma', label: 'Import JForma' },
   { to: '/alunni', label: 'Alunni' },
   { to: '/personale', label: 'Personale' },
+  { to: '/eipass', label: 'EIPASS privato' },
   { to: '/template', label: 'Template' },
 ]
 

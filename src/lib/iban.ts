@@ -1,4 +1,4 @@
-import { lookupAbi } from '../data/banks'
+import { lookupAbi, lookupForeignBank } from '../data/banks'
 
 /** Contributo posizioni dispari (1-based) su ABI+CAB+conto, algoritmo BBAN ABI. */
 const ITALIAN_ODD_CONTRIB = [
@@ -93,7 +93,11 @@ export function deriveBankInfo(raw: string): IbanInfo {
   const iban = normalizeIban(raw)
   const valid = isValidIbanCompact(iban)
   const country = iban.slice(0, 2)
-  if (!valid || country !== 'IT') return { valid, country }
+  if (!valid) return { valid, country }
+  if (country !== 'IT') {
+    const foreign = lookupForeignBank(iban)
+    return { valid, country, bankName: foreign?.name, bic: foreign?.bic }
+  }
   const abi = iban.slice(5, 10)
   const cab = iban.slice(10, 15)
   const bank = lookupAbi(abi)

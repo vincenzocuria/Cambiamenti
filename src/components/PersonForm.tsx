@@ -99,11 +99,13 @@ export function PersonForm({ initial, personType, onSave, onCancel }: Props) {
     ? undefined
     : !ibanInfo?.valid
       ? 'IBAN non valido'
-      : ibanInfo.bankName
+      : ibanInfo.bankName && ibanInfo.abi
         ? `ABI ${ibanInfo.abi} · CAB ${ibanInfo.cab} — ${ibanInfo.bankName}`
-        : ibanInfo.abi
-          ? `IBAN valido · ABI ${ibanInfo.abi} non in archivio: inserisci banca e BIC a mano`
-          : 'IBAN estero valido: inserisci banca e BIC a mano'
+        : ibanInfo.bankName
+          ? `IBAN estero valido — ${ibanInfo.bankName}`
+          : ibanInfo.abi
+            ? `IBAN valido · ABI ${ibanInfo.abi} non in archivio: inserisci banca e BIC a mano`
+            : 'IBAN estero valido: inserisci banca e BIC a mano'
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">

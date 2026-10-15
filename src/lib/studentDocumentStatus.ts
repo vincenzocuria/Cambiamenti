@@ -5,6 +5,7 @@ export const studentDocumentGapLabels = {
   dati: 'Tipo o numero mancante',
   scadenza: 'Scadenza assente',
   scaduto: 'Documento scaduto',
+  curriculum: 'Curriculum assente',
 } as const
 
 export type StudentDocumentGap = keyof typeof studentDocumentGapLabels
@@ -39,6 +40,36 @@ export function checkStudentDocuments(
   return { ok: gaps.length === 0, gaps }
 }
 
+/** Personale (docenti, tutor, amministrativi): fascicolo identità completo più curriculum caricato. */
+export function checkStaffDocuments(
+  person: IdentityFields,
+  hasIdentityFile: boolean,
+  hasCurriculumFile: boolean,
+  today = calendarDateIso(),
+): StudentDocumentCheck {
+  const base = checkStudentDocuments(person, hasIdentityFile, today)
+  if (hasCurriculumFile) return base
+  return { ok: false, gaps: [...base.gaps, 'curriculum'] }
+}
+
+export type DocumentFileContext = {
+  hasIdentityFile?: (personId: string) => boolean
+  /** Valorizzato solo per il personale: abilita il controllo sul curriculum. */
+  hasCurriculumFile?: (personId: string) => boolean
+}
+
+/** Controllo documenti per alunni o personale, a seconda del contesto passato. */
+export function checkPersonDocuments(
+  person: IdentityFields & { id: string },
+  context?: DocumentFileContext,
+): StudentDocumentCheck {
+  const hasIdentity = context?.hasIdentityFile?.(person.id) ?? false
+  if (context?.hasCurriculumFile) {
+    return checkStaffDocuments(person, hasIdentity, context.hasCurriculumFile(person.id))
+  }
+  return checkStudentDocuments(person, hasIdentity)
+}
+
 export type StudentDocumentStatusLabel =
   | 'Documenti ok'
   | 'Documenti mancanti'
@@ -48,7 +79,7 @@ export type StudentDocumentStatusLabel =
 /** Etichetta visibile: il file caricato non va confuso con dati incompleti o scadenza passata. */
 export function studentDocumentStatusLabel(check: StudentDocumentCheck): StudentDocumentStatusLabel {
   if (check.ok) return 'Documenti ok'
-  if (check.gaps.includes('file')) return 'Documenti mancanti'
+  if (check.gaps.includes('file') || check.gaps.includes('curriculum')) return 'Documenti mancanti'
   if (check.gaps.includes('dati') || check.gaps.includes('scadenza')) return 'Dati incompleti'
   return 'Documento scaduto'
 }

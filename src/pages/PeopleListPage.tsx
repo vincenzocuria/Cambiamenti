@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { Person, PersonInput, PersonType } from '../types/db'
 import { createPerson, listPeople } from '../services/people'
-import { listStudentIdsWithIdentityFile } from '../services/documents'
+import { listPersonIdsWithDocument } from '../services/documents'
 import { listStudentCourseMap } from '../services/enrollments'
 import { metaFor } from '../data/personTypes'
 import { inpsBenefitLabel } from '../data/inpsBenefits'
@@ -11,7 +11,7 @@ import { hasCompleteFadCredentials } from '../lib/fadCredentials'
 import { matchesSearch } from '../lib/matchesSearch'
 import { describeFilters, exportFilteredList } from '../lib/listExport'
 import { countPersonStatuses, isPersonListStatus, matchesPersonStatus } from '../lib/personListStatus'
-import { checkStudentDocuments, studentDocumentExportValue } from '../lib/studentDocumentStatus'
+import { checkPersonDocuments, studentDocumentExportValue } from '../lib/studentDocumentStatus'
 import { formatCourseMembership, type CourseMembership } from '../lib/courseMembershipLabel'
 import { useListQuery } from '../hooks/useListQuery'
 import { usePagedSlice } from '../hooks/usePagedSlice'
@@ -52,6 +52,7 @@ function fadBadge(person: Person) {
 export function PeopleListPage({ type }: Props) {
   const [people, setPeople] = useState<Person[]>([])
   const [identityIds, setIdentityIds] = useState<Set<string>>(() => new Set())
+  const [curriculumIds, setCurriculumIds] = useState<Set<string>>(() => new Set())
   const [coursesByStudent, setCoursesByStudent] = useState<Map<string, CourseMembership[]>>(
     () => new Map(),
   )
@@ -60,25 +61,29 @@ export function PeopleListPage({ type }: Props) {
   const { sortKey, sortDir, toggleSort } = useTableSort()
   const l = metaFor(type)
   const isStudent = type === 'student'
-  const status =
-    isPersonListStatus(rawStatus) && (isStudent || !rawStatus.startsWith('documenti_'))
-      ? rawStatus
-      : ''
+  const status = isPersonListStatus(rawStatus) ? rawStatus : ''
 
   async function reload() {
     const rows = await listPeople(type)
     if (type !== 'student') {
+      // Personale: documento d'identità e curriculum sono salvati sulla scheda unificata
+      const [ids, cvIds] = await Promise.all([
+        listPersonIdsWithDocument('staff', 'identity'),
+        listPersonIdsWithDocument('staff', 'curriculum'),
+      ])
       setPeople(rows)
-      setIdentityIds(new Set())
+      setIdentityIds(ids)
+      setCurriculumIds(cvIds)
       setCoursesByStudent(new Map())
       return
     }
     const [ids, courses] = await Promise.all([
-      listStudentIdsWithIdentityFile(),
+      listPersonIdsWithDocument('student', 'identity'),
       listStudentCourseMap(),
     ])
     setPeople(rows)
     setIdentityIds(ids)
+    setCurriculumIds(new Set())
     setCoursesByStudent(courses)
   }
 
@@ -113,9 +118,10 @@ export function PeopleListPage({ type }: Props) {
   const listContext = useMemo<PersonSortContext>(
     () => ({
       hasIdentityFile: (id) => identityIds.has(id),
+      hasCurriculumFile: isStudent ? undefined : (id) => curriculumIds.has(id),
       courseLabel: courseLabelOf,
     }),
-    [identityIds, courseLabelOf],
+    [identityIds, curriculumIds, isStudent, courseLabelOf],
   )
 
   const filtered = useMemo(
@@ -123,8 +129,7 @@ export function PeopleListPage({ type }: Props) {
     [searched, status, listContext],
   )
 
-  const activeSortKey =
-    !isStudent && (sortKey === 'documenti' || sortKey === 'corso') ? 'name' : sortKey
+  const activeSortKey = !isStudent && sortKey === 'corso' ? 'name' : sortKey
 
   const sorted = useMemo(
     () => sortPeople(filtered, activeSortKey, sortDir, listContext),
@@ -140,7 +145,7 @@ export function PeopleListPage({ type }: Props) {
   } = useMemo(() => countPersonStatuses(people, listContext), [people, listContext])
   const { page, setPage, pages, slice, pageSize } = usePagedSlice(
     sorted,
-    `${type}|${search}|${status}|${activeSortKey}|${sortDir}|${identityIds.size}|${coursesByStudent.size}`,
+    `${type}|${search}|${status}|${activeSortKey}|${sortDir}|${identityIds.size}|${curriculumIds.size}|${coursesByStudent.size}`,
   )
 
   const statusLabel =
@@ -185,17 +190,12 @@ export function PeopleListPage({ type }: Props) {
         { header: 'Telefono', value: (p) => p.phone || '' },
         { header: 'Città', value: (p) => p.city || '' },
         ...(isStudent
-          ? [
-              { header: 'INPS', value: (p: Person) => inpsBenefitLabel(p.inps_benefit) || '—' },
-              {
-                header: 'Documenti',
-                value: (p: Person) =>
-                  studentDocumentExportValue(
-                    checkStudentDocuments(p, listContext.hasIdentityFile?.(p.id) ?? false),
-                  ),
-              },
-            ]
+          ? [{ header: 'INPS', value: (p: Person) => inpsBenefitLabel(p.inps_benefit) || '—' }]
           : []),
+        {
+          header: 'Documenti',
+          value: (p) => studentDocumentExportValue(checkPersonDocuments(p, listContext)),
+        },
       ],
     })
   }
@@ -255,19 +255,17 @@ export function PeopleListPage({ type }: Props) {
                 active: status === 'senza_email',
                 onClick: () => toggleStatus('senza_email'),
               },
-          ...(isStudent
-            ? [
-                {
-                  key: 'documenti_mancanti',
-                  label: 'Documenti mancanti',
-                  hint: 'File assente, dati incompleti o scadenza',
-                  value: docsMissing,
-                  tone: docsMissing > 0 ? ('warn' as const) : ('ok' as const),
-                  active: status === 'documenti_mancanti',
-                  onClick: () => toggleStatus('documenti_mancanti'),
-                },
-              ]
-            : []),
+          {
+            key: 'documenti_mancanti',
+            label: 'Documenti mancanti',
+            hint: isStudent
+              ? 'File assente, dati incompleti o scadenza'
+              : 'Identità o curriculum assenti, dati incompleti o scadenza',
+            value: docsMissing,
+            tone: docsMissing > 0 ? 'warn' : 'ok',
+            active: status === 'documenti_mancanti',
+            onClick: () => toggleStatus('documenti_mancanti'),
+          },
         ]}
       />
 
@@ -371,15 +369,13 @@ export function PeopleListPage({ type }: Props) {
                   onSort={toggleSort}
                 />
               )}
-              {isStudent && (
-                <SortableTh
-                  label="Documenti"
-                  column="documenti"
-                  activeKey={sortKey}
-                  direction={sortDir}
-                  onSort={toggleSort}
-                />
-              )}
+              <SortableTh
+                label="Documenti"
+                column="documenti"
+                activeKey={sortKey}
+                direction={sortDir}
+                onSort={toggleSort}
+              />
             </tr>
           </thead>
           <tbody>
@@ -413,19 +409,15 @@ export function PeopleListPage({ type }: Props) {
                 {isStudent && (
                   <td className={tdClass}>{inpsBenefitLabel(p.inps_benefit) || '—'}</td>
                 )}
-                {isStudent && (
-                  <td className={tdClass}>
-                    <DocumentStatusBadge
-                      check={checkStudentDocuments(p, identityIds.has(p.id))}
-                    />
-                  </td>
-                )}
+                <td className={tdClass}>
+                  <DocumentStatusBadge check={checkPersonDocuments(p, listContext)} />
+                </td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
                 <td
-                  colSpan={isStudent ? 10 : 7}
+                  colSpan={isStudent ? 10 : 8}
                   className={`${tdClass} py-10 text-center text-slate-400`}
                 >
                   {people.length === 0

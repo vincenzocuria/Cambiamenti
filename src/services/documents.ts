@@ -5,16 +5,24 @@ import {
   validateDocumentForUpload,
 } from '../lib/documentFileTypes'
 import { buildDocumentStoragePath } from '../lib/documentStoragePath'
-import type { DocumentCategory, DocumentRow, PersonType } from '../types/db'
+import type { DocumentCategory, DocumentPersonType, DocumentRow } from '../types/db'
 
 const BUCKET = 'documents'
 
 export type DocumentFilter =
-  | { mode: 'person'; personType: PersonType; personId: string }
+  | { mode: 'person'; personType: DocumentPersonType; personId: string }
   | { mode: 'course'; courseId: string }
 
 /** Alunni che hanno già almeno un file in categoria documento d'identità. */
 export async function listStudentIdsWithIdentityFile(): Promise<Set<string>> {
+  return listPersonIdsWithDocument('student', 'identity')
+}
+
+/** Id delle schede che hanno almeno un file della categoria indicata. */
+export async function listPersonIdsWithDocument(
+  personType: DocumentPersonType,
+  category: DocumentCategory,
+): Promise<Set<string>> {
   const ids = new Set<string>()
   const pageSize = 1000
   let from = 0
@@ -22,8 +30,8 @@ export async function listStudentIdsWithIdentityFile(): Promise<Set<string>> {
     const { data, error } = await supabase
       .from('documents')
       .select('person_id')
-      .eq('person_type', 'student')
-      .eq('category', 'identity')
+      .eq('person_type', personType)
+      .eq('category', category)
       .not('person_id', 'is', null)
       .range(from, from + pageSize - 1)
     if (error) throw error
@@ -37,15 +45,23 @@ export async function listStudentIdsWithIdentityFile(): Promise<Set<string>> {
 }
 
 export async function hasIdentityDocument(
-  personType: PersonType,
+  personType: DocumentPersonType,
   personId: string,
+): Promise<boolean> {
+  return hasDocumentInCategory(personType, personId, 'identity')
+}
+
+export async function hasDocumentInCategory(
+  personType: DocumentPersonType,
+  personId: string,
+  category: DocumentCategory,
 ): Promise<boolean> {
   const { count, error } = await supabase
     .from('documents')
     .select('id', { count: 'exact', head: true })
     .eq('person_type', personType)
     .eq('person_id', personId)
-    .eq('category', 'identity')
+    .eq('category', category)
   if (error) throw error
   return (count ?? 0) > 0
 }
@@ -63,7 +79,7 @@ export async function listDocuments(filter: DocumentFilter): Promise<DocumentRow
 }
 
 export async function uploadDocument(params: {
-  personType?: PersonType | null
+  personType?: DocumentPersonType | null
   personId?: string | null
   courseId?: string | null
   category: DocumentCategory

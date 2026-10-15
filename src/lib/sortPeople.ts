@@ -1,6 +1,6 @@
 import { inpsBenefitLabel } from '../data/inpsBenefits'
 import { hasCompleteFadCredentials } from './fadCredentials'
-import { checkStudentDocuments } from './studentDocumentStatus'
+import { checkPersonDocuments, type DocumentFileContext } from './studentDocumentStatus'
 import type { Person } from '../types/db'
 
 export const personSortKeys = [
@@ -31,12 +31,11 @@ export function isSortDirection(value: string): value is SortDirection {
   return value === 'asc' || value === 'desc'
 }
 
-export type PersonSortContext = {
-  hasIdentityFile?: (personId: string) => boolean
+export type PersonSortContext = DocumentFileContext & {
   courseLabel?: (personId: string) => string
 }
 
-/** Schede corso e selezioni: documenti e corso si ordinano solo in anagrafica alunni. */
+/** Schede corso e selezioni: documenti e corso si ordinano solo negli elenchi anagrafici. */
 export function personBrowseSortKeys(includeInps: boolean): PersonSortKey[] {
   return personSortKeys.filter((key) => {
     if (key === 'documenti' || key === 'corso') return false
@@ -88,9 +87,7 @@ function sortValueForKey(person: Person, key: PersonSortKey, context?: PersonSor
     case 'inps':
       return inpsBenefitLabel(person.inps_benefit) || person.inps_benefit || ''
     case 'documenti':
-      return checkStudentDocuments(person, context?.hasIdentityFile?.(person.id) ?? false).ok
-        ? '0'
-        : '1'
+      return checkPersonDocuments(person, context).ok ? '0' : '1'
     case 'corso':
       return context?.courseLabel?.(person.id) ?? ''
   }

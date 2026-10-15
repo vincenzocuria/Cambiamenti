@@ -16,7 +16,8 @@
     "email:smtp": "node scripts/deploy-auth-smtp.mjs",
     "email:deploy": "node scripts/write-auth-email-templates.mjs && node scripts/deploy-auth-email-templates.mjs",
     "split:migrate-cm": "node scripts/split-supabase/migrate-cambiamenti.mjs",
-    "split:migrate-lg": "node scripts/split-supabase/migrate-lg-edil.mjs"
+    "split:migrate-lg": "node scripts/split-supabase/migrate-lg-edil.mjs",
+    "test": "vitest run"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.2",
@@ -30,10 +31,12 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
+    "jsdom": "^26.1.0",
     "oxlint": "^1.75.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "vite": "^8.2.0",
+    "vitest": "^3.2.4",
     "wrangler": "^4.147.0"
   }
 }

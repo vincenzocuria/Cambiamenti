@@ -5,6 +5,7 @@ export const categoryLabels: Record<DocumentCategory, string> = {
   curriculum: 'Curriculum',
   module: 'Modulo',
   appointment: "Lettera d'incarico",
+  certificate: 'Attestato',
   other: 'Altro',
   generated: 'Generato da template',
 }
@@ -14,6 +15,7 @@ export const categoryOptions: { value: DocumentCategory; label: string }[] = [
   { value: 'curriculum', label: categoryLabels.curriculum },
   { value: 'module', label: categoryLabels.module },
   { value: 'appointment', label: categoryLabels.appointment },
+  { value: 'certificate', label: categoryLabels.certificate },
   { value: 'other', label: categoryLabels.other },
   { value: 'generated', label: categoryLabels.generated },
 ]

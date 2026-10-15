@@ -14,6 +14,8 @@ import { TemplatesPage } from '../pages/TemplatesPage'
 import { TemplateEditPage } from '../pages/TemplateEditPage'
 import { RedirectToPersonale } from './RedirectToPersonale'
 import { JformaImportPage } from '../pages/JformaImportPage'
+import { EipassListPage } from '../pages/EipassListPage'
+import { EipassDetailPage } from '../pages/EipassDetailPage'
 
 function page(element: React.ReactNode, adminOnly = false) {
   return (
@@ -43,6 +45,8 @@ export function AppRoutes() {
       <Route path="/tutor/:id" element={<RedirectToPersonale />} />
       <Route path="/amministrativi" element={<Navigate to="/personale" replace />} />
       <Route path="/amministrativi/:id" element={<RedirectToPersonale />} />
+      <Route path="/eipass" element={page(<EipassListPage />)} />
+      <Route path="/eipass/:id" element={page(<EipassDetailPage />)} />
       <Route path="/template" element={page(<TemplatesPage />)} />
       <Route path="/template/:id" element={page(<TemplateEditPage />)} />
       <Route path="/utenti" element={page(<UsersPage />, true)} />
