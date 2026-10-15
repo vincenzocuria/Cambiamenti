@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { Course, Person, PersonInput, PersonType } from '../types/db'
 import { deletePerson, getPerson, listStaffRoles, updatePerson } from '../services/people'
-import { hasIdentityDocument } from '../services/documents'
+import { hasDocumentInCategory } from '../services/documents'
 import { listPersonCourses } from '../services/enrollments'
 import { inpsBenefitLabel } from '../data/inpsBenefits'
 import { isStaffType, metaFor } from '../data/personTypes'
@@ -18,7 +18,7 @@ import { formatCourseShareLabel } from '../lib/fadShareMessage'
 import { FadLoginLink } from '../components/FadLoginLink'
 import { FadShareActions } from '../components/FadShareActions'
 import { DocumentStatusBadge } from '../components/DocumentStatusBadge'
-import { checkStudentDocuments } from '../lib/studentDocumentStatus'
+import { checkStaffDocuments, checkStudentDocuments } from '../lib/studentDocumentStatus'
 
 interface Props {
   type: PersonType
@@ -41,6 +41,7 @@ export function PersonDetailPage({ type }: Props) {
   const [editing, setEditing] = useState(false)
   const [docsKey, setDocsKey] = useState(0)
   const [hasIdentityFile, setHasIdentityFile] = useState<boolean | null>(null)
+  const [hasCurriculumFile, setHasCurriculumFile] = useState<boolean | null>(null)
   const registryType: PersonType = isStaffType(type) ? 'staff' : type
   const meta = metaFor(registryType)
 
@@ -53,15 +54,30 @@ export function PersonDetailPage({ type }: Props) {
     } else {
       setRoleRows([])
     }
-    if (registryType === 'student') {
-      setHasIdentityFile(null)
-      hasIdentityDocument('student', id)
-        .then(setHasIdentityFile)
-        .catch(() => setHasIdentityFile(false))
-    } else {
-      setHasIdentityFile(null)
-    }
+    setHasIdentityFile(null)
+    setHasCurriculumFile(null)
+    refreshDocumentFlags(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, type, registryType])
+
+  function refreshDocumentFlags(personId: string) {
+    hasDocumentInCategory(registryType, personId, 'identity')
+      .then(setHasIdentityFile)
+      .catch(() => setHasIdentityFile(false))
+    if (registryType === 'student') return
+    hasDocumentInCategory(registryType, personId, 'curriculum')
+      .then(setHasCurriculumFile)
+      .catch(() => setHasCurriculumFile(false))
+  }
+
+  const documentCheck =
+    !person || hasIdentityFile === null
+      ? null
+      : registryType === 'student'
+        ? checkStudentDocuments(person, hasIdentityFile)
+        : hasCurriculumFile === null
+          ? null
+          : checkStaffDocuments(person, hasIdentityFile, hasCurriculumFile)
 
   if (!id || !person) return <p className="text-slate-400">Caricamento…</p>
 
@@ -91,9 +107,7 @@ export function PersonDetailPage({ type }: Props) {
           </Link>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-bold text-slate-800">{fullName(person)}</h1>
-            {registryType === 'student' && hasIdentityFile !== null && (
-              <DocumentStatusBadge check={checkStudentDocuments(person, hasIdentityFile)} />
-            )}
+            {documentCheck && <DocumentStatusBadge check={documentCheck} />}
           </div>
           {isStaffType(type) && roleRows.length > 0 && (
             <p className="mt-1 flex flex-wrap gap-1 text-xs">
@@ -268,12 +282,7 @@ export function PersonDetailPage({ type }: Props) {
         mode="person"
         personType={registryType}
         personId={id}
-        onChanged={() => {
-          if (registryType !== 'student') return
-          hasIdentityDocument('student', id)
-            .then(setHasIdentityFile)
-            .catch(() => setHasIdentityFile(false))
-        }}
+        onChanged={() => refreshDocumentFlags(id)}
       />
     </div>
   )

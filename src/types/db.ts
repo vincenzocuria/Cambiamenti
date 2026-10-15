@@ -69,6 +69,9 @@ export type PersonType = 'student' | 'staff' | 'teacher' | 'tutor' | 'admin_staf
 
 export type CourseStaffRole = 'teacher' | 'tutor' | 'admin_staff'
 
+/** Proprietario di un documento: anagrafiche corsi più i corsisti EIPASS privati. */
+export type DocumentPersonType = PersonType | 'eipass'
+
 export interface Person {
   id: string
   first_name: string
@@ -135,7 +138,7 @@ export type DocumentTemplateInput = Omit<DocumentTemplate, 'id' | 'created_at' |
 
 export interface DocumentRow {
   id: string
-  person_type: PersonType | null
+  person_type: DocumentPersonType | null
   person_id: string | null
   course_id: string | null
   category: DocumentCategory
@@ -148,3 +151,32 @@ export interface DocumentRow {
   uploaded_by: string | null
   created_at: string
 }
+
+/** Corsista EIPASS privato: acquisto diretto della certificazione, fuori dai corsi. */
+export interface EipassCandidate {
+  id: string
+  first_name: string
+  last_name: string
+  birth_date: string | null
+  birth_place: string
+  tax_code: string
+  gender: string
+  address: string
+  city: string
+  postal_code: string
+  province: string
+  phone: string
+  email: string
+  doc_type: string
+  doc_number: string
+  doc_expiry_date: string | null
+  certification: string
+  purchase_date: string | null
+  exam_done: boolean
+  exam_date: string | null
+  notes: string
+  created_at: string
+  updated_at: string
+}
+
+export type EipassCandidateInput = Omit<EipassCandidate, 'id' | 'created_at' | 'updated_at'>

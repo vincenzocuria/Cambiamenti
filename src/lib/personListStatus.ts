@@ -1,6 +1,6 @@
 import { hasPaidInpsBenefit } from '../data/inpsBenefits'
 import { hasCompleteFadCredentials } from './fadCredentials'
-import { checkStudentDocuments } from './studentDocumentStatus'
+import { checkPersonDocuments, type DocumentFileContext } from './studentDocumentStatus'
 import type { Person } from '../types/db'
 
 export const personListStatuses = [
@@ -18,16 +18,14 @@ export function isPersonListStatus(value: string): value is PersonListStatus {
   return (personListStatuses as readonly string[]).includes(value)
 }
 
-export type PersonListContext = {
-  hasIdentityFile?: (personId: string) => boolean
-}
+export type PersonListContext = DocumentFileContext
 
 export function personHasEmail(person: Pick<Person, 'email'>): boolean {
   return Boolean(person.email?.trim())
 }
 
 export function personDocumentsOk(person: Person, context?: PersonListContext): boolean {
-  return checkStudentDocuments(person, context?.hasIdentityFile?.(person.id) ?? false).ok
+  return checkPersonDocuments(person, context).ok
 }
 
 export function matchesPersonStatus(

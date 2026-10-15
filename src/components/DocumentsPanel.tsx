@@ -32,9 +32,13 @@ import { tableClass, tdCompactClass, thCompactClass, theadRowClass, trClass } fr
 export type DocumentsPanelProps = (
   | { mode: 'person'; personType: PersonType; personId: string }
   | { mode: 'course'; courseId: string; personNames?: Record<string, string> }
+  | { mode: 'eipass'; personId: string }
 ) & { onChanged?: () => void }
 
 function toFilter(props: DocumentsPanelProps): DocumentFilter {
+  if (props.mode === 'eipass') {
+    return { mode: 'person', personType: 'eipass', personId: props.personId }
+  }
   return props.mode === 'person'
     ? {
         mode: 'person',
@@ -52,6 +56,7 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
   const [courses, setCourses] = useState<Course[]>([])
   const [category, setCategory] = useState<DocumentCategory>(() => {
     if (props.mode === 'course') return 'module'
+    if (props.mode === 'eipass') return 'identity'
     return isStaffType(props.personType) ? 'curriculum' : 'identity'
   })
   const [courseId, setCourseId] = useState(props.mode === 'course' ? props.courseId : '')
@@ -72,12 +77,14 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
     void reload()
     if (props.mode === 'person') {
       listPersonCourses(props.personType, props.personId).then(setCourses)
-    } else {
+    } else if (props.mode === 'course') {
       listCourses().then(setCourses)
       setCourseId(props.courseId)
+    } else {
+      setCourses([])
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.mode, props.mode === 'person' ? props.personId : props.courseId])
+  }, [props.mode, props.mode === 'course' ? props.courseId : props.personId])
 
   const needsCourseLink = category === 'module' || category === 'appointment'
 
@@ -127,8 +134,13 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
               : ''
         try {
           await uploadDocument({
-            personType: props.mode === 'person' ? documentPersonType(props.personType) : null,
-            personId: props.mode === 'person' ? props.personId : null,
+            personType:
+              props.mode === 'person'
+                ? documentPersonType(props.personType)
+                : props.mode === 'eipass'
+                  ? 'eipass'
+                  : null,
+            personId: props.mode === 'course' ? null : props.personId,
             courseId: linkedCourse,
             category,
             title: fileTitle,
@@ -384,7 +396,7 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
                 {visibleDocs.length === 0 && (
                   <tr>
                     <td
-                      colSpan={props.mode === 'course' ? 7 : 6}
+                      colSpan={props.mode === 'eipass' ? 5 : props.mode === 'course' ? 7 : 6}
                       className={`${tdCompactClass} py-8 text-center text-slate-400`}
                     >
                       Nessun risultato per la ricerca.
