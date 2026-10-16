@@ -107,7 +107,7 @@ export function PersonDetailPage({ type }: Props) {
           </Link>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-bold text-slate-800">{fullName(person)}</h1>
-            {documentCheck && <DocumentStatusBadge check={documentCheck} />}
+            {documentCheck && <DocumentStatusBadge check={documentCheck} personName={fullName(person)} />}
           </div>
           {isStaffType(type) && roleRows.length > 0 && (
             <p className="mt-1 flex flex-wrap gap-1 text-xs">

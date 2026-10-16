@@ -167,7 +167,7 @@ export function EipassDetailPage() {
             <h1 className="text-2xl font-bold text-slate-800">{fullName(candidate)}</h1>
             <EipassExamBadge candidate={candidate} />
             {hasIdentityFile !== null && (
-              <DocumentStatusBadge check={checkStudentDocuments(candidate, hasIdentityFile)} />
+              <DocumentStatusBadge check={checkStudentDocuments(candidate, hasIdentityFile)} personName={fullName(candidate)} />
             )}
             {hasCertificate && (
               <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">

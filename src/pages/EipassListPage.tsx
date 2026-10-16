@@ -340,7 +340,7 @@ export function EipassListPage() {
                 </td>
                 <td className={tdClass}>
                   <div className="flex flex-col items-start gap-0.5">
-                    <DocumentStatusBadge check={docCheck(c)} />
+                    <DocumentStatusBadge check={docCheck(c)} personName={fullName(c)} />
                     {certificateIds.has(c.id) && (
                       <span className="text-xs text-indigo-700">Attestato caricato</span>
                     )}

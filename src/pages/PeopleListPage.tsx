@@ -410,7 +410,7 @@ export function PeopleListPage({ type }: Props) {
                   <td className={tdClass}>{inpsBenefitLabel(p.inps_benefit) || '—'}</td>
                 )}
                 <td className={tdClass}>
-                  <DocumentStatusBadge check={checkPersonDocuments(p, listContext)} />
+                  <DocumentStatusBadge check={checkPersonDocuments(p, listContext)} personName={fullName(p)} />
                 </td>
               </tr>
             ))}
