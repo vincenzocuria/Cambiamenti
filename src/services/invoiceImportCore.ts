@@ -92,6 +92,9 @@ export class PartyResolver {
     if (error) throw error
     const id = (data as { id: string }).id
     this.byKey.set(key, id)
+    // Anche per codice fiscale: un'altra fattura può riportare solo quello
+    const cfKey = partyKey({ vat_number: '', tax_code: input.tax_code })
+    if (cfKey && !this.byKey.has(cfKey)) this.byKey.set(cfKey, id)
     this.created++
     return id
   }
@@ -136,6 +139,10 @@ export class EipassLinker {
       },
       this.candidates,
     )
+    // Un corsista già fatturato con un'altra fattura non va toccato da fatture che non sono EIPASS
+    if (match && !eipassLine(p) && match.invoice_status === 'fatturato' && match.invoice_number !== p.number) {
+      return false
+    }
     let candidateId: string
     if (match) {
       candidateId = match.id
