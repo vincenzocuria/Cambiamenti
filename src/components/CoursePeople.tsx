@@ -34,6 +34,8 @@ interface Props {
   /** Su false le credenziali si inviano dal pannello in massa sotto. */
   fadShareChannels?: boolean
   onChanged?: () => void
+  /** Ricerca della pagina: quando cambia sostituisce quella del riquadro. */
+  externalSearch?: string
 }
 
 export function CoursePeople({
@@ -44,6 +46,7 @@ export function CoursePeople({
   showStaffPoolHint = true,
   fadShareChannels = true,
   onChanged,
+  externalSearch,
 }: Props) {
   const [enrolled, setEnrolled] = useState<Person[]>([])
   const [all, setAll] = useState<Person[]>([])
@@ -78,9 +81,14 @@ export function CoursePeople({
     setCreating(false)
     setSelected('')
     setError('')
-    browse.setSearch('')
+    browse.setSearch(externalSearch ?? '')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId, type])
+
+  useEffect(() => {
+    if (externalSearch !== undefined) browse.setSearch(externalSearch)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalSearch])
 
   const takenIds = takenPersonIds ?? []
   const available = useMemo(
