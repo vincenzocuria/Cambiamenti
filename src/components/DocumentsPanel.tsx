@@ -25,6 +25,8 @@ import { fmtBytes, fmtDate } from '../lib/format'
 import { canPreviewDocument } from '../lib/documentFileTypes'
 import { DangerButton, PrimaryButton, SecondaryButton } from './Buttons'
 import { DocumentPreview } from './DocumentPreview'
+import { CourseDocumentImport } from './CourseDocumentImport'
+import { listDocumentCourseLinks } from '../services/courseDocuments'
 import { fieldInputClass, SelectField, TextField } from './Field'
 import { SortField } from './SortField'
 import { tableClass, tdCompactClass, thCompactClass, theadRowClass, trClass } from '../lib/tableStyles'
@@ -67,10 +69,23 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
   const [sortKey, setSortKey] = useState<DocumentSortKey>(DEFAULT_DOCUMENT_SORT)
   const [sortDir, setSortDir] = useState<DocumentSortDir>(DEFAULT_DOCUMENT_SORT_DIR)
   const [preview, setPreview] = useState<DocumentRow | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [links, setLinks] = useState<Record<string, string[]>>({})
   const fileRef = useRef<HTMLInputElement>(null)
 
   async function reload() {
-    setDocs(await listDocuments(toFilter(props)))
+    const list = await listDocuments(toFilter(props))
+    setDocs(list)
+    if (props.mode === 'course') {
+      setLinks(await listDocumentCourseLinks(list.map((d) => d.id)).catch(() => ({})))
+    }
+  }
+
+  function otherCourseNames(doc: DocumentRow): string[] {
+    if (props.mode !== 'course') return []
+    return (links[doc.id] ?? [])
+      .filter((id) => id !== props.courseId)
+      .map((id) => resolveCourseName(id) || 'altro corso')
   }
 
   useEffect(() => {
@@ -181,7 +196,11 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
   }
 
   async function handleDelete(doc: DocumentRow) {
-    if (!window.confirm(`Eliminare "${doc.file_name}"?`)) return
+    const others = otherCourseNames(doc)
+    const message = others.length
+      ? `"${doc.file_name}" vale anche per altri ${others.length} corsi (${others.join(', ')}). Eliminarlo da tutti?`
+      : `Eliminare "${doc.file_name}"?`
+    if (!window.confirm(message)) return
     await deleteDocument(doc)
     await reload()
     props.onChanged?.()
@@ -209,7 +228,14 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-      <h3 className="mb-4 text-sm font-semibold text-slate-700">Documenti allegati</h3>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold text-slate-700">Documenti allegati</h3>
+        {props.mode === 'course' && (
+          <SecondaryButton size="sm" onClick={() => setImporting(true)}>
+            Carica verbale / documento per più corsi
+          </SecondaryButton>
+        )}
+      </div>
 
       <div className="mb-4 space-y-4 rounded-lg border border-slate-100 bg-slate-50/80 p-4">
         <div
@@ -367,6 +393,15 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
                       >
                         {d.title || d.file_name}
                       </button>
+                      {otherCourseNames(d).length > 0 && (
+                        <span
+                          className="block text-xs text-slate-500"
+                          title={otherCourseNames(d).join('\n')}
+                        >
+                          Vale anche per {otherCourseNames(d).length}{' '}
+                          {otherCourseNames(d).length === 1 ? 'altro corso' : 'altri corsi'}
+                        </span>
+                      )}
                     </td>
                     <td className={tdCompactClass}>{categoryLabels[d.category] ?? d.category}</td>
                     {props.mode === 'course' && (
@@ -409,6 +444,16 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
         </>
       )}
       {preview && <DocumentPreview doc={preview} onClose={() => setPreview(null)} />}
+      {importing && props.mode === 'course' && (
+        <CourseDocumentImport
+          currentCourseId={props.courseId}
+          onClose={() => setImporting(false)}
+          onSaved={() => {
+            void reload()
+            props.onChanged?.()
+          }}
+        />
+      )}
     </div>
   )
 }

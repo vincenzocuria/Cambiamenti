@@ -125,6 +125,8 @@ export type DocumentCategory =
   | 'certificate'
   | 'other'
   | 'generated'
+  | 'report'
+  | 'declaration'
 
 export type TemplatePersonRole =
   | 'none'
@@ -162,6 +164,27 @@ export interface DocumentRow {
   mime_type: string
   size_bytes: number
   uploaded_by: string | null
+  created_at: string
+}
+
+/** Riga di un verbale della Regione: importi riconosciuti per un corso. */
+export interface CourseReportLine {
+  id: string
+  document_id: string
+  course_id: string
+  subject: string
+  protocol_number: string
+  protocol_date: string | null
+  report_course_code: string
+  report_edition: string
+  membership_act: string
+  students_trained: number | null
+  start_date: string | null
+  end_date: string | null
+  amount_budget: number | null
+  amount_recognized: number | null
+  amount_advance: number | null
+  amount_balance: number | null
   created_at: string
 }
 

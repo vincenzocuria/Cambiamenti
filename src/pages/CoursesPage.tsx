@@ -9,7 +9,8 @@ import { describeFilters, exportFilteredList } from '../lib/listExport'
 import { useListQuery } from '../hooks/useListQuery'
 import { CourseForm } from '../components/CourseForm'
 import { CourseStatusBadge } from '../components/CourseStatusBadge'
-import { PrimaryButton } from '../components/Buttons'
+import { PrimaryButton, SecondaryButton } from '../components/Buttons'
+import { CourseDocumentImport } from '../components/CourseDocumentImport'
 import { usePagedSlice } from '../hooks/usePagedSlice'
 import { KpiCards } from '../components/KpiCards'
 import { ListToolbar } from '../components/ListToolbar'
@@ -30,6 +31,7 @@ function countStatus(courses: Course[], status: CourseStatus): number {
 export function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([])
   const [creating, setCreating] = useState(false)
+  const [importingDoc, setImportingDoc] = useState(false)
   const { search, status: rawStatus, setSearch, setStatus } = useListQuery()
   const status = isCourseStatus(rawStatus) ? rawStatus : ''
 
@@ -97,8 +99,14 @@ export function CoursesPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-800">Corsi</h1>
-        {!creating && <PrimaryButton onClick={() => setCreating(true)}>+ Nuovo corso</PrimaryButton>}
+        <div className="flex flex-wrap justify-end gap-2">
+          <SecondaryButton onClick={() => setImportingDoc(true)}>Carica verbale / documento</SecondaryButton>
+          {!creating && <PrimaryButton onClick={() => setCreating(true)}>+ Nuovo corso</PrimaryButton>}
+        </div>
       </div>
+      {importingDoc && (
+        <CourseDocumentImport onClose={() => setImportingDoc(false)} onSaved={() => undefined} />
+      )}
 
       <KpiCards
         items={[
