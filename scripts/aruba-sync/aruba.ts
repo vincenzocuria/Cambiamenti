@@ -63,10 +63,7 @@ async function main() {
   switch (command) {
     case 'sincronizza': {
       const years = args.map(Number).filter((y) => y > 2000)
-      for (const year of years.length ? years : [new Date().getFullYear()]) {
-        await syncFromAruba({ year, hidden })
-      }
-      return
+      return syncFromAruba({ years: years.length ? years : [new Date().getFullYear()], hidden })
     }
     case 'invia':
       return uploadDrafts({ hidden })

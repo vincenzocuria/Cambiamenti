@@ -77,15 +77,17 @@ async function openPanel(hidden: boolean) {
  * Scarica dal pannello le fatture emesse e ricevute dell'anno che mancano in Cambiamenti, le
  * importa e aggiorna lo stato SdI delle emesse.
  */
-export async function syncFromAruba(opts: { year: number; hidden: boolean }): Promise<void> {
+export async function syncFromAruba(opts: { years: number[]; hidden: boolean }): Promise<void> {
   const client = await supabaseAdmin()
   const { context, api } = await openPanel(opts.hidden)
   const log: string[] = []
   try {
+    // Un solo browser per tutti gli anni: Edge non riapre subito lo stesso profilo
+    for (const year of opts.years)
     for (const direction of ['out', 'in'] as Direction[]) {
       const label = direction === 'out' ? 'emesse' : 'ricevute'
-      const items = await listInvoices(api, direction, opts.year)
-      const known = await knownInvoices(client, direction, opts.year)
+      const items = await listInvoices(api, direction, year)
+      const known = await knownInvoices(client, direction, year)
       const missing: PanelInvoiceItem[] = []
       let sdiUpdated = 0
 
@@ -112,14 +114,14 @@ export async function syncFromAruba(opts: { year: number; hidden: boolean }): Pr
         }
       }
 
-      console.log(`Fatture ${label} ${opts.year}: ${items.length} su Aruba, ${missing.length} da scaricare`)
-      const folder = path.join(dataDir, 'scaricate', String(opts.year), label)
+      console.log(`Fatture ${label} ${year}: ${items.length} su Aruba, ${missing.length} da scaricare`)
+      const folder = path.join(dataDir, 'scaricate', String(year), label)
       fs.mkdirSync(folder, { recursive: true })
       const raw: { name: string; bytes: Uint8Array }[] = []
       for (const [i, item] of missing.entries()) {
         process.stdout.write(`\r  scarico ${i + 1}/${missing.length}`)
         try {
-          const file = await downloadInvoice(api, direction, item.Id, opts.year)
+          const file = await downloadInvoice(api, direction, item.Id, year)
           fs.writeFileSync(path.join(folder, file.name.replace(/[\\/:*?"<>|]/g, '_')), file.bytes)
           raw.push(file)
         } catch (err) {
@@ -137,7 +139,7 @@ export async function syncFromAruba(opts: { year: number; hidden: boolean }): Pr
       }
       // Stato SdI delle emesse appena importate
       if (direction === 'out' && missing.length) {
-        const fresh = await knownInvoices(client, direction, opts.year)
+        const fresh = await knownInvoices(client, direction, year)
         for (const item of missing) {
           const match = findKnown(direction, item, fresh)
           const state = OUT_STATES[item.Stato ?? -1]
@@ -156,7 +158,7 @@ export async function syncFromAruba(opts: { year: number; hidden: boolean }): Pr
   for (const line of log) console.log(`  - ${line}`)
   fs.writeFileSync(
     path.join(dataDir, 'ultima-sincronizzazione.json'),
-    JSON.stringify({ at: new Date().toISOString(), year: opts.year, log }, null, 2),
+    JSON.stringify({ at: new Date().toISOString(), years: opts.years, log }, null, 2),
   )
   console.log('Sincronizzazione finita.')
 }
