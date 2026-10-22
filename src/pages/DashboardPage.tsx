@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { CourseStatusPipeline } from '../components/CourseStatusPipeline'
 import { DashboardCourseList } from '../components/DashboardCourseList'
 import { KpiCards } from '../components/KpiCards'
+import { DashboardPayments } from '../components/DashboardPayments'
+import { fetchPaymentsData, type PaymentsData } from '../services/payments'
 import {
   fetchActiveCourses,
   fetchCoursesToReport,
@@ -72,8 +74,16 @@ export function DashboardPage() {
   const [incomplete, setIncomplete] = useState<IncompleteCourse[] | null>(null)
   const [alerts, setAlerts] = useState<PersonAlert[] | null>(null)
   const [error, setError] = useState('')
+  const [payments, setPayments] = useState<PaymentsData | null>(null)
+  const [paymentsError, setPaymentsError] = useState('')
 
   useEffect(() => {
+    // Caricati a parte: un errore sui pagamenti non blocca il resto della dashboard
+    fetchPaymentsData()
+      .then(setPayments)
+      .catch((err) =>
+        setPaymentsError(err instanceof Error ? err.message : 'Errore caricamento pagamenti'),
+      )
     Promise.all([
       fetchDashboardCounts(),
       fetchUpcomingCourses(),
@@ -103,7 +113,7 @@ export function DashboardPage() {
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
         <p className="mt-1 text-sm text-slate-500">
-          KPI e pipeline dei corsi Regione Calabria, fino all’esito chiuso.
+          KPI, pagamenti e pipeline dei corsi Regione Calabria, fino all’esito chiuso.
         </p>
       </div>
 
@@ -120,6 +130,12 @@ export function DashboardPage() {
           tone: c.key === 'daRendicontare' && counts && counts.daRendicontare > 0 ? 'warn' : 'default',
         }))}
       />
+
+      {paymentsError ? (
+        <p className="text-sm text-red-600">{paymentsError}</p>
+      ) : (
+        <DashboardPayments data={payments} />
+      )}
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-700">Pipeline corso</h2>
@@ -199,6 +215,7 @@ export function DashboardPage() {
         <h2 className="text-sm font-semibold text-slate-700">Accesso rapido</h2>
         <div className="mt-3 flex flex-wrap gap-2">
           <QuickLink to="/corsi" label="Gestisci corsi" />
+          <QuickLink to="/pagamenti" label="Pagamenti" />
           <QuickLink to="/personale" label="Personale e FAD" />
           <QuickLink to="/alunni" label="Alunni" />
           <QuickLink to="/template" label="Template documenti" />
