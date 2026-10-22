@@ -12,6 +12,7 @@ import { CourseStaffingStatus } from '../components/CourseStaffingStatus'
 import { CourseStatusBadge } from '../components/CourseStatusBadge'
 import { CourseStatusPipeline } from '../components/CourseStatusPipeline'
 import { DocumentsPanel } from '../components/DocumentsPanel'
+import { CourseReportLines } from '../components/CourseReportLines'
 import { GenerateDocumentForm } from '../components/GenerateDocumentForm'
 import { BulkGenerateDocumentsForm } from '../components/BulkGenerateDocumentsForm'
 import { DangerButton, SecondaryButton } from '../components/Buttons'
@@ -46,6 +47,7 @@ export function CourseDetailPage() {
     admin_staff: [],
   })
   const [docsKey, setDocsKey] = useState(0)
+  const [reportKey, setReportKey] = useState(0)
   const [peopleType, setPeopleType] = useState<PersonType>('student')
   const [genMode, setGenMode] = useState<'single' | 'bulk'>('bulk')
   const staffTakenIds = useMemo(() => takenStaffIds(peopleByType), [peopleByType])
@@ -243,11 +245,14 @@ export function CourseDetailPage() {
         )}
       </section>
 
+      <CourseReportLines key={`report-${docsKey}-${reportKey}`} courseId={id} />
+
       <DocumentsPanel
         key={docsKey}
         mode="course"
         courseId={id}
         personNames={personNames}
+        onChanged={() => setReportKey((n) => n + 1)}
       />
     </div>
   )

@@ -5,6 +5,7 @@ import {
   validateDocumentForUpload,
 } from '../lib/documentFileTypes'
 import { buildDocumentStoragePath } from '../lib/documentStoragePath'
+import { listCourseDocumentIds } from './courseDocuments'
 import type { DocumentCategory, DocumentPersonType, DocumentRow } from '../types/db'
 
 const BUCKET = 'documents'
@@ -71,7 +72,11 @@ export async function listDocuments(filter: DocumentFilter): Promise<DocumentRow
   if (filter.mode === 'person') {
     query = query.eq('person_type', filter.personType).eq('person_id', filter.personId)
   } else {
-    query = query.eq('course_id', filter.courseId)
+    // documenti del corso: quelli con il corso principale e quelli collegati (più corsi)
+    const linked = await listCourseDocumentIds(filter.courseId).catch(() => [] as string[])
+    query = linked.length
+      ? query.or(`course_id.eq.${filter.courseId},id.in.(${linked.join(',')})`)
+      : query.eq('course_id', filter.courseId)
   }
   const { data, error } = await query
   if (error) throw error
