@@ -3,6 +3,7 @@
  *
  *   npm run aruba -- accedi              apre il pannello e salva la sessione (OTP compreso)
  *   npm run aruba -- esplora             registra com'è fatto il pannello (per completare lo script)
+ *   npm run aruba -- codice              scarica il codice pubblico del pannello (per lo sviluppo)
  *   npm run aruba -- importa <percorso>  importa in Cambiamenti XML/P7M/ZIP da file o cartella
  */
 import fs from 'node:fs'
@@ -11,6 +12,7 @@ import { importInvoiceBytes } from '../../src/services/invoiceImportCore'
 import { supabaseAdmin } from './env'
 import { ensureLoggedIn, openBrowser } from './browser'
 import { explore } from './explore'
+import { downloadBundle } from './bundle'
 
 function listFiles(target: string): string[] {
   const stat = fs.statSync(target)
@@ -54,6 +56,8 @@ async function main() {
       return login()
     case 'esplora':
       return explore()
+    case 'codice':
+      return downloadBundle()
     case 'importa':
       if (!args.length) throw new Error('Indica il file o la cartella: npm run aruba -- importa <percorso>')
       return importPaths(args)

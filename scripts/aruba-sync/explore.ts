@@ -26,6 +26,7 @@ function shape(value: unknown, depth = 0): Shape {
 
 /** Indirizzo senza valori nei parametri (restano solo i nomi). */
 function cleanUrl(raw: string): string {
+  if (raw.startsWith('data:') || raw.startsWith('blob:')) return raw.slice(0, raw.indexOf(',') + 1 || 40)
   try {
     const u = new URL(raw)
     const keys = [...u.searchParams.keys()]
@@ -156,7 +157,7 @@ export async function explore(): Promise<void> {
       if (f === page.mainFrame()) setTimeout(() => void snapshot(page), 1500)
     })
     page.on('download', (d) => {
-      downloads.push({ url: cleanUrl(d.url()), fileName: d.suggestedFilename().replace(/\d/g, '#') })
+      downloads.push({ url: cleanUrl(d.url().replace(/^null/, '')), fileName: d.suggestedFilename().replace(/\d/g, '#') })
       save()
     })
     page.on('filechooser', () => {
