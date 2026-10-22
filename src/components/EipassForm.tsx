@@ -25,6 +25,8 @@ const empty: EipassCandidateInput = {
   purchase_date: null,
   exam_done: false,
   exam_date: null,
+  certificate_type: '',
+  certificate_expiry: null,
   amount: null,
   vat_rate: 22,
   payment_method: '',
@@ -34,6 +36,22 @@ const empty: EipassCandidateInput = {
   invoice_date: null,
   notes: '',
 }
+
+/** Attestati EIPASS più comuni, proposti mentre si scrive (si può scrivere anche altro). */
+const certificateTypes = [
+  'EIPASS 7 Moduli User',
+  'EIPASS Progressive',
+  'EIPASS Teacher',
+  'EIPASS Junior',
+  'EIPASS LIM',
+  'EIPASS Personale ATA',
+  'EIPASS Pubblica Amministrazione',
+  'EIPASS Web',
+  'EIPASS IT Security',
+  'EIPASS Sanità Digitale',
+  'EIPASS Coding',
+  'EIPASS CAD',
+]
 
 interface Props {
   initial?: EipassCandidate
@@ -120,6 +138,25 @@ export function EipassForm({ initial, suggestInvoiceNumber, onSave, onCancel }: 
             </div>
           )}
         </div>
+        <TextField
+          label="Attestato conseguito"
+          list="eipass-certificate-types"
+          value={form.certificate_type}
+          onChange={(e) => set('certificate_type', e.target.value)}
+          placeholder={form.certification || 'Es. EIPASS 7 Moduli User'}
+          hint="Il file dell'attestato si carica dalla scheda, in Documenti o con «Carica attestato»."
+        />
+        <datalist id="eipass-certificate-types">
+          {certificateTypes.map((t) => (
+            <option key={t} value={t} />
+          ))}
+        </datalist>
+        <TextField
+          label="Scadenza attestato (facoltativa)"
+          type="date"
+          value={form.certificate_expiry ?? ''}
+          onChange={(e) => set('certificate_expiry', e.target.value || null)}
+        />
       </Section>
 
       <Section title="Pagamento e fatturazione">
