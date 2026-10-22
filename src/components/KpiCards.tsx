@@ -31,7 +31,7 @@ function CardBody({ item, compact }: { item: KpiCardItem; compact?: boolean }) {
     <>
       <p className="truncate text-sm font-medium text-slate-500">{item.label}</p>
       <p
-        className={`${compact ? 'mt-1 truncate text-2xl' : 'mt-2 text-3xl'} font-bold tabular-nums ${toneValue[item.tone ?? 'default']}`}
+        className={`${compact ? 'mt-1 truncate text-xl sm:text-2xl' : 'mt-2 text-3xl'} font-bold tabular-nums ${toneValue[item.tone ?? 'default']}`}
       >
         {item.value}
       </p>

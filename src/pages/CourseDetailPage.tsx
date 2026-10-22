@@ -22,9 +22,8 @@ import { DEFAULT_PERSON_SORT, DEFAULT_SORT_DIRECTION } from '../lib/sortPeople'
 import { categoryLabels } from '../data/documentCategories'
 import { CourseForm } from '../components/CourseForm'
 import { CoursePeople } from '../components/CoursePeople'
-import { CourseStaffingStatus } from '../components/CourseStaffingStatus'
 import { CourseStatusBadge } from '../components/CourseStatusBadge'
-import { CourseStatusPipeline } from '../components/CourseStatusPipeline'
+import { CourseProgress } from '../components/CourseProgress'
 import { DocumentsPanel } from '../components/DocumentsPanel'
 import { CourseReportLines } from '../components/CourseReportLines'
 import { GenerateDocumentForm } from '../components/GenerateDocumentForm'
@@ -33,7 +32,6 @@ import { DangerButton, SecondaryButton } from '../components/Buttons'
 import { SegmentedControl } from '../components/SegmentedControl'
 import { KpiCards, type KpiCardItem } from '../components/KpiCards'
 import { CollapsibleSection } from '../components/CollapsibleSection'
-import { courseStatusMeta, isCourseStatus } from '../data/courseStatus'
 import { takenStaffIds } from '../lib/takenStaffIds'
 import { formatCourseShareLabel } from '../lib/fadShareMessage'
 import { FadShareBulk } from '../components/FadShareBulk'
@@ -56,7 +54,10 @@ const roleLabels: Record<string, string> = {
 /** Sezioni della scheda, nell'ordine in cui compaiono. */
 const SECTIONS = [
   { id: 'dati', label: 'Dati' },
-  { id: 'persone', label: 'Persone' },
+  { id: 'docenti', label: 'Docenti' },
+  { id: 'tutor', label: 'Tutor' },
+  { id: 'amministrativi', label: 'Amministrativi' },
+  { id: 'alunni', label: 'Alunni' },
   { id: 'documenti', label: 'Documenti' },
   { id: 'verbali', label: 'Verbali' },
   { id: 'genera', label: 'Genera' },
@@ -65,16 +66,18 @@ const SECTIONS = [
 type SectionId = (typeof SECTIONS)[number]['id']
 type OpenState = Record<SectionId, boolean>
 
-const DEFAULT_OPEN: OpenState = {
-  dati: true,
-  persone: true,
-  documenti: true,
-  verbali: true,
-  genera: false,
-  fad: false,
-}
+/** Di default tutte chiuse: il quadro d'insieme lo danno avanzamento e KPI. */
+const DEFAULT_OPEN = Object.fromEntries(SECTIONS.map((s) => [s.id, false])) as OpenState
 
-const OPEN_STORAGE_KEY = 'courseDetail.openSections'
+const OPEN_STORAGE_KEY = 'courseDetail.openSections.v2'
+
+/** Sezione della pagina per ogni ruolo del corso. */
+const ROLE_SECTIONS = [
+  { type: 'teacher', id: 'docenti', title: 'Docenti' },
+  { type: 'tutor', id: 'tutor', title: 'Tutor' },
+  { type: 'admin_staff', id: 'amministrativi', title: 'Figure amministrative' },
+  { type: 'student', id: 'alunni', title: 'Alunni' },
+] as const satisfies readonly { type: PersonType; id: SectionId; title: string }[]
 
 function loadOpenState(): OpenState {
   try {
@@ -248,7 +251,7 @@ export function CourseDetailPage() {
       ),
     )
     const courseFields = course
-      ? [course.name, course.edition, course.code, course.cup, course.notes, 'dati corso']
+      ? [course.code, course.cup, course.notes, query.length >= 3 ? 'dati corso' : '']
           .filter(Boolean)
           .join(' ')
       : ''
@@ -258,16 +261,21 @@ export function CourseDetailPage() {
       docs: docMatches,
       lines: lineMatches,
       dati: Boolean(query) && matchesSearch(courseFields, query),
-      genera: Boolean(query) && matchesSearch('genera documenti genera crea modelli', query),
+      // Le parole chiave delle sezioni contano solo da 3 lettere, per non accendere tutto con "de"
+      genera: query.length >= 3 && matchesSearch('genera documenti modelli', query),
       fad:
         Boolean(query) &&
-        (peopleCount > 0 || matchesSearch('fad moodle credenziali piattaforma', query)),
+        (peopleCount > 0 ||
+          (query.length >= 3 && matchesSearch('fad moodle credenziali piattaforma', query))),
     }
   }, [query, peopleByType, docs, reportLines, personNames, course])
 
   const sectionHasMatch: Record<SectionId, boolean> = {
     dati: matches.dati,
-    persone: matches.peopleCount > 0,
+    docenti: (matches.people.teacher?.length ?? 0) > 0,
+    tutor: (matches.people.tutor?.length ?? 0) > 0,
+    amministrativi: (matches.people.admin_staff?.length ?? 0) > 0,
+    alunni: (matches.people.student?.length ?? 0) > 0,
     documenti: matches.docs.length > 0,
     verbali: matches.lines.length > 0,
     genera: matches.genera,
@@ -295,10 +303,6 @@ export function CourseDetailPage() {
   const courseLabel = formatCourseShareLabel(course)
   const editionLabel = formatCourseEdition(course.edition)
   const students = peopleByType.student ?? []
-  const staffCount =
-    (peopleByType.teacher?.length ?? 0) +
-    (peopleByType.tutor?.length ?? 0) +
-    (peopleByType.admin_staff?.length ?? 0)
   const requirements = staffingRequirements(staffing)
   const organicoOk = staffingOk(staffing)
   const fadReady = students.filter(hasCompleteFadCredentials).length
@@ -315,7 +319,7 @@ export function CourseDetailPage() {
         ? `${fadReady} di ${students.length} con credenziali FAD`
         : 'Nessun alunno iscritto',
       tone: students.length ? 'default' : 'warn',
-      onClick: () => goTo('persone'),
+      onClick: () => goTo('alunni'),
     },
     {
       key: 'organico',
@@ -323,7 +327,14 @@ export function CourseDetailPage() {
       value: organicoOk ? 'Completo' : 'Incompleto',
       hint: requirements.map((r) => `${shortRole(r.type)} ${r.current}/${r.min}`).join(' · '),
       tone: organicoOk ? 'ok' : 'warn',
-      onClick: () => goTo('persone'),
+      onClick: () => {
+        const missing = requirements.find((r) => !r.ok)
+        goTo(
+          missing
+            ? (ROLE_SECTIONS.find((r) => r.type === missing.type)?.id ?? 'docenti')
+            : 'docenti',
+        )
+      },
     },
     {
       key: 'documenti',
@@ -373,14 +384,13 @@ export function CourseDetailPage() {
   }
 
   const peopleSearch = searching ? query : ''
-  const staffMatches =
-    (matches.people.teacher?.length ?? 0) +
-    (matches.people.tutor?.length ?? 0) +
-    (matches.people.admin_staff?.length ?? 0)
   const docSearch = searching ? query : ''
   const sectionCounts: Partial<Record<SectionId, number>> = searching
     ? {
-        persone: matches.peopleCount,
+        docenti: matches.people.teacher?.length ?? 0,
+        tutor: matches.people.tutor?.length ?? 0,
+        amministrativi: matches.people.admin_staff?.length ?? 0,
+        alunni: matches.people.student?.length ?? 0,
         documenti: matches.docs.length,
         verbali: matches.lines.length,
         fad: matches.peopleCount,
@@ -411,9 +421,6 @@ export function CourseDetailPage() {
             </h1>
             <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
               <CourseStatusBadge status={course.status} />
-              {isCourseStatus(course.status) && (
-                <span>{courseStatusMeta[course.status].description}</span>
-              )}
               {course.code && <span className="text-slate-300">·</span>}
               {course.code && <span>Codice {course.code}</span>}
               {course.cup && <span className="text-slate-300">·</span>}
@@ -427,11 +434,13 @@ export function CourseDetailPage() {
             </DangerButton>
           </div>
         </div>
-        {isCourseStatus(course.status) && (
-          <div className="mt-4">
-            <CourseStatusPipeline status={course.status} />
-          </div>
-        )}
+        <div className="mt-4">
+          <CourseProgress
+            status={course.status}
+            startDate={course.start_date}
+            endDate={course.end_date}
+          />
+        </div>
       </div>
 
       {/* KPI */}
@@ -439,7 +448,7 @@ export function CourseDetailPage() {
 
       {/* Barra di ricerca e navigazione, resta in alto scorrendo */}
       <div className="sticky top-0 z-20 -mx-4 border-y border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border sm:shadow-sm">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <div className="flex flex-col gap-2">
           <div className="relative min-w-0 flex-1">
             <svg
               aria-hidden
@@ -473,7 +482,7 @@ export function CourseDetailPage() {
           </div>
           <nav
             aria-label="Sezioni della scheda"
-            className="-mx-1 flex items-center gap-1 overflow-x-auto px-1 pb-0.5 lg:pb-0"
+            className="-mx-1 flex items-center gap-1 overflow-x-auto px-1 pb-0.5"
           >
             {SECTIONS.map((s) => {
               const count = sectionCounts[s.id]
@@ -504,7 +513,7 @@ export function CourseDetailPage() {
                 </button>
               )
             })}
-            <span className="mx-1 hidden h-5 w-px bg-slate-200 lg:block" aria-hidden />
+            <span className="mx-1 h-5 w-px shrink-0 bg-slate-200 sm:ml-auto" aria-hidden />
             <button
               type="button"
               onClick={() => {
@@ -612,54 +621,54 @@ export function CourseDetailPage() {
           )}
         </CollapsibleSection>
 
-        <CollapsibleSection
-          id="persone"
-          title="Persone del corso"
-          badge={searching ? plural(matches.peopleCount, 'trovato', 'trovati') : `${students.length + staffCount}`}
-          badgeTone={organicoOk ? 'default' : 'warn'}
-          summary={`${plural(students.length, 'alunno', 'alunni')} · ${plural(staffCount, 'figura', 'figure')} di personale${organicoOk ? '' : ' · organico incompleto'}`}
-          open={isOpen('persone')}
-          onToggle={() => toggle('persone')}
-          dimmed={searching && !sectionHasMatch.persone}
-        >
-          <div className="space-y-4">
-            {!searching && <CourseStaffingStatus counts={staffing} />}
-            <div hidden={searching && staffMatches === 0}>
-              <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Personale
-                <span className="ml-2 font-normal normal-case tracking-normal text-slate-400">
-                  Stessa anagrafica del personale: su questo corso ogni figura ha un solo ruolo.
-                </span>
-              </h3>
-              <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-3">
-                {(['teacher', 'tutor', 'admin_staff'] as const).map((type) => (
-                  <CoursePeople
-                    key={type}
-                    courseId={id}
-                    type={type}
-                    takenPersonIds={staffTakenIds}
-                    showStaffPoolHint={false}
-                    fadShareChannels={false}
-                    externalSearch={peopleSearch}
-                    onChanged={() => void reloadStaff()}
-                  />
-                ))}
-              </div>
-            </div>
-            <div hidden={searching && (matches.people.student?.length ?? 0) === 0}>
-              <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Alunni
-              </h3>
-              <CoursePeople
-                courseId={id}
-                type="student"
-                fadShareChannels={false}
-                externalSearch={peopleSearch}
-                onChanged={() => void reloadStaff()}
-              />
-            </div>
-          </div>
-        </CollapsibleSection>
+        {ROLE_SECTIONS.map((role) => {
+          const list = peopleByType[role.type] ?? []
+          const req = requirements.find((r) => r.type === role.type)
+          const found = matches.people[role.type]?.length ?? 0
+          const isStudent = role.type === 'student'
+          return (
+            <CollapsibleSection
+              key={role.id}
+              id={role.id}
+              title={role.title}
+              badge={
+                searching
+                  ? plural(found, 'trovato', 'trovati')
+                  : req
+                    ? `${list.length} / min. ${req.min}`
+                    : `${list.length}`
+              }
+              badgeTone={req ? (req.ok ? 'ok' : 'warn') : list.length ? 'default' : 'warn'}
+              summary={roleSummary(role.type, list, req)}
+              open={isOpen(role.id)}
+              onToggle={() => toggle(role.id)}
+              dimmed={searching && !sectionHasMatch[role.id]}
+            >
+              {isStudent ? (
+                <CoursePeople
+                  courseId={id}
+                  type="student"
+                  fadShareChannels={false}
+                  showTitle={false}
+                  externalSearch={peopleSearch}
+                  onChanged={() => void reloadStaff()}
+                />
+              ) : (
+                <CoursePeople
+                  courseId={id}
+                  type={role.type}
+                  takenPersonIds={staffTakenIds}
+                  showStaffPoolHint={false}
+                  fadShareChannels={false}
+                  showTitle={false}
+                  wide
+                  externalSearch={peopleSearch}
+                  onChanged={() => void reloadStaff()}
+                />
+              )}
+            </CollapsibleSection>
+          )
+        })}
 
         <CollapsibleSection
           id="documenti"
@@ -785,6 +794,24 @@ export function CourseDetailPage() {
       </div>
     </div>
   )
+}
+
+function roleSummary(
+  type: PersonType,
+  list: Person[],
+  req: { min: number; ok: boolean; current: number } | undefined,
+): string {
+  if (type === 'student') {
+    if (!list.length) return 'Nessun alunno iscritto'
+    const fad = list.filter(hasCompleteFadCredentials).length
+    return `${plural(list.length, 'alunno', 'alunni')} · ${fad} con credenziali FAD`
+  }
+  const names = list.map(fullName).join(', ')
+  if (req && !req.ok) {
+    const missing = req.min - req.current
+    return `${missing === 1 ? 'Manca' : 'Mancano'} ancora ${missing}${names ? ` · ${names}` : ''}`
+  }
+  return names || 'Nessuno associato'
 }
 
 function shortRole(type: PersonType): string {
