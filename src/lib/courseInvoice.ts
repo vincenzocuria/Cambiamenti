@@ -199,3 +199,20 @@ export function courseInvoiceSummary(
     drafts,
   }
 }
+
+/** Importo scritto a mano: «21.804,60», «21804,6», «21804.60» → 21804.6. */
+export function parseAmountInput(value: string): number {
+  const v = value.replace(/[€\s]/g, '')
+  if (!v) return 0
+  let n: number
+  if (v.includes(',')) n = Number(v.replace(/\./g, '').replace(',', '.'))
+  // Solo punti: decimale se è uno con 1-2 cifre dopo, altrimenti separatore delle migliaia
+  else if (/^\d+\.\d{1,2}$/.test(v)) n = Number(v)
+  else n = Number(v.replace(/\./g, ''))
+  return Number.isFinite(n) ? cents(n) : 0
+}
+
+/** Importo da mostrare nel campo: «21804,60». */
+export function formatAmountInput(n: number): string {
+  return n ? n.toFixed(2).replace('.', ',') : ''
+}

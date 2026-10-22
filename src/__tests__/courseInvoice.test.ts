@@ -4,7 +4,9 @@ import {
   courseLinksForLines,
   debitNoteLine,
   invoiceLineKind,
+  formatAmountInput,
   nextSeriesNumber,
+  parseAmountInput,
   parseCourseRef,
 } from '../lib/courseInvoice'
 import type { Course, InvoiceLine } from '../types/db'
@@ -105,5 +107,14 @@ describe('note di debito collegate ai corsi', () => {
       toBill: 2304.6,
       drafts: 1,
     })
+  })
+
+  it('legge gli importi scritti a mano e quelli proposti dal verbale', () => {
+    expect(parseAmountInput(formatAmountInput(21804.6))).toBe(21804.6)
+    expect(parseAmountInput('21.804,60')).toBe(21804.6)
+    expect(parseAmountInput('21804.6')).toBe(21804.6)
+    expect(parseAmountInput('21.804')).toBe(21804)
+    expect(parseAmountInput('€ 7.770')).toBe(7770)
+    expect(parseAmountInput('')).toBe(0)
   })
 })

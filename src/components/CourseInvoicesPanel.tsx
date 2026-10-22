@@ -5,6 +5,8 @@ import {
   courseInvoiceKindLabel,
   courseInvoiceKinds,
   courseInvoiceSummary,
+  formatAmountInput,
+  parseAmountInput,
   suggestedDebitAmount,
   type CourseInvoiceKind,
 } from '../lib/courseInvoice'
@@ -218,7 +220,7 @@ function DebitNoteModal({
         ),
       )
       setAmounts(
-        Object.fromEntries(list.map((c) => [c.course.id, String(suggestedDebitAmount(kind, c.report) || '')])),
+        Object.fromEntries(list.map((c) => [c.course.id, formatAmountInput(suggestedDebitAmount(kind, c.report))])),
       )
     }
     load().catch((err) => setError(err instanceof Error ? err.message : 'Corsi non caricati'))
@@ -227,7 +229,7 @@ function DebitNoteModal({
     }
   }, [course, reportLines, kind])
 
-  const parse = (v: string) => Number(v.replace(/\./g, '').replace(',', '.')) || 0
+  const parse = parseAmountInput
   const chosen = (candidates ?? []).filter((c) => selected[c.course.id])
   const total = chosen.reduce((n, c) => n + parse(amounts[c.course.id] ?? ''), 0)
 
