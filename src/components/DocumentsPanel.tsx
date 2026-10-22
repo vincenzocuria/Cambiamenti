@@ -35,7 +35,15 @@ export type DocumentsPanelProps = (
   | { mode: 'person'; personType: PersonType; personId: string }
   | { mode: 'course'; courseId: string; personNames?: Record<string, string> }
   | { mode: 'eipass'; personId: string }
-) & { onChanged?: () => void }
+) & {
+  onChanged?: () => void
+  /** Avvisa la pagina della lista aggiornata (KPI, ricerca della pagina). */
+  onLoaded?: (docs: DocumentRow[]) => void
+  /** Ricerca della pagina: quando cambia sostituisce quella del riquadro. */
+  externalSearch?: string
+  /** Su false non mostra il titolo (già nella sezione della pagina). */
+  showTitle?: boolean
+}
 
 function toFilter(props: DocumentsPanelProps): DocumentFilter {
   if (props.mode === 'eipass') {
@@ -65,7 +73,7 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
   const [title, setTitle] = useState('')
   const [busy, setBusy] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(props.externalSearch ?? '')
   const [sortKey, setSortKey] = useState<DocumentSortKey>(DEFAULT_DOCUMENT_SORT)
   const [sortDir, setSortDir] = useState<DocumentSortDir>(DEFAULT_DOCUMENT_SORT_DIR)
   const [preview, setPreview] = useState<DocumentRow | null>(null)
@@ -76,6 +84,7 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
   async function reload() {
     const list = await listDocuments(toFilter(props))
     setDocs(list)
+    props.onLoaded?.(list)
     if (props.mode === 'course') {
       setLinks(await listDocumentCourseLinks(list.map((d) => d.id)).catch(() => ({})))
     }
@@ -100,6 +109,10 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.mode, props.mode === 'course' ? props.courseId : props.personId])
+
+  useEffect(() => {
+    if (props.externalSearch !== undefined) setSearch(props.externalSearch)
+  }, [props.externalSearch])
 
   const needsCourseLink = category === 'module' || category === 'appointment'
 
@@ -228,8 +241,12 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-slate-700">Documenti allegati</h3>
+      <div
+        className={`mb-4 flex flex-wrap items-center gap-2 ${props.showTitle === false ? 'justify-end' : 'justify-between'}`}
+      >
+        {props.showTitle !== false && (
+          <h3 className="text-sm font-semibold text-slate-700">Documenti allegati</h3>
+        )}
         {props.mode === 'course' && (
           <SecondaryButton size="sm" onClick={() => setImporting(true)}>
             Carica verbale / documento per più corsi

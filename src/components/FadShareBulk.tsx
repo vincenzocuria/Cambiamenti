@@ -28,9 +28,13 @@ type Channel = 'email' | 'whatsapp'
 type Props = {
   peopleByType: Partial<Record<PersonType, Person[]>>
   courseLabel: string
+  /** Ricerca della pagina: quando cambia sostituisce quella del riquadro. */
+  externalSearch?: string
+  /** Su false non mostra il titolo (già nella sezione della pagina). */
+  showTitle?: boolean
 }
 
-export function FadShareBulk({ peopleByType, courseLabel }: Props) {
+export function FadShareBulk({ peopleByType, courseLabel, externalSearch, showTitle = true }: Props) {
   const [role, setRole] = useState<PersonType>('student')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [opened, setOpened] = useState<Record<Channel, Set<string>>>({
@@ -66,7 +70,12 @@ export function FadShareBulk({ peopleByType, courseLabel }: Props) {
   )
 
   useEffect(() => {
-    peopleBrowse.setSearch('')
+    if (externalSearch !== undefined) peopleBrowse.setSearch(externalSearch)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalSearch])
+
+  useEffect(() => {
+    peopleBrowse.setSearch(externalSearch ?? '')
     const ready = people
       .filter((person) => canReceive(fadShareForPerson(person, courseLabel)))
       .map((person) => person.id)
@@ -141,7 +150,7 @@ export function FadShareBulk({ peopleByType, courseLabel }: Props) {
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold text-slate-700">Invia credenziali FAD</h3>
+          {showTitle && <h3 className="text-sm font-semibold text-slate-700">Invia credenziali FAD</h3>}
           <p className="mt-1 text-xs text-slate-500">
             Il messaggio include link, username e password.
             <a

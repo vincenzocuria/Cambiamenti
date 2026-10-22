@@ -34,6 +34,12 @@ interface Props {
   /** Su false le credenziali si inviano dal pannello in massa sotto. */
   fadShareChannels?: boolean
   onChanged?: () => void
+  /** Ricerca della pagina: quando cambia sostituisce quella del riquadro. */
+  externalSearch?: string
+  /** Su false nasconde titolo e conteggio (già nell'intestazione della sezione). */
+  showTitle?: boolean
+  /** Riquadro a tutta larghezza: ricerca e selezione su una riga. */
+  wide?: boolean
 }
 
 export function CoursePeople({
@@ -44,6 +50,9 @@ export function CoursePeople({
   showStaffPoolHint = true,
   fadShareChannels = true,
   onChanged,
+  externalSearch,
+  showTitle = true,
+  wide = false,
 }: Props) {
   const [enrolled, setEnrolled] = useState<Person[]>([])
   const [all, setAll] = useState<Person[]>([])
@@ -78,9 +87,14 @@ export function CoursePeople({
     setCreating(false)
     setSelected('')
     setError('')
-    browse.setSearch('')
+    browse.setSearch(externalSearch ?? '')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId, type])
+
+  useEffect(() => {
+    if (externalSearch !== undefined) browse.setSearch(externalSearch)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalSearch])
 
   const takenIds = takenPersonIds ?? []
   const available = useMemo(
@@ -169,6 +183,7 @@ export function CoursePeople({
   return (
     <div className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <div className="mb-3 flex flex-col gap-3">
+        {showTitle && (
         <div className="min-w-0">
           <h3
             className={
@@ -190,9 +205,10 @@ export function CoursePeople({
             </p>
           )}
         </div>
+        )}
         <SecondaryButton
           type="button"
-          className={type === 'student' ? 'w-full sm:w-auto' : 'w-full'}
+          className={type === 'student' || wide ? 'w-full sm:w-auto sm:self-start' : 'w-full'}
           onClick={() => setCreating((v) => !v)}
         >
           {creating ? 'Chiudi' : 'Crea nuovo'}
@@ -227,7 +243,7 @@ export function CoursePeople({
                 ? 'Cerca alunno per nome, codice fiscale o corso'
                 : 'Cerca per nome, codice fiscale o email…'
             }
-            layout={type === 'student' ? 'row' : 'stack'}
+            layout={type === 'student' || wide ? 'row' : 'stack'}
           />
         </div>
       )}
@@ -242,7 +258,7 @@ export function CoursePeople({
           onClearFilters={() => browse.setSearch('')}
         />
       ) : (
-        <div className="mb-3 flex flex-col gap-2">
+        <div className={`mb-3 flex flex-col gap-2 ${wide ? 'sm:flex-row' : ''}`}>
           <select
             value={selected}
             onChange={(e) => setSelected(e.target.value)}
@@ -255,7 +271,11 @@ export function CoursePeople({
               </option>
             ))}
           </select>
-          <SecondaryButton className="w-full" onClick={() => void handleAdd()} disabled={!selected}>
+          <SecondaryButton
+            className={wide ? 'w-full shrink-0 sm:w-auto' : 'w-full'}
+            onClick={() => void handleAdd()}
+            disabled={!selected}
+          >
             Associa
           </SecondaryButton>
         </div>

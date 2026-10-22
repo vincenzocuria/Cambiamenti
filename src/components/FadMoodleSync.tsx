@@ -21,11 +21,11 @@ export function FadMoodleSync({ courseId }: { courseId: string }) {
   }
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-slate-800">FAD Moodle</h2>
-          <p className="text-sm text-slate-500">
+          <h3 className="text-sm font-semibold text-slate-700">Corso su Moodle</h3>
+          <p className="mt-1 text-xs text-slate-500">
             Crea o aggiorna il corso, crea gli utenti mancanti con le credenziali FAD e pubblica il calendario.
           </p>
         </div>
@@ -54,6 +54,6 @@ export function FadMoodleSync({ courseId }: { courseId: string }) {
           )}
         </div>
       )}
-    </section>
+    </div>
   )
 }
