@@ -12,14 +12,26 @@ export const panelUrl = process.env.ARUBA_PANEL_URL || 'https://fatturazioneelet
 export async function openBrowser(opts: { hidden?: boolean } = {}): Promise<BrowserContext> {
   fs.mkdirSync(profileDir, { recursive: true })
   const channel = process.env.ARUBA_BROWSER || 'msedge'
-  return chromium.launchPersistentContext(profileDir, {
-    channel,
-    headless: !!opts.hidden,
-    acceptDownloads: true,
-    viewport: null,
-    locale: 'it-IT',
-    args: ['--start-maximized'],
-  })
+  try {
+    return await chromium.launchPersistentContext(profileDir, {
+      channel,
+      headless: !!opts.hidden,
+      acceptDownloads: true,
+      viewport: null,
+      locale: 'it-IT',
+      args: ['--start-maximized'],
+    })
+  } catch (err) {
+    // Edge rifiuta un secondo avvio sullo stesso profilo
+    if (/has been closed|existing browser session|sessione del browser esistente/i.test(String(err))) {
+      throw new Error(
+        'La finestra di Edge aperta dallo script è ancora aperta (o bloccata in background). Chiudila e riprova; ' +
+          'se non la vedi: Get-CimInstance Win32_Process -Filter "name=\'msedge.exe\'" | ' +
+          'Where-Object CommandLine -like "*cambiamenti-aruba*" | ForEach-Object { Stop-Process -Id $_.ProcessId }',
+      )
+    }
+    throw err
+  }
 }
 
 async function visiblePassword(page: Page) {
