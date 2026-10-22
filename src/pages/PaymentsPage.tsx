@@ -36,7 +36,10 @@ export function PaymentsPage() {
 
   const load = useCallback(() => {
     fetchPaymentsData()
-      .then(setData)
+      .then((next) => {
+        setData(next)
+        setError('')
+      })
       .catch((err) => setError(err instanceof Error ? err.message : 'Errore caricamento pagamenti'))
   }, [])
 

@@ -185,11 +185,17 @@ function groupBy<T>(items: T[], key: (item: T) => string): Map<string, T[]> {
   return map
 }
 
-/** Accetta "1.234,56", "1234,56" e "1234.56". */
+/**
+ * Importo scritto all'italiana: "1.234,56", "1234,56", "1.500" (= 1500).
+ * Il punto vale come decimale solo se è unico e seguito da 1-2 cifre ("99.90").
+ */
 export function parseEuroInput(value: string): number | null {
   const v = value.trim().replace(/€|\s/g, '')
   if (v === '') return null
-  const normalized = v.includes(',') ? v.replace(/\./g, '').replace(',', '.') : v
+  let normalized: string
+  if (v.includes(',')) normalized = v.replace(/\./g, '').replace(',', '.')
+  else if (/^\d+\.\d{1,2}$/.test(v)) normalized = v
+  else normalized = v.replace(/\./g, '')
   const n = Number(normalized)
   return Number.isNaN(n) ? null : n
 }
