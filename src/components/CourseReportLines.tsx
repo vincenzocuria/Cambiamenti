@@ -7,20 +7,31 @@ import { fmtDate } from '../lib/format'
 const money = (n: number | null) => (n == null ? '—' : `€ ${formatEuro(Number(n))}`)
 
 /** Importi del corso letti dai verbali della Regione (si vede solo se ce ne sono). */
-export function CourseReportLines({ courseId }: { courseId: string }) {
-  const [lines, setLines] = useState<CourseReportLine[]>([])
+export function CourseReportLines({
+  courseId,
+  lines: given,
+  showTitle = true,
+}: {
+  courseId: string
+  /** Righe già caricate dalla pagina: se presenti non le rilegge. */
+  lines?: CourseReportLine[]
+  showTitle?: boolean
+}) {
+  const [loaded, setLoaded] = useState<CourseReportLine[]>([])
 
   useEffect(() => {
+    if (given) return
     listCourseReportLines(courseId)
-      .then(setLines)
-      .catch(() => setLines([]))
-  }, [courseId])
+      .then(setLoaded)
+      .catch(() => setLoaded([]))
+  }, [courseId, given])
 
+  const lines = given ?? loaded
   if (lines.length === 0) return null
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-      <h3 className="mb-3 text-sm font-semibold text-slate-700">Verbali della Regione</h3>
+      {showTitle && <h3 className="mb-3 text-sm font-semibold text-slate-700">Verbali della Regione</h3>}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
