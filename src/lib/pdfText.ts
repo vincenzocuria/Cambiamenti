@@ -46,9 +46,9 @@ export async function pdfLines(bytes: Uint8Array): Promise<string[]> {
   ])
   pdfjs.GlobalWorkerOptions.workerSrc = worker.default
   const task = pdfjs.getDocument({ data: bytes.slice() })
-  const doc = await task.promise
   const lines: string[] = []
   try {
+    const doc = await task.promise
     for (let p = 1; p <= doc.numPages; p++) {
       const page = await doc.getPage(p)
       const content = await page.getTextContent()
