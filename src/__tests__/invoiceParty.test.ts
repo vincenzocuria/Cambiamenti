@@ -47,3 +47,14 @@ describe('anagrafiche dalle fatture', () => {
     expect(partyKey(s)).toBe('vat:03936190788')
   })
 })
+
+describe('corsisti EIPASS dalle fatture', () => {
+  it('riconosce una fattura di certificazione EIPASS a persona fisica', async () => {
+    const { eipassLine } = await import('../services/invoiceImportCore')
+    const p = parseFatturaPa(buildInvoiceXml(draft, person))
+    expect(eipassLine(p)?.description).toMatch(/EIPASS/)
+    expect(p.paymentCode).toBe('MP05')
+    const company = parseFatturaPa(buildInvoiceXml(draft, { ...person, company_name: 'Rossi Srl', vat_number: '01234567890' } as Customer))
+    expect(eipassLine(company)).toBeNull()
+  })
+})

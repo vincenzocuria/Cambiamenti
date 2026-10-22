@@ -6,7 +6,7 @@
  *                                       e aggiorna lo stato SdI delle emesse
  *   npm run aruba -- invia              carica nelle bozze di Aruba le fatture preparate in Cambiamenti
  *                                       (chiede conferma per ognuna; l'invio allo SdI lo fai dal pannello)
- *   npm run aruba -- anagrafiche        crea clienti/fornitori dalle fatture già importate
+ *   npm run aruba -- anagrafiche        crea clienti/fornitori e corsisti EIPASS dalle fatture già importate
  *   npm run aruba -- accedi              apre il pannello e salva la sessione (OTP compreso)
  *   npm run aruba -- esplora             registra com'è fatto il pannello (per completare lo script)
  *   npm run aruba -- codice              scarica il codice pubblico del pannello (per lo sviluppo)
@@ -43,7 +43,7 @@ export async function importPaths(targets: string[]): Promise<void> {
     if (done < total) process.stdout.write(`\r  ${done + 1}/${total}`)
   })
   console.log(
-    `\nNuove: ${result.added} · aggiornate: ${result.updated} · clienti/fornitori creati: ${result.partiesCreated} · abbinate a corsisti EIPASS: ${result.eipassLinked}`,
+    `\nNuove: ${result.added} · aggiornate: ${result.updated} · clienti/fornitori creati: ${result.partiesCreated} · corsisti EIPASS creati: ${result.eipassCreated} · abbinate a corsisti EIPASS: ${result.eipassLinked}`,
   )
   for (const line of result.report) console.log(`  - ${line}`)
 }
@@ -73,7 +73,10 @@ async function main() {
       return explore()
     case 'anagrafiche': {
       const res = await linkInvoiceParties(await supabaseAdmin())
-      console.log(`Clienti/fornitori creati: ${res.partiesCreated} · fatture collegate: ${res.linked}`)
+      console.log(
+        `Clienti/fornitori creati: ${res.partiesCreated} · fatture collegate: ${res.linked} · ` +
+          `corsisti EIPASS creati: ${res.eipassCreated} · fatture collegate a corsisti: ${res.eipassLinked}`,
+      )
       for (const line of res.report) console.log(`  - ${line}`)
       return
     }

@@ -100,6 +100,7 @@ export function InvoicesPage() {
       setImportMessage(
         `Importazione completata: ${res.added} nuove, ${res.updated} già presenti aggiornate` +
           (res.partiesCreated ? `, ${res.partiesCreated} clienti/fornitori creati` : '') +
+          (res.eipassCreated ? `, ${res.eipassCreated} corsisti EIPASS creati` : '') +
           (res.eipassLinked ? `, ${res.eipassLinked} abbinate a corsisti EIPASS` : '') +
           '.',
       )
@@ -134,7 +135,10 @@ export function InvoicesPage() {
         setImportMessage(`Anagrafiche dalle fatture: ${done}/${total}…`),
       )
       setImportMessage(
-        `Fatto: ${res.partiesCreated} clienti/fornitori creati, ${res.linked} fatture collegate alla loro anagrafica.`,
+        `Fatto: ${res.partiesCreated} clienti/fornitori creati, ${res.linked} fatture collegate alla loro anagrafica` +
+          (res.eipassCreated ? `, ${res.eipassCreated} corsisti EIPASS creati` : '') +
+          (res.eipassLinked ? `, ${res.eipassLinked} fatture collegate a corsisti EIPASS` : '') +
+          '.',
       )
       setImportReport(res.report)
       await reload()

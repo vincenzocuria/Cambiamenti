@@ -330,6 +330,8 @@ export interface ParsedInvoice {
   lines: InvoiceLine[]
   seller: ParsedParty
   buyer: ParsedParty
+  /** Modalità di pagamento FatturaPA (MP01 contanti, MP05 bonifico…). */
+  paymentCode: string
   /** Codice destinatario e PEC del cessionario (dati di trasmissione). */
   buyerSdiCode: string
   buyerPec: string
@@ -388,6 +390,7 @@ export function parseFatturaPa(xml: string): ParsedInvoice {
     total,
     causale: allByLocalName(general, 'Causale').map((c) => c.textContent?.trim()).filter(Boolean).join(' '),
     paymentDue: txt(payment, 'DataScadenzaPagamento'),
+    paymentCode: txt(payment, 'ModalitaPagamento'),
     lines,
     seller: parseParty(seller),
     buyer: parseParty(buyer),

@@ -90,6 +90,9 @@ export interface PanelInvoiceItem {
   IdSdi?: string
   Mittente?: string
   TotaleDocumento?: number
+  /** 0 non incassata, 1 incassata, 2 non gestita, 3 parzialmente, 4 stornata. */
+  StatoPagInc?: number
+  DataPagInc?: string
 }
 
 interface SearchPage {

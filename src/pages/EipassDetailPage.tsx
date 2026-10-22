@@ -21,6 +21,7 @@ import {
 } from '../lib/eipassInvoice'
 import { downloadBlob } from '../lib/downloadBlob'
 import { suggestNextInvoiceNumber } from '../services/invoiceNumbering'
+import { findInvoiceForEipassCandidate } from '../services/invoices'
 import { EipassForm } from '../components/EipassForm'
 import { EipassExamBadge, InvoiceStatusBadge } from '../components/EipassExamBadge'
 import { DocumentsPanel } from '../components/DocumentsPanel'
@@ -40,6 +41,7 @@ export function EipassDetailPage() {
   const [invoiceError, setInvoiceError] = useState('')
   const [invoiceInfo, setInvoiceInfo] = useState('')
   const [suggestedNumber, setSuggestedNumber] = useState('')
+  const [linkedInvoiceId, setLinkedInvoiceId] = useState<string | null>(null)
 
   function refreshIdentity(candidateId: string) {
     hasDocumentInCategory('eipass', candidateId, 'identity')
@@ -53,6 +55,9 @@ export function EipassDetailPage() {
   useEffect(() => {
     if (!id) return
     getEipassCandidate(id).then(setCandidate)
+    findInvoiceForEipassCandidate(id)
+      .then(setLinkedInvoiceId)
+      .catch(() => setLinkedInvoiceId(null))
     listEipassCandidates().then(setAllCandidates)
     suggestNextInvoiceNumber(new Date().getFullYear())
       .then((r) => setSuggestedNumber(r.number))
@@ -233,6 +238,11 @@ export function EipassDetailPage() {
                     n. {candidate.invoice_number}
                     {candidate.invoice_date && ` del ${fmtDate(candidate.invoice_date)}`}
                   </span>
+                )}
+                {linkedInvoiceId && (
+                  <Link to={`/fatturazione/${linkedInvoiceId}`} className="text-xs font-medium text-indigo-600 hover:underline">
+                    Apri fattura
+                  </Link>
                 )}
               </div>
             </Info>

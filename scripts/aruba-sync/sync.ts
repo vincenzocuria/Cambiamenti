@@ -26,6 +26,7 @@ interface KnownInvoice {
   sdi_id: string
   sdi_status: string
   sdi_status_label: string
+  eipass_candidate_id: string | null
 }
 
 const norm = (s: string | null | undefined) => (s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
@@ -35,7 +36,9 @@ async function knownInvoices(client: SupabaseClient, direction: Direction, year:
   for (let from = 0; ; from += 1000) {
     const { data, error } = await client
       .from('invoices')
-      .select('id, number, invoice_date, aruba_filename, counterpart_name, sdi_id, sdi_status, sdi_status_label')
+      .select(
+        'id, number, invoice_date, aruba_filename, counterpart_name, sdi_id, sdi_status, sdi_status_label, eipass_candidate_id',
+      )
       .eq('direction', direction)
       .gte('invoice_date', `${year}-01-01`)
       .lte('invoice_date', `${year}-12-31`)
@@ -133,7 +136,7 @@ export async function syncFromAruba(opts: { years: number[]; hidden: boolean }):
       if (raw.length) {
         const result = await importInvoiceBytes(client, raw)
         console.log(
-          `  importate: ${result.added} nuove, ${result.updated} aggiornate, ${result.partiesCreated} clienti/fornitori creati, ${result.eipassLinked} abbinate a corsisti EIPASS`,
+          `  importate: ${result.added} nuove, ${result.updated} aggiornate, ${result.partiesCreated} clienti/fornitori creati, ${result.eipassCreated} corsisti EIPASS creati, ${result.eipassLinked} abbinate a corsisti EIPASS`,
         )
         log.push(...result.report)
       }
@@ -151,6 +154,28 @@ export async function syncFromAruba(opts: { years: number[]; hidden: boolean }):
         }
       }
       if (sdiUpdated) console.log(`  stato SdI aggiornato su ${sdiUpdated} fatture`)
+
+      // Incassi segnati su Aruba: data di pagamento sul corsista EIPASS collegato
+      if (direction === 'out') {
+        const paid = items.filter((i) => i.StatoPagInc === 1 && i.DataPagInc)
+        if (paid.length) {
+          const fresh = await knownInvoices(client, direction, year)
+          let paidUpdated = 0
+          for (const item of paid) {
+            const match = findKnown(direction, item, fresh)
+            if (!match?.eipass_candidate_id) continue
+            const { data, error } = await client
+              .from('eipass_candidates')
+              .update({ payment_date: panelDate(item.DataPagInc ?? '') })
+              .eq('id', match.eipass_candidate_id)
+              .is('payment_date', null)
+              .select('id')
+            if (error) throw error
+            paidUpdated += data?.length ?? 0
+          }
+          if (paidUpdated) console.log(`  pagamento segnato su ${paidUpdated} corsisti EIPASS`)
+        }
+      }
     }
   } finally {
     await context.close()

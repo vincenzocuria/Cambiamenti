@@ -48,6 +48,19 @@ export async function listInvoices(direction: InvoiceDirection, year: number): P
   return rows
 }
 
+/** Fattura emessa collegata a un corsista EIPASS (la più recente), se c'è. */
+export async function findInvoiceForEipassCandidate(candidateId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('invoices')
+    .select('id')
+    .eq('eipass_candidate_id', candidateId)
+    .order('invoice_date', { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  return (data as { id: string } | null)?.id ?? null
+}
+
 export async function getInvoice(id: string): Promise<Invoice> {
   const { data, error } = await supabase.from('invoices').select('*').eq('id', id).single()
   if (error) throw error
