@@ -1,0 +1,68 @@
+/**
+ * Fatture Aruba dal PC, senza API: usa il pannello web con un browser automatico.
+ *
+ *   npm run aruba -- accedi              apre il pannello e salva la sessione (OTP compreso)
+ *   npm run aruba -- esplora             registra com'è fatto il pannello (per completare lo script)
+ *   npm run aruba -- importa <percorso>  importa in Cambiamenti XML/P7M/ZIP da file o cartella
+ */
+import fs from 'node:fs'
+import path from 'node:path'
+import { importInvoiceBytes } from '../../src/services/invoiceImportCore'
+import { supabaseAdmin } from './env'
+import { ensureLoggedIn, openBrowser } from './browser'
+import { explore } from './explore'
+
+function listFiles(target: string): string[] {
+  const stat = fs.statSync(target)
+  if (stat.isFile()) return [target]
+  return fs
+    .readdirSync(target, { withFileTypes: true })
+    .flatMap((e) => (e.isDirectory() ? listFiles(path.join(target, e.name)) : [path.join(target, e.name)]))
+    .filter((f) => /\.(xml|p7m|zip)$/i.test(f))
+}
+
+export async function importPaths(targets: string[]): Promise<void> {
+  const files = targets.flatMap((t) => listFiles(path.resolve(t)))
+  if (!files.length) {
+    console.log('Nessun file XML, P7M o ZIP trovato.')
+    return
+  }
+  console.log(`Importo ${files.length} file in Cambiamenti...`)
+  const raw = files.map((f) => ({ name: path.basename(f), bytes: new Uint8Array(fs.readFileSync(f)) }))
+  const client = await supabaseAdmin()
+  const result = await importInvoiceBytes(client, raw, (done, total) => {
+    if (done < total) process.stdout.write(`\r  ${done + 1}/${total}`)
+  })
+  console.log(
+    `\nNuove: ${result.added} · aggiornate: ${result.updated} · abbinate a corsisti EIPASS: ${result.eipassLinked}`,
+  )
+  for (const line of result.report) console.log(`  - ${line}`)
+}
+
+async function login(): Promise<void> {
+  const context = await openBrowser()
+  const page = context.pages()[0] ?? (await context.newPage())
+  await ensureLoggedIn(page)
+  console.log('Accesso fatto: la sessione è salvata. Puoi chiudere la finestra.')
+  await new Promise<void>((resolve) => context.on('close', () => resolve()))
+}
+
+async function main() {
+  const [command, ...args] = process.argv.slice(2)
+  switch (command) {
+    case 'accedi':
+      return login()
+    case 'esplora':
+      return explore()
+    case 'importa':
+      if (!args.length) throw new Error('Indica il file o la cartella: npm run aruba -- importa <percorso>')
+      return importPaths(args)
+    default:
+      console.log(fs.readFileSync(new URL(import.meta.url), 'utf8').split('*/')[0].replace(/^\/\*\*?|^ \*/gm, ''))
+  }
+}
+
+main().catch((err) => {
+  console.error(`Errore: ${err instanceof Error ? err.message : err}`)
+  process.exit(1)
+})

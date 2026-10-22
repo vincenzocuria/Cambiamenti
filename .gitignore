@@ -35,3 +35,6 @@ scripts/split-supabase/lg-edil-db.env
 # Supabase CLI temp
 supabase/.temp/
 
+
+# Script Aruba: file prodotti sul PC (esplorazione, download)
+scripts/aruba-sync/.data/

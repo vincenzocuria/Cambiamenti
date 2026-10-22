@@ -17,7 +17,8 @@
     "email:deploy": "node scripts/write-auth-email-templates.mjs && node scripts/deploy-auth-email-templates.mjs",
     "split:migrate-cm": "node scripts/split-supabase/migrate-cambiamenti.mjs",
     "split:migrate-lg": "node scripts/split-supabase/migrate-lg-edil.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "aruba": "tsx scripts/aruba-sync/aruba.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.2",
@@ -33,7 +34,9 @@
     "@vitejs/plugin-react": "^6.0.4",
     "jsdom": "^26.1.0",
     "oxlint": "^1.75.0",
+    "playwright-core": "^1.64.1",
     "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.2",
     "vite": "^8.2.0",
     "vitest": "^3.2.4",
