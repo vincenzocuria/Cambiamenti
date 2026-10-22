@@ -24,7 +24,7 @@ function fromRow(row: Invoice): Invoice {
 
 /** Elenco senza l'XML (pesante): lo si legge solo nel dettaglio. */
 const LIST_COLUMNS =
-  'id, direction, status, doc_type, number, invoice_date, customer_id, eipass_candidate_id, counterpart_name, counterpart_vat, counterpart_tax_code, taxable, vat_amount, stamp, total, payment_method, payment_due, causale, lines, notes, aruba_filename, sdi_id, sdi_status, sdi_status_label, created_at, updated_at'
+  'id, direction, status, doc_type, number, invoice_date, customer_id, eipass_candidate_id, counterpart_name, counterpart_vat, counterpart_tax_code, taxable, vat_amount, stamp, total, payment_method, payment_due, causale, lines, notes, aruba_filename, sdi_id, sdi_status, sdi_status_label, paid_at, created_at, updated_at'
 
 export async function listInvoices(direction: InvoiceDirection, year: number): Promise<Invoice[]> {
   const rows: Invoice[] = []

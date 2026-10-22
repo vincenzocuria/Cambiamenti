@@ -34,6 +34,32 @@ export async function openBrowser(opts: { hidden?: boolean } = {}): Promise<Brow
   }
 }
 
+/** Apre la pagina riprovando: il pannello Aruba a volte interrompe il primo caricamento (ERR_ABORTED). */
+export async function gotoWithRetry(page: Page, url: string, attempts = 3): Promise<void> {
+  for (let i = 1; ; i++) {
+    try {
+      await page.goto(url, { waitUntil: 'domcontentloaded' })
+      return
+    } catch (err) {
+      if (i >= attempts || !/net::ERR_|Timeout/i.test(String(err)) || page.isClosed()) throw err
+      console.log(`Pannello Aruba non caricato (${String(err).match(/net::ERR_\w+|Timeout/)?.[0]}): riprovo...`)
+      await page.waitForTimeout(3000 * i)
+    }
+  }
+}
+
+/** Messaggio chiaro quando la finestra di Edge si chiude mentre lo script lavora. */
+export function explainBrowserError(err: unknown): string {
+  const text = err instanceof Error ? err.message : String(err)
+  if (/Target page, context or browser has been closed|Browser has been closed/i.test(text)) {
+    return (
+      'La finestra di Edge dello script si è chiusa mentre lavorava (chiusa a mano o da un altro comando «npm run aruba» ' +
+      'partito nello stesso momento). Lancia un comando alla volta e rilancialo.'
+    )
+  }
+  return text
+}
+
 async function visiblePassword(page: Page) {
   const field = page.locator('input[type="password"]:visible').first()
   return (await field.count()) > 0 ? field : null
@@ -44,7 +70,7 @@ async function visiblePassword(page: Page) {
  * file centrale delle credenziali; l'eventuale OTP lo inserisci tu nella finestra.
  */
 export async function ensureLoggedIn(page: Page, timeoutMin = 5): Promise<void> {
-  if (page.url() === 'about:blank') await page.goto(panelUrl, { waitUntil: 'domcontentloaded' })
+  if (page.url() === 'about:blank') await gotoWithRetry(page, panelUrl)
   await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {})
 
   let password = await visiblePassword(page)

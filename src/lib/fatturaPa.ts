@@ -134,6 +134,8 @@ export function buildInvoiceXml(d: InvoiceDraft, c: Customer, progressive = rand
   const [reaOffice, reaNumber] = school.rea.split('-')
   const sdi = (c.sdi_code.trim() || '0000000').toUpperCase()
   const usePec = sdi === '0000000' && c.pec.trim()
+  // Codice univoco ufficio di 6 caratteri = pubblica amministrazione (es. Regione): formato FPA12
+  const format = sdi.length === 6 ? 'FPA12' : 'FPR12'
   const method = paymentMethods.find((m) => m.value === d.payment_method)?.code ?? 'MP05'
 
   const linesXml = d.lines
@@ -186,7 +188,7 @@ export function buildInvoiceXml(d: InvoiceDraft, c: Customer, progressive = rand
     : ''
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<p:FatturaElettronica versione="FPR12" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:p="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2 http://www.fatturapa.gov.it/export/fatturazione/sdi/fatturapa/v1.2/Schema_del_file_xml_FatturaPA_versione_1.2.xsd">
+<p:FatturaElettronica versione="${format}" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:p="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2 http://www.fatturapa.gov.it/export/fatturazione/sdi/fatturapa/v1.2/Schema_del_file_xml_FatturaPA_versione_1.2.xsd">
   <FatturaElettronicaHeader>
     <DatiTrasmissione>
       <IdTrasmittente>
@@ -194,7 +196,7 @@ export function buildInvoiceXml(d: InvoiceDraft, c: Customer, progressive = rand
         <IdCodice>${school.vatNumber}</IdCodice>
       </IdTrasmittente>
       <ProgressivoInvio>${progressive}</ProgressivoInvio>
-      <FormatoTrasmissione>FPR12</FormatoTrasmissione>
+      <FormatoTrasmissione>${format}</FormatoTrasmissione>
       <CodiceDestinatario>${sdi}</CodiceDestinatario>${
         usePec ? `\n      <PECDestinatario>${text(c.pec, 256)}</PECDestinatario>` : ''
       }

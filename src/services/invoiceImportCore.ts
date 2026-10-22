@@ -5,7 +5,8 @@ import { expandInvoiceFiles, invoiceDirection } from '../lib/invoiceFile'
 import { matchInvoiceToCandidate } from '../lib/eipassInvoice'
 import { fullName } from '../lib/format'
 import { customerFromParty, partyKey } from '../lib/customer'
-import type { EipassCandidate, InvoiceDirection, InvoiceLine } from '../types/db'
+import { courseLinksForLines } from '../lib/courseInvoice'
+import type { Course, EipassCandidate, InvoiceDirection, InvoiceLine } from '../types/db'
 
 export interface InvoiceImportResult {
   added: number
@@ -15,6 +16,8 @@ export interface InvoiceImportResult {
   /** Corsisti EIPASS creati dalle fatture di certificazioni. */
   eipassCreated: number
   eipassLinked: number
+  /** Fatture emesse con almeno una riga collegata a un corso (note di debito alla Regione). */
+  coursesLinked: number
   /** Righe da mostrare: scarti e abbinamenti EIPASS. */
   report: string[]
 }
@@ -195,6 +198,38 @@ export class EipassLinker {
   }
 }
 
+/**
+ * Collega le righe di una fattura emessa ai corsi che citano («ID CORSO: 673.6, ED. 2 CUP: …»).
+ * Rifà sempre il collegamento da capo, così segue le modifiche delle bozze.
+ */
+export class CourseLinker {
+  private courses: Course[] | null = null
+  private supabase: SupabaseClient
+
+  constructor(supabase: SupabaseClient) {
+    this.supabase = supabase
+  }
+
+  async link(invoiceId: string, lines: InvoiceLine[]): Promise<number> {
+    this.courses ??= await listAllCourses(this.supabase)
+    const links = courseLinksForLines(lines, this.courses)
+    const { error } = await this.supabase.from('invoice_courses').delete().eq('invoice_id', invoiceId)
+    if (error) throw error
+    if (!links.length) return 0
+    const { error: e2 } = await this.supabase
+      .from('invoice_courses')
+      .insert(links.map((l) => ({ ...l, invoice_id: invoiceId })))
+    if (e2) throw e2
+    return links.length
+  }
+}
+
+async function listAllCourses(supabase: SupabaseClient): Promise<Course[]> {
+  const { data, error } = await supabase.from('courses').select('*')
+  if (error) throw error
+  return data as Course[]
+}
+
 async function listCandidates(supabase: SupabaseClient): Promise<EipassCandidate[]> {
   const { data, error } = await supabase.from('eipass_candidates').select('*')
   if (error) throw error
@@ -222,6 +257,8 @@ export async function importInvoiceBytes(
   let eipassLinked = 0
   const parties = new PartyResolver(supabase)
   const eipass = new EipassLinker(supabase)
+  const courses = new CourseLinker(supabase)
+  let coursesLinked = 0
 
   for (const [index, file] of invoices.entries()) {
     onProgress?.(index, invoices.length)
@@ -282,13 +319,22 @@ export async function importInvoiceBytes(
       if (direction === 'out') {
         const linked = await eipass.link(p, invoiceId, report)
         if (linked) eipassLinked++
+        if ((await courses.link(invoiceId, p.lines)) > 0) coursesLinked++
       }
     } catch (err) {
       report.push(`${file.name}: ${err instanceof Error ? err.message : 'errore'}`)
     }
   }
   onProgress?.(invoices.length, invoices.length)
-  return { added, updated, partiesCreated: parties.created, eipassCreated: eipass.created, eipassLinked, report }
+  return {
+    added,
+    updated,
+    partiesCreated: parties.created,
+    eipassCreated: eipass.created,
+    eipassLinked,
+    coursesLinked,
+    report,
+  }
 }
 
 /**
@@ -298,7 +344,14 @@ export async function importInvoiceBytes(
 export async function linkInvoiceParties(
   supabase: SupabaseClient,
   onProgress?: (done: number, total: number) => void,
-): Promise<{ linked: number; partiesCreated: number; eipassCreated: number; eipassLinked: number; report: string[] }> {
+): Promise<{
+  linked: number
+  partiesCreated: number
+  eipassCreated: number
+  eipassLinked: number
+  coursesLinked: number
+  report: string[]
+}> {
   type Row = {
     id: string
     direction: InvoiceDirection
@@ -344,5 +397,32 @@ export async function linkInvoiceParties(
     }
   }
   onProgress?.(rows.length, rows.length)
-  return { linked, partiesCreated: parties.created, eipassCreated: eipass.created, eipassLinked, report }
+  const coursesLinked = await linkAllInvoiceCourses(supabase, report)
+  return { linked, partiesCreated: parties.created, eipassCreated: eipass.created, eipassLinked, coursesLinked, report }
+}
+
+/** Ricollega ai corsi tutte le fatture emesse che citano un «ID CORSO» (anche per i corsi aggiunti dopo). */
+export async function linkAllInvoiceCourses(supabase: SupabaseClient, report: string[] = []): Promise<number> {
+  const courses = new CourseLinker(supabase)
+  let linked = 0
+  for (let from = 0; ; from += 500) {
+    const { data, error } = await supabase
+      .from('invoices')
+      .select('id, number, lines')
+      .eq('direction', 'out')
+      .order('id')
+      .range(from, from + 499)
+    if (error) throw error
+    for (const row of (data ?? []) as { id: string; number: string; lines: InvoiceLine[] }[]) {
+      const lines = Array.isArray(row.lines) ? row.lines : []
+      if (!lines.some((l) => /ID\s*CORSO/i.test(l.description ?? ''))) continue
+      try {
+        if ((await courses.link(row.id, lines)) > 0) linked++
+      } catch (err) {
+        report.push(`Fattura n. ${row.number}: ${err instanceof Error ? err.message : 'errore'}`)
+      }
+    }
+    if (!data || data.length < 500) break
+  }
+  return linked
 }

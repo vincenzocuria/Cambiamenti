@@ -16,7 +16,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { importInvoiceBytes, linkInvoiceParties } from '../../src/services/invoiceImportCore'
 import { supabaseAdmin } from './env'
-import { ensureLoggedIn, openBrowser } from './browser'
+import { ensureLoggedIn, explainBrowserError, openBrowser } from './browser'
 import { explore } from './explore'
 import { downloadBundle } from './bundle'
 import { syncFromAruba, uploadDrafts } from './sync'
@@ -43,7 +43,7 @@ export async function importPaths(targets: string[]): Promise<void> {
     if (done < total) process.stdout.write(`\r  ${done + 1}/${total}`)
   })
   console.log(
-    `\nNuove: ${result.added} · aggiornate: ${result.updated} · clienti/fornitori creati: ${result.partiesCreated} · corsisti EIPASS creati: ${result.eipassCreated} · abbinate a corsisti EIPASS: ${result.eipassLinked}`,
+    `\nNuove: ${result.added} · aggiornate: ${result.updated} · clienti/fornitori creati: ${result.partiesCreated} · corsisti EIPASS creati: ${result.eipassCreated} · abbinate a corsisti EIPASS: ${result.eipassLinked} · collegate ai corsi: ${result.coursesLinked}`,
   )
   for (const line of result.report) console.log(`  - ${line}`)
 }
@@ -75,7 +75,7 @@ async function main() {
       const res = await linkInvoiceParties(await supabaseAdmin())
       console.log(
         `Clienti/fornitori creati: ${res.partiesCreated} · fatture collegate: ${res.linked} · ` +
-          `corsisti EIPASS creati: ${res.eipassCreated} · fatture collegate a corsisti: ${res.eipassLinked}`,
+          `corsisti EIPASS creati: ${res.eipassCreated} · fatture collegate a corsisti: ${res.eipassLinked} · fatture collegate ai corsi: ${res.coursesLinked}`,
       )
       for (const line of res.report) console.log(`  - ${line}`)
       return
@@ -91,6 +91,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(`Errore: ${err instanceof Error ? err.message : err}`)
+  console.error(`Errore: ${explainBrowserError(err)}`)
   process.exit(1)
 })

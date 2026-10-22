@@ -293,10 +293,12 @@ export interface Invoice {
   sdi_status: string
   sdi_status_label: string
   xml: string | null
+  /** Data d'incasso segnata su Aruba. */
+  paid_at: string | null
   created_at: string
   updated_at: string
 }
 
 export type InvoiceInput = Partial<
-  Omit<Invoice, 'id' | 'created_at' | 'updated_at' | 'aruba_filename' | 'sdi_id' | 'sdi_status' | 'sdi_status_label'>
+  Omit<Invoice, 'id' | 'created_at' | 'updated_at' | 'aruba_filename' | 'sdi_id' | 'sdi_status' | 'sdi_status_label' | 'paid_at'>
 >

@@ -9,7 +9,13 @@ import {
   listCustomers,
   updateInvoice,
 } from '../services/invoices'
-import { suggestNextInvoiceNumber } from '../services/invoiceNumbering'
+import {
+  isPublicAdministration,
+  suggestNextInvoiceNumber,
+  suggestPaInvoiceNumber,
+} from '../services/invoiceNumbering'
+import { listInvoiceCourses, relinkInvoiceCourses } from '../services/courseInvoices'
+import { courseInvoiceKindLabel } from '../lib/courseInvoice'
 import {
   buildInvoiceXml,
   computeTotals,
@@ -25,7 +31,7 @@ import { invoiceFileName, paymentMethodLabel, paymentMethods, randomProgressive 
 import { calendarDateIso } from '../lib/studentDocumentStatus'
 import { downloadBlob } from '../lib/downloadBlob'
 import { formatEuro } from '../lib/euroInWords'
-import { fmtDate } from '../lib/format'
+import { fmtDate, formatCourseEdition } from '../lib/format'
 import { fieldInputClass, SelectField, TextField, TextAreaField } from '../components/Field'
 import { DangerButton, PrimaryButton, SecondaryButton } from '../components/Buttons'
 import { Modal } from '../components/Modal'
@@ -75,6 +81,7 @@ export function InvoiceDetailPage() {
               sdi_id: '',
               sdi_status: '',
               sdi_status_label: '',
+              paid_at: null,
               xml: null,
               causale:
                 params.get('tipo') === 'TD04'
@@ -126,6 +133,13 @@ export function InvoiceDetailPage() {
 function InvoiceView({ invoice, onChange }: { invoice: Invoice; onChange: (i: Invoice) => void }) {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
+  const [courses, setCourses] = useState<Awaited<ReturnType<typeof listInvoiceCourses>>>([])
+
+  useEffect(() => {
+    listInvoiceCourses(invoice.id)
+      .then(setCourses)
+      .catch(() => setCourses([]))
+  }, [invoice.id])
 
   async function handleDownload() {
     setBusy(true)
@@ -243,6 +257,12 @@ function InvoiceView({ invoice, onChange }: { invoice: Invoice; onChange: (i: In
                 <dd className="inline">{invoice.aruba_filename}</dd>
               </div>
             )}
+            {invoice.paid_at && (
+              <div>
+                <dt className="inline text-slate-500">Incassata il: </dt>
+                <dd className="inline text-emerald-700">{fmtDate(invoice.paid_at)}</dd>
+              </div>
+            )}
             {invoice.payment_due && (
               <div>
                 <dt className="inline text-slate-500">Scadenza: </dt>
@@ -252,6 +272,24 @@ function InvoiceView({ invoice, onChange }: { invoice: Invoice; onChange: (i: In
           </dl>
         </Card>
       </div>
+
+      {courses.length > 0 && (
+        <Card title="Corsi">
+          <ul className="space-y-1 text-sm">
+            {courses.map((c) => (
+              <li key={c.line_index} className="flex flex-wrap justify-between gap-2">
+                <Link to={`/corsi/${c.course.id}`} className="font-medium text-indigo-600 hover:underline">
+                  {c.course.name}
+                  {formatCourseEdition(c.course.edition) ? ` · ${formatCourseEdition(c.course.edition)}` : ''}
+                </Link>
+                <span className="text-slate-600">
+                  {courseInvoiceKindLabel(c.kind)} · {euro(c.amount)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {invoice.causale && (
         <Card title="Causale">
@@ -331,6 +369,11 @@ function InvoiceEditor({ initial, customers, onCustomersChanged, onSaved, onDele
   async function proposeNumber() {
     setError('')
     const year = Number((draft.invoice_date ?? calendarDateIso()).slice(0, 4))
+    if (isPublicAdministration(customer?.sdi_code)) {
+      set('number', await suggestPaInvoiceNumber(year))
+      setInfo('Cliente pubblica amministrazione: numero nella serie FPA, separata dalle fatture ai privati.')
+      return
+    }
     const { number, registered } = await suggestNextInvoiceNumber(year)
     set('number', number)
     setInfo(
@@ -365,6 +408,8 @@ function InvoiceEditor({ initial, customers, onCustomersChanged, onSaved, onDele
 
   async function save(): Promise<Invoice> {
     const saved = invoiceId ? await updateInvoice(invoiceId, payload()) : await createInvoice(payload())
+    // Le righe con «ID CORSO …» restano collegate ai corsi anche dopo le modifiche
+    await relinkInvoiceCourses(saved.id, saved.lines).catch(() => 0)
     setInvoiceId(saved.id)
     onSaved(saved)
     return saved

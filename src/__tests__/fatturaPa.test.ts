@@ -54,6 +54,14 @@ describe('fattura manuale FatturaPA', () => {
     if (process.env.OUT_XML) require('node:fs').writeFileSync(process.env.OUT_XML, xml)
   })
 
+  it('usa il formato FPA12 per la pubblica amministrazione (codice ufficio di 6 caratteri)', () => {
+    const xml = buildInvoiceXml({ ...draft, doc_type: 'TD05' }, { ...company, sdi_code: 'ZFKCAZ' }, 'AB124')
+    expect(xml).toContain('<FormatoTrasmissione>FPA12</FormatoTrasmissione>')
+    expect(xml).toContain('versione="FPA12"')
+    expect(xml).toContain('<TipoDocumento>TD05</TipoDocumento>')
+    expect(buildInvoiceXml(draft, company)).toContain('<FormatoTrasmissione>FPR12</FormatoTrasmissione>')
+  })
+
   it('rifiuta un cliente senza indirizzo', () => {
     expect(() => buildInvoiceXml(draft, { ...company, address: '' })).toThrow(/indirizzo/)
   })
