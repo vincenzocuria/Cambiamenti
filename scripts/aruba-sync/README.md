@@ -8,7 +8,7 @@ centrale `Global Res\.env` e chiama le stesse funzioni interne che usa la pagina
 | Comando | Cosa fa |
 | --- | --- |
 | `npm run aruba -- accedi` | Login (l'OTP lo inserisci tu); la sessione resta salvata |
-| `npm run aruba -- sincronizza [anno]` | Scarica emesse e ricevute che mancano in Cambiamenti, le importa e aggiorna lo stato SdI delle emesse |
+| `npm run aruba -- sincronizza [anni...]` (es. `2025 2026`) | Scarica emesse e ricevute che mancano in Cambiamenti, le importa e aggiorna lo stato SdI delle emesse |
 | `npm run aruba -- sincronizza --nascosto` | Come sopra, senza finestra (per l'Utilità di pianificazione) |
 | `npm run aruba -- invia` | Carica nelle **bozze** di Aruba le fatture preparate in Cambiamenti, con conferma una per una |
 | `npm run aruba -- importa <percorso>` | Importa XML/P7M/ZIP da file o cartella |

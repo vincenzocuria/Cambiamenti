@@ -1,7 +1,7 @@
 /**
  * Fatture Aruba dal PC, senza API: usa il pannello web con un browser automatico.
  *
- *   npm run aruba -- sincronizza [anno] [--nascosto]
+ *   npm run aruba -- sincronizza [anni...] [--nascosto]
  *                                       scarica da Aruba emesse e ricevute che mancano in Cambiamenti
  *                                       e aggiorna lo stato SdI delle emesse
  *   npm run aruba -- invia              carica nelle bozze di Aruba le fatture preparate in Cambiamenti
@@ -61,8 +61,11 @@ async function main() {
   const args = rest.filter((a) => !a.startsWith('--'))
   switch (command) {
     case 'sincronizza': {
-      const year = Number(args[0]) || new Date().getFullYear()
-      return syncFromAruba({ year, hidden })
+      const years = args.map(Number).filter((y) => y > 2000)
+      for (const year of years.length ? years : [new Date().getFullYear()]) {
+        await syncFromAruba({ year, hidden })
+      }
+      return
     }
     case 'invia':
       return uploadDrafts({ hidden })
