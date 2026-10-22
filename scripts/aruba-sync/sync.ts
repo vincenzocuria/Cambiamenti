@@ -144,7 +144,7 @@ export async function syncFromAruba(opts: { year: number; hidden: boolean }): Pr
           if (!match || !state) continue
           await client
             .from('invoices')
-            .update({ sdi_status: String(item.Stato), sdi_status_label: state, sdi_id: item.IdSdi || '' })
+            .update({ sdi_status: String(item.Stato), sdi_status_label: state, sdi_id: item.IdSdi || match.sdi_id })
             .eq('id', match.id)
         }
       }
