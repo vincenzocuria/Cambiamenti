@@ -210,6 +210,10 @@ export interface EipassCandidate {
   purchase_date: string | null
   exam_done: boolean
   exam_date: string | null
+  /** Attestato conseguito (può differire dalla certificazione acquistata). */
+  certificate_type: string
+  /** Scadenza dell'attestato, se ne ha una. */
+  certificate_expiry: string | null
   /** Totale pagato, IVA inclusa. */
   amount: number | null
   vat_rate: number

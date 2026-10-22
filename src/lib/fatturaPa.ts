@@ -279,6 +279,37 @@ function partyName(party: Element | null): string {
   return [txt(party, 'Cognome'), txt(party, 'Nome')].filter(Boolean).join(' ')
 }
 
+/** Anagrafica di cedente o cessionario come scritta nell'XML. */
+export interface ParsedParty {
+  companyName: string
+  firstName: string
+  lastName: string
+  vatNumber: string
+  taxCode: string
+  address: string
+  postalCode: string
+  city: string
+  province: string
+  country: string
+}
+
+function parseParty(party: Element | null): ParsedParty {
+  const id = party && firstByLocalName(party, 'IdFiscaleIVA')
+  const seat = party && firstByLocalName(party, 'Sede')
+  return {
+    companyName: txt(party, 'Denominazione'),
+    firstName: txt(party, 'Nome'),
+    lastName: txt(party, 'Cognome'),
+    vatNumber: id ? txt(id, 'IdCodice') : '',
+    taxCode: txt(party, 'CodiceFiscale'),
+    address: [txt(seat, 'Indirizzo'), txt(seat, 'NumeroCivico')].filter(Boolean).join(' '),
+    postalCode: txt(seat, 'CAP'),
+    city: txt(seat, 'Comune'),
+    province: txt(seat, 'Provincia'),
+    country: txt(seat, 'Nazione') || 'IT',
+  }
+}
+
 /** Dati principali letti dall'XML di una fattura (emessa o ricevuta). */
 export interface ParsedInvoice {
   docType: string
@@ -297,6 +328,13 @@ export interface ParsedInvoice {
   causale: string
   paymentDue: string
   lines: InvoiceLine[]
+  seller: ParsedParty
+  buyer: ParsedParty
+  /** Modalità di pagamento FatturaPA (MP01 contanti, MP05 bonifico…). */
+  paymentCode: string
+  /** Codice destinatario e PEC del cessionario (dati di trasmissione). */
+  buyerSdiCode: string
+  buyerPec: string
 }
 
 export function parseFatturaPa(xml: string): ParsedInvoice {
@@ -352,6 +390,11 @@ export function parseFatturaPa(xml: string): ParsedInvoice {
     total,
     causale: allByLocalName(general, 'Causale').map((c) => c.textContent?.trim()).filter(Boolean).join(' '),
     paymentDue: txt(payment, 'DataScadenzaPagamento'),
+    paymentCode: txt(payment, 'ModalitaPagamento'),
     lines,
+    seller: parseParty(seller),
+    buyer: parseParty(buyer),
+    buyerSdiCode: txt(firstByLocalName(doc, 'DatiTrasmissione'), 'CodiceDestinatario'),
+    buyerPec: txt(firstByLocalName(doc, 'DatiTrasmissione'), 'PECDestinatario'),
   }
 }

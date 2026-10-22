@@ -31,6 +31,8 @@ function candidate(extra: Partial<EipassCandidate> = {}): EipassCandidate {
     purchase_date: '2026-10-01',
     exam_done: false,
     exam_date: null,
+    certificate_type: '',
+    certificate_expiry: null,
     amount: 122,
     vat_rate: 22,
     payment_method: 'bonifico',

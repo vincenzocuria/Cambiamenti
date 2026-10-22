@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { EipassCandidate, EipassCandidateInput } from '../types/db'
 import {
@@ -7,7 +7,7 @@ import {
   listEipassCandidates,
   updateEipassCandidate,
 } from '../services/eipass'
-import { hasDocumentInCategory } from '../services/documents'
+import { hasDocumentInCategory, uploadDocument } from '../services/documents'
 import { fmtDate, fullName } from '../lib/format'
 import { calendarDateIso, checkStudentDocuments } from '../lib/studentDocumentStatus'
 import {
@@ -21,6 +21,7 @@ import {
 } from '../lib/eipassInvoice'
 import { downloadBlob } from '../lib/downloadBlob'
 import { suggestNextInvoiceNumber } from '../services/invoiceNumbering'
+import { findInvoiceForEipassCandidate } from '../services/invoices'
 import { EipassForm } from '../components/EipassForm'
 import { EipassExamBadge, InvoiceStatusBadge } from '../components/EipassExamBadge'
 import { DocumentsPanel } from '../components/DocumentsPanel'
@@ -40,6 +41,35 @@ export function EipassDetailPage() {
   const [invoiceError, setInvoiceError] = useState('')
   const [invoiceInfo, setInvoiceInfo] = useState('')
   const [suggestedNumber, setSuggestedNumber] = useState('')
+  const [linkedInvoiceId, setLinkedInvoiceId] = useState<string | null>(null)
+  const certificateRef = useRef<HTMLInputElement>(null)
+  const [uploadingCertificate, setUploadingCertificate] = useState(false)
+  const [certificateError, setCertificateError] = useState('')
+  const [documentsKey, setDocumentsKey] = useState(0)
+
+  /** Carica il file dell'attestato tra i documenti del corsista (categoria Attestato). */
+  async function uploadCertificate() {
+    const file = certificateRef.current?.files?.[0]
+    if (!file || !candidate) return
+    setUploadingCertificate(true)
+    setCertificateError('')
+    try {
+      await uploadDocument({
+        personType: 'eipass',
+        personId: candidate.id,
+        category: 'certificate',
+        title: `Attestato ${candidate.certificate_type || candidate.certification}`.trim(),
+        file,
+      })
+      refreshIdentity(candidate.id)
+      setDocumentsKey((k) => k + 1)
+    } catch (err) {
+      setCertificateError(err instanceof Error ? err.message : 'Caricamento non riuscito')
+    } finally {
+      if (certificateRef.current) certificateRef.current.value = ''
+      setUploadingCertificate(false)
+    }
+  }
 
   function refreshIdentity(candidateId: string) {
     hasDocumentInCategory('eipass', candidateId, 'identity')
@@ -53,6 +83,9 @@ export function EipassDetailPage() {
   useEffect(() => {
     if (!id) return
     getEipassCandidate(id).then(setCandidate)
+    findInvoiceForEipassCandidate(id)
+      .then(setLinkedInvoiceId)
+      .catch(() => setLinkedInvoiceId(null))
     listEipassCandidates().then(setAllCandidates)
     suggestNextInvoiceNumber(new Date().getFullYear())
       .then((r) => setSuggestedNumber(r.number))
@@ -193,7 +226,7 @@ export function EipassDetailPage() {
         <div className="space-y-4">
           <InfoCard title="Acquisto ed esame">
             <Info label="Data di acquisto" value={fmtDate(candidate.purchase_date)} />
-            <Info label="Certificazione" value={candidate.certification} />
+            <Info label="Certificazione acquistata" value={candidate.certification} />
             <Info label="Esame">
               <div className="flex flex-wrap items-center gap-2">
                 <EipassExamBadge candidate={candidate} />
@@ -204,6 +237,29 @@ export function EipassDetailPage() {
                   {candidate.exam_done ? 'Segna da fare' : 'Segna esame fatto'}
                 </SecondaryButton>
               </div>
+            </Info>
+          </InfoCard>
+          <InfoCard title="Attestato">
+            <Info label="Attestato conseguito" value={candidate.certificate_type} />
+            <Info
+              label="Scadenza"
+              value={candidate.certificate_expiry ? fmtDate(candidate.certificate_expiry) : 'Nessuna'}
+            />
+            <Info label="File">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-slate-500">{hasCertificate ? 'Caricato (vedi Documenti)' : 'Non caricato'}</span>
+                <input
+                  ref={certificateRef}
+                  type="file"
+                  accept=".pdf,.p7m,.jpg,.jpeg,.png"
+                  className="hidden"
+                  onChange={() => void uploadCertificate()}
+                />
+                <SecondaryButton size="sm" disabled={uploadingCertificate} onClick={() => certificateRef.current?.click()}>
+                  {uploadingCertificate ? 'Caricamento…' : hasCertificate ? 'Carica un altro' : 'Carica attestato'}
+                </SecondaryButton>
+              </div>
+              {certificateError && <p className="mt-1 text-xs text-red-600">{certificateError}</p>}
             </Info>
           </InfoCard>
           <InfoCard title="Pagamento e fatturazione">
@@ -233,6 +289,11 @@ export function EipassDetailPage() {
                     n. {candidate.invoice_number}
                     {candidate.invoice_date && ` del ${fmtDate(candidate.invoice_date)}`}
                   </span>
+                )}
+                {linkedInvoiceId && (
+                  <Link to={`/fatturazione/${linkedInvoiceId}`} className="text-xs font-medium text-indigo-600 hover:underline">
+                    Apri fattura
+                  </Link>
                 )}
               </div>
             </Info>
@@ -299,7 +360,7 @@ export function EipassDetailPage() {
       <p className="text-sm text-slate-500">
         Carica qui documento d'identità e copia dell'<strong>attestato</strong> (categoria Attestato).
       </p>
-      <DocumentsPanel mode="eipass" personId={id} onChanged={() => refreshIdentity(id)} />
+      <DocumentsPanel key={documentsKey} mode="eipass" personId={id} onChanged={() => refreshIdentity(id)} />
     </div>
   )
 }

@@ -115,7 +115,7 @@ export function EipassListPage() {
     () =>
       candidates.filter((c) =>
         matchesSearch(
-          `${c.first_name} ${c.last_name} ${c.tax_code} ${c.email} ${c.phone} ${c.certification}`,
+          `${c.first_name} ${c.last_name} ${c.tax_code} ${c.email} ${c.phone} ${c.certification} ${c.certificate_type}`,
           search,
         ),
       ),
@@ -167,6 +167,8 @@ export function EipassListPage() {
         { header: 'Nominativo', value: (c) => fullName(c) },
         { header: 'Codice fiscale', value: (c) => c.tax_code || '' },
         { header: 'Certificazione', value: (c) => c.certification || '' },
+        { header: 'Attestato conseguito', value: (c) => c.certificate_type || '' },
+        { header: 'Scadenza attestato', value: (c) => (c.certificate_expiry ? fmtDate(c.certificate_expiry) : '') },
         { header: 'Data acquisto', value: (c) => fmtDate(c.purchase_date) },
         { header: 'Esame', value: (c) => eipassExamLabel(c) },
         { header: 'Data esame', value: (c) => (c.exam_done ? fmtDate(c.exam_date) : '') },
