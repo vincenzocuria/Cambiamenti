@@ -1,6 +1,11 @@
 /**
  * Fatture Aruba dal PC, senza API: usa il pannello web con un browser automatico.
  *
+ *   npm run aruba -- sincronizza [anno] [--nascosto]
+ *                                       scarica da Aruba emesse e ricevute che mancano in Cambiamenti
+ *                                       e aggiorna lo stato SdI delle emesse
+ *   npm run aruba -- invia              carica nelle bozze di Aruba le fatture preparate in Cambiamenti
+ *                                       (chiede conferma per ognuna; l'invio allo SdI lo fai dal pannello)
  *   npm run aruba -- accedi              apre il pannello e salva la sessione (OTP compreso)
  *   npm run aruba -- esplora             registra com'è fatto il pannello (per completare lo script)
  *   npm run aruba -- codice              scarica il codice pubblico del pannello (per lo sviluppo)
@@ -13,6 +18,7 @@ import { supabaseAdmin } from './env'
 import { ensureLoggedIn, openBrowser } from './browser'
 import { explore } from './explore'
 import { downloadBundle } from './bundle'
+import { syncFromAruba, uploadDrafts } from './sync'
 
 function listFiles(target: string): string[] {
   const stat = fs.statSync(target)
@@ -50,8 +56,16 @@ async function login(): Promise<void> {
 }
 
 async function main() {
-  const [command, ...args] = process.argv.slice(2)
+  const [command, ...rest] = process.argv.slice(2)
+  const hidden = rest.includes('--nascosto')
+  const args = rest.filter((a) => !a.startsWith('--'))
   switch (command) {
+    case 'sincronizza': {
+      const year = Number(args[0]) || new Date().getFullYear()
+      return syncFromAruba({ year, hidden })
+    }
+    case 'invia':
+      return uploadDrafts({ hidden })
     case 'accedi':
       return login()
     case 'esplora':
