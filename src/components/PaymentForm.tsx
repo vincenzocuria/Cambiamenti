@@ -5,6 +5,7 @@ import { PrimaryButton, SecondaryButton } from './Buttons'
 import { formatEuro } from '../lib/euroInWords'
 import { createCoursePayment } from '../services/payments'
 import { parseEuroInput } from '../lib/paymentsSummary'
+import { calendarDateIso } from '../lib/studentDocumentStatus'
 import type { CoursePaymentDirection, CoursePaymentKind, CourseStaffRole } from '../types/db'
 
 export interface PaymentFormTarget {
@@ -19,7 +20,8 @@ export interface PaymentFormTarget {
   suggested: number
 }
 
-const today = () => new Date().toISOString().slice(0, 10)
+// Giorno locale (non UTC): dopo mezzanotte in Italia non propone la data di ieri
+const today = () => calendarDateIso()
 
 /** Registra un incasso dalla Regione o un compenso pagato al personale. */
 export function PaymentForm({
