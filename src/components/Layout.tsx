@@ -26,7 +26,6 @@ const groups: NavGroup[] = [
   {
     title: 'Amministrazione',
     items: [
-      { to: '/pagamenti', label: 'Pagamenti', icon: 'payments' },
       { to: '/fatturazione', label: 'Fatturazione', icon: 'invoices' },
       { to: '/template', label: 'Template', icon: 'templates' },
       { to: '/utenti', label: 'Utenti', icon: 'users', adminOnly: true },
