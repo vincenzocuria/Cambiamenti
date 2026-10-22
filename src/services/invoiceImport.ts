@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import { importInvoiceBytes, type InvoiceImportResult } from './invoiceImportCore'
+import { importInvoiceBytes, linkInvoiceParties, type InvoiceImportResult } from './invoiceImportCore'
 
 export type { InvoiceImportResult }
 
@@ -15,4 +15,9 @@ export async function importInvoiceFiles(
     files.map(async (f) => ({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) })),
   )
   return importInvoiceBytes(supabase, raw, onProgress)
+}
+
+/** Crea e collega clienti/fornitori per le fatture già importate che non li hanno. */
+export function linkPartiesFromInvoices(onProgress?: (done: number, total: number) => void) {
+  return linkInvoiceParties(supabase, onProgress)
 }

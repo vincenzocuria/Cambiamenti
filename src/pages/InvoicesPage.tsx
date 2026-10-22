@@ -4,11 +4,12 @@ import type { Customer, CustomerInput, Invoice, InvoiceDirection } from '../type
 import {
   createCustomer,
   deleteCustomer,
+  listCustomerRoles,
   listCustomers,
   listInvoices,
   updateCustomer,
 } from '../services/invoices'
-import { importInvoiceFiles } from '../services/invoiceImport'
+import { importInvoiceFiles, linkPartiesFromInvoices } from '../services/invoiceImport'
 import { customerDisplayName, docTypeLabel } from '../lib/fatturaPa'
 import { formatEuro } from '../lib/euroInWords'
 import { fmtDate } from '../lib/format'
@@ -28,12 +29,13 @@ import {
   trClass,
 } from '../lib/tableStyles'
 
-type Tab = 'out' | 'in' | 'customers'
+type Tab = 'out' | 'in' | 'customers' | 'suppliers'
 
 const tabs: { value: Tab; label: string }[] = [
   { value: 'out', label: 'Emesse' },
   { value: 'in', label: 'Ricevute' },
   { value: 'customers', label: 'Clienti' },
+  { value: 'suppliers', label: 'Fornitori' },
 ]
 
 function euro(value: number | null): string {
@@ -43,12 +45,15 @@ function euro(value: number | null): string {
 export function InvoicesPage() {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
-  const tab = (['out', 'in', 'customers'].includes(params.get('tab') ?? '') ? params.get('tab') : 'out') as Tab
+  const tab = (tabs.some((t) => t.value === params.get('tab')) ? params.get('tab') : 'out') as Tab
+  /** Schede delle anagrafiche (clienti o fornitori) invece delle fatture. */
+  const partyTab = tab === 'customers' || tab === 'suppliers'
   const currentYear = new Date().getFullYear()
   const year = Number(params.get('anno')) || currentYear
   const [search, setSearch] = useState('')
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
+  const [roles, setRoles] = useState<Map<string, { out: boolean; in: boolean }>>(new Map())
   const [loading, setLoading] = useState(true)
   const [importing, setImporting] = useState(false)
   const [importMessage, setImportMessage] = useState('')
@@ -65,8 +70,11 @@ export function InvoicesPage() {
   async function reload() {
     setLoading(true)
     try {
-      if (tab === 'customers') setCustomers(await listCustomers())
-      else setInvoices(await listInvoices(tab as InvoiceDirection, year))
+      if (partyTab) {
+        const [list, r] = await Promise.all([listCustomers(), listCustomerRoles()])
+        setCustomers(list)
+        setRoles(r)
+      } else setInvoices(await listInvoices(tab as InvoiceDirection, year))
     } finally {
       setLoading(false)
     }
@@ -91,6 +99,7 @@ export function InvoicesPage() {
       )
       setImportMessage(
         `Importazione completata: ${res.added} nuove, ${res.updated} già presenti aggiornate` +
+          (res.partiesCreated ? `, ${res.partiesCreated} clienti/fornitori creati` : '') +
           (res.eipassLinked ? `, ${res.eipassLinked} abbinate a corsisti EIPASS` : '') +
           '.',
       )
@@ -115,12 +124,39 @@ export function InvoicesPage() {
     [invoices, search],
   )
 
+  /** Crea clienti e fornitori dai dati delle fatture già importate che non li hanno. */
+  async function handleLinkParties() {
+    setImporting(true)
+    setImportReport([])
+    setImportMessage('Lettura delle fatture…')
+    try {
+      const res = await linkPartiesFromInvoices((done, total) =>
+        setImportMessage(`Anagrafiche dalle fatture: ${done}/${total}…`),
+      )
+      setImportMessage(
+        `Fatto: ${res.partiesCreated} clienti/fornitori creati, ${res.linked} fatture collegate alla loro anagrafica.`,
+      )
+      setImportReport(res.report)
+      await reload()
+    } catch (err) {
+      setImportMessage(err instanceof Error ? err.message : 'Operazione non riuscita')
+    } finally {
+      setImporting(false)
+    }
+  }
+
   const filteredCustomers = useMemo(
     () =>
-      customers.filter((c) =>
-        matchesSearch([customerDisplayName(c), c.vat_number, c.tax_code, c.email, c.city].join(' '), search),
-      ),
-    [customers, search],
+      customers
+        .filter((c) => {
+          // Fornitore = compare nelle ricevute; cliente = nelle emesse, oppure senza fatture
+          const role = roles.get(c.id)
+          return tab === 'suppliers' ? !!role?.in : !role || role.out || !role.in
+        })
+        .filter((c) =>
+          matchesSearch([customerDisplayName(c), c.vat_number, c.tax_code, c.email, c.city].join(' '), search),
+        ),
+    [customers, roles, tab, search],
   )
 
   const kpis = useMemo(() => {
@@ -161,10 +197,17 @@ export function InvoicesPage() {
           {tab === 'out' && (
             <PrimaryButton onClick={() => navigate('/fatturazione/nuova')}>+ Nuova fattura</PrimaryButton>
           )}
-          {tab === 'customers' && (
-            <PrimaryButton onClick={() => setEditingCustomer('new')}>+ Nuovo cliente</PrimaryButton>
+          {partyTab && (
+            <>
+              <SecondaryButton disabled={importing} onClick={() => void handleLinkParties()}>
+                {importing ? 'Creazione…' : 'Crea dalle fatture'}
+              </SecondaryButton>
+              <PrimaryButton onClick={() => setEditingCustomer('new')}>
+                {tab === 'suppliers' ? '+ Nuovo fornitore' : '+ Nuovo cliente'}
+              </PrimaryButton>
+            </>
           )}
-          {tab !== 'customers' && (
+          {!partyTab && (
             <>
               <input
                 ref={fileRef}
@@ -189,7 +232,7 @@ export function InvoicesPage() {
           options={tabs}
           onChange={(v) => setParam('tab', v)}
         />
-        {tab !== 'customers' && (
+        {!partyTab && (
           <select
             aria-label="Anno"
             value={year}
@@ -207,12 +250,18 @@ export function InvoicesPage() {
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder={tab === 'customers' ? 'Cerca cliente, P.IVA, CF…' : 'Cerca numero, cliente/fornitore, P.IVA…'}
+          placeholder={partyTab ? `Cerca ${tab === 'suppliers' ? 'fornitore' : 'cliente'}, P.IVA, CF…` : 'Cerca numero, cliente/fornitore, P.IVA…'}
           className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm shadow-sm sm:max-w-sm"
         />
       </div>
 
-      {tab !== 'customers' && (
+      {partyTab && (
+        <p className="text-xs text-slate-500">
+          Le anagrafiche si creano da sole quando importi le fatture. «Crea dalle fatture» le crea per quelle già
+          importate.
+        </p>
+      )}
+      {!partyTab && (
         <p className="text-xs text-slate-500">
           Su Aruba seleziona le fatture (emesse o ricevute) e scaricale: qui puoi caricare i file XML, P7M o lo ZIP
           così com'è. Le fatture già presenti non vengono duplicate.
@@ -227,16 +276,16 @@ export function InvoicesPage() {
         </ul>
       )}
 
-      {tab !== 'customers' && <KpiCards items={kpis} />}
+      {!partyTab && <KpiCards items={kpis} />}
 
       {loading ? (
         <p className="text-slate-400">Caricamento…</p>
-      ) : tab === 'customers' ? (
+      ) : partyTab ? (
         <div className={tableWrapClass}>
           <table className={tableWideClass}>
             <thead>
               <tr className={theadRowClass}>
-                <th className={thClass}>Cliente</th>
+                <th className={thClass}>{tab === 'suppliers' ? 'Fornitore' : 'Cliente'}</th>
                 <th className={thClass}>P.IVA / CF</th>
                 <th className={thClass}>Città</th>
                 <th className={thClass}>SDI / PEC</th>
@@ -262,7 +311,9 @@ export function InvoicesPage() {
               {filteredCustomers.length === 0 && (
                 <tr>
                   <td className={tdClass} colSpan={5}>
-                    Nessun cliente. Aggiungili qui o direttamente dalla nuova fattura.
+                    {tab === 'suppliers'
+                      ? 'Nessun fornitore. Si creano importando le fatture ricevute.'
+                      : 'Nessun cliente. Aggiungili qui, dalla nuova fattura o importando le emesse.'}
                   </td>
                 </tr>
               )}
@@ -320,7 +371,7 @@ export function InvoicesPage() {
 
       {editingCustomer && (
         <Modal
-          title={editingCustomer === 'new' ? 'Nuovo cliente' : customerDisplayName(editingCustomer)}
+          title={editingCustomer === 'new' ? (tab === 'suppliers' ? 'Nuovo fornitore' : 'Nuovo cliente') : customerDisplayName(editingCustomer)}
           onClose={() => setEditingCustomer(null)}
         >
           <div className="overflow-y-auto">

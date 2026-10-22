@@ -4,11 +4,14 @@ import { parseFatturaPa, type ParsedInvoice } from '../lib/fatturaPa'
 import { expandInvoiceFiles, invoiceDirection } from '../lib/invoiceFile'
 import { matchInvoiceToCandidate } from '../lib/eipassInvoice'
 import { fullName } from '../lib/format'
+import { customerFromParty, partyKey } from '../lib/customer'
 import type { EipassCandidate, InvoiceDirection } from '../types/db'
 
 export interface InvoiceImportResult {
   added: number
   updated: number
+  /** Clienti e fornitori creati dai dati delle fatture. */
+  partiesCreated: number
   eipassLinked: number
   /** Righe da mostrare: scarti e abbinamenti EIPASS. */
   report: string[]
@@ -16,18 +19,22 @@ export interface InvoiceImportResult {
 
 async function findExisting(
   supabase: SupabaseClient,
-  direction: InvoiceDirection, fileName: string, p: ParsedInvoice, vat: string) {
+  direction: InvoiceDirection,
+  fileName: string,
+  p: ParsedInvoice,
+  vat: string,
+) {
   const { data: byFile, error: e1 } = await supabase
     .from('invoices')
-    .select('id, status')
+    .select('id, status, customer_id')
     .eq('direction', direction)
     .eq('aruba_filename', fileName)
     .maybeSingle()
   if (e1) throw e1
-  if (byFile) return byFile as { id: string; status: string }
+  if (byFile) return byFile as Existing
   let query = supabase
     .from('invoices')
-    .select('id, status')
+    .select('id, status, customer_id')
     .eq('direction', direction)
     .eq('number', p.number)
     .eq('invoice_date', p.date)
@@ -35,7 +42,57 @@ async function findExisting(
   if (direction === 'in' && vat) query = query.eq('counterpart_vat', vat)
   const { data, error } = await query.limit(1).maybeSingle()
   if (error) throw error
-  return data as { id: string; status: string } | null
+  return data as Existing | null
+}
+
+type Existing = { id: string; status: string; customer_id: string | null }
+
+/**
+ * Collega la fattura all'anagrafica della controparte (cliente per le emesse, fornitore per le
+ * ricevute), creandola dai dati dell'XML se non c'è ancora. La cache evita doppioni nello stesso import.
+ */
+export class PartyResolver {
+  private byKey: Map<string, string> | null = null
+  created = 0
+  private supabase: SupabaseClient
+
+  constructor(supabase: SupabaseClient) {
+    this.supabase = supabase
+  }
+
+  async resolve(direction: InvoiceDirection, p: ParsedInvoice): Promise<string | null> {
+    const input =
+      direction === 'out'
+        ? customerFromParty(p.buyer, { sdiCode: p.buyerSdiCode, pec: p.buyerPec })
+        : customerFromParty(p.seller)
+    const key = partyKey(input)
+    if (!key) return null
+    if (!this.byKey) {
+      this.byKey = new Map()
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await this.supabase
+          .from('customers')
+          .select('id, vat_number, tax_code')
+          .range(from, from + 999)
+        if (error) throw error
+        for (const c of (data ?? []) as { id: string; vat_number: string; tax_code: string }[]) {
+          // Un'azienda si ritrova sia per partita IVA sia per codice fiscale
+          for (const k of [partyKey(c), partyKey({ vat_number: '', tax_code: c.tax_code })]) {
+            if (k && !this.byKey.has(k)) this.byKey.set(k, c.id)
+          }
+        }
+        if (!data || data.length < 1000) break
+      }
+    }
+    const known = this.byKey.get(key) ?? this.byKey.get(partyKey({ vat_number: '', tax_code: input.tax_code }))
+    if (known) return known
+    const { data, error } = await this.supabase.from('customers').insert(input).select('id').single()
+    if (error) throw error
+    const id = (data as { id: string }).id
+    this.byKey.set(key, id)
+    this.created++
+    return id
+  }
 }
 
 async function listCandidates(supabase: SupabaseClient): Promise<EipassCandidate[]> {
@@ -64,6 +121,7 @@ export async function importInvoiceBytes(
   let updated = 0
   let eipassLinked = 0
   let candidates: EipassCandidate[] | null = null
+  const parties = new PartyResolver(supabase)
 
   for (const [index, file] of invoices.entries()) {
     onProgress?.(index, invoices.length)
@@ -98,18 +156,22 @@ export async function importInvoiceBytes(
       }
 
       const existing = await findExisting(supabase, direction, file.name, p, counterpart.vat)
+      const customerId = existing?.customer_id ?? (await parties.resolve(direction, p))
       let invoiceId: string
       if (existing) {
         // Una fattura preparata nell'app e poi caricata su Aruba diventa «caricata»
         const status = existing.status === 'imported' ? 'imported' : 'sent'
-        const { error } = await supabase.from('invoices').update({ ...fields, status }).eq('id', existing.id)
+        const { error } = await supabase
+          .from('invoices')
+          .update({ ...fields, status, customer_id: customerId })
+          .eq('id', existing.id)
         if (error) throw error
         invoiceId = existing.id
         updated++
       } else {
         const { data, error } = await supabase
           .from('invoices')
-          .insert({ ...fields, direction, status: 'imported' })
+          .insert({ ...fields, direction, status: 'imported', customer_id: customerId })
           .select('id')
           .single()
         if (error) throw error
@@ -157,5 +219,48 @@ export async function importInvoiceBytes(
     }
   }
   onProgress?.(invoices.length, invoices.length)
-  return { added, updated, eipassLinked, report }
+  return { added, updated, partiesCreated: parties.created, eipassLinked, report }
+}
+
+/**
+ * Per le fatture già nel registro senza cliente/fornitore collegato: legge l'XML, crea
+ * l'anagrafica se manca e la collega.
+ */
+export async function linkInvoiceParties(
+  supabase: SupabaseClient,
+  onProgress?: (done: number, total: number) => void,
+): Promise<{ linked: number; partiesCreated: number; report: string[] }> {
+  const rows: { id: string; direction: InvoiceDirection; number: string; xml: string }[] = []
+  for (let from = 0; ; from += 500) {
+    const { data, error } = await supabase
+      .from('invoices')
+      .select('id, direction, number, xml')
+      .is('customer_id', null)
+      .not('xml', 'is', null)
+      .order('id')
+      .range(from, from + 499)
+    if (error) throw error
+    rows.push(...((data ?? []) as typeof rows))
+    if (!data || data.length < 500) break
+  }
+  const parties = new PartyResolver(supabase)
+  const report: string[] = []
+  let linked = 0
+  for (const [i, row] of rows.entries()) {
+    onProgress?.(i, rows.length)
+    try {
+      const id = await parties.resolve(row.direction, parseFatturaPa(row.xml))
+      if (!id) {
+        report.push(`Fattura n. ${row.number}: controparte senza partita IVA né codice fiscale`)
+        continue
+      }
+      const { error } = await supabase.from('invoices').update({ customer_id: id }).eq('id', row.id)
+      if (error) throw error
+      linked++
+    } catch (err) {
+      report.push(`Fattura n. ${row.number}: ${err instanceof Error ? err.message : 'errore'}`)
+    }
+  }
+  onProgress?.(rows.length, rows.length)
+  return { linked, partiesCreated: parties.created, report }
 }

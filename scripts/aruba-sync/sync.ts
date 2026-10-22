@@ -131,7 +131,7 @@ export async function syncFromAruba(opts: { year: number; hidden: boolean }): Pr
       if (raw.length) {
         const result = await importInvoiceBytes(client, raw)
         console.log(
-          `  importate: ${result.added} nuove, ${result.updated} aggiornate, ${result.eipassLinked} abbinate a corsisti EIPASS`,
+          `  importate: ${result.added} nuove, ${result.updated} aggiornate, ${result.partiesCreated} clienti/fornitori creati, ${result.eipassLinked} abbinate a corsisti EIPASS`,
         )
         log.push(...result.report)
       }

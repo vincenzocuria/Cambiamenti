@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import { parseFatturaPa } from '../lib/fatturaPa'
+import { normalizeCustomer } from '../lib/customer'
 import type {
   Customer,
   CustomerInput,
@@ -111,22 +112,6 @@ export async function applyParsedXml(invoice: Invoice, xml: string): Promise<Inv
 
 // ── Clienti ──────────────────────────────────────────────────────────────
 
-function normalizeCustomer<T extends Partial<CustomerInput>>(input: T): T {
-  const out = { ...input }
-  for (const key of Object.keys(out) as (keyof T)[]) {
-    const v = out[key]
-    if (typeof v === 'string') out[key] = v.trim() as T[keyof T]
-  }
-  if (typeof out.vat_number === 'string') out.vat_number = out.vat_number.toUpperCase().replace(/\s+/g, '')
-  if (typeof out.tax_code === 'string') out.tax_code = out.tax_code.toUpperCase().replace(/\s+/g, '')
-  if (typeof out.province === 'string') out.province = out.province.toUpperCase()
-  if (typeof out.country === 'string') out.country = out.country.toUpperCase() || 'IT'
-  if (typeof out.sdi_code === 'string') out.sdi_code = out.sdi_code.toUpperCase() || '0000000'
-  if (typeof out.email === 'string') out.email = out.email.toLowerCase()
-  if (typeof out.pec === 'string') out.pec = out.pec.toLowerCase()
-  return out
-}
-
 export async function listCustomers(): Promise<Customer[]> {
   const { data, error } = await supabase
     .from('customers')
@@ -136,6 +121,26 @@ export async function listCustomers(): Promise<Customer[]> {
     .order('first_name')
   if (error) throw error
   return data as Customer[]
+}
+
+/** Per ogni anagrafica: se compare nelle fatture emesse (cliente) e/o ricevute (fornitore). */
+export async function listCustomerRoles(): Promise<Map<string, { out: boolean; in: boolean }>> {
+  const roles = new Map<string, { out: boolean; in: boolean }>()
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from('invoices')
+      .select('customer_id, direction')
+      .not('customer_id', 'is', null)
+      .range(from, from + 999)
+    if (error) throw error
+    for (const r of (data ?? []) as { customer_id: string; direction: InvoiceDirection }[]) {
+      const role = roles.get(r.customer_id) ?? { out: false, in: false }
+      role[r.direction] = true
+      roles.set(r.customer_id, role)
+    }
+    if (!data || data.length < 1000) break
+  }
+  return roles
 }
 
 export async function createCustomer(input: CustomerInput): Promise<Customer> {
