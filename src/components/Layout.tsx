@@ -63,9 +63,15 @@ export function Layout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!menuOpen) return
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMenuOpen(false)
+    // Se la finestra si allarga fino alla barra laterale, il menu mobile si chiude e sblocca lo scorrimento.
+    const desktop = window.matchMedia('(min-width: 1024px)')
+    const onResize = () => desktop.matches && setMenuOpen(false)
+    onResize()
+    desktop.addEventListener('change', onResize)
     document.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
     return () => {
+      desktop.removeEventListener('change', onResize)
       document.removeEventListener('keydown', onKey)
       document.body.style.overflow = ''
     }
