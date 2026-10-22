@@ -35,7 +35,7 @@ const MIME_BY_EXT: Record<string, string> = {
   ...DEFAULT_PKCS7_MIME,
 }
 
-export type DocumentPreviewKind = 'pdf' | 'image' | 'text' | 'html'
+export type DocumentPreviewKind = 'pdf' | 'image' | 'text' | 'html' | 'signed'
 
 const PREVIEW_BY_EXT: Record<string, DocumentPreviewKind> = {
   pdf: 'pdf',
@@ -45,6 +45,9 @@ const PREVIEW_BY_EXT: Record<string, DocumentPreviewKind> = {
   txt: 'text',
   html: 'html',
   htm: 'html',
+  // file firmato: l'anteprima mostra il documento originale contenuto nella busta
+  p7m: 'signed',
+  m7m: 'signed',
 }
 
 const PREVIEW_BY_MIME: Record<string, DocumentPreviewKind> = {
