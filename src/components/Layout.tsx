@@ -64,7 +64,7 @@ export function Layout({ children }: { children: ReactNode }) {
     if (!menuOpen) return
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMenuOpen(false)
     // Se la finestra si allarga fino alla barra laterale, il menu mobile si chiude e sblocca lo scorrimento.
-    const desktop = window.matchMedia('(min-width: 1024px)')
+    const desktop = window.matchMedia('(min-width: 64rem)') // uguale al breakpoint lg di Tailwind
     const onResize = () => desktop.matches && setMenuOpen(false)
     onResize()
     desktop.addEventListener('change', onResize)
