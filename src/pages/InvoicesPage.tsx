@@ -51,6 +51,8 @@ export function InvoicesPage() {
   const currentYear = new Date().getFullYear()
   const year = Number(params.get('anno')) || currentYear
   const [search, setSearch] = useState('')
+  /** Filtro per tipo documento: fatture, note di debito, note di credito. */
+  const [docType, setDocType] = useState('')
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [roles, setRoles] = useState<Map<string, { out: boolean; in: boolean }>>(new Map())
@@ -102,6 +104,7 @@ export function InvoicesPage() {
           (res.partiesCreated ? `, ${res.partiesCreated} clienti/fornitori creati` : '') +
           (res.eipassCreated ? `, ${res.eipassCreated} corsisti EIPASS creati` : '') +
           (res.eipassLinked ? `, ${res.eipassLinked} abbinate a corsisti EIPASS` : '') +
+          (res.coursesLinked ? `, ${res.coursesLinked} collegate ai corsi` : '') +
           '.',
       )
       setImportReport(res.report)
@@ -116,13 +119,24 @@ export function InvoicesPage() {
 
   const filteredInvoices = useMemo(
     () =>
-      invoices.filter((i) =>
-        matchesSearch(
-          [i.number, i.counterpart_name, i.counterpart_vat, i.counterpart_tax_code, i.causale, i.sdi_status_label].join(' '),
-          search,
+      invoices
+        .filter((i) => !docType || i.doc_type === docType)
+        .filter((i) =>
+          matchesSearch(
+            [
+              i.number,
+              i.counterpart_name,
+              i.counterpart_vat,
+              i.counterpart_tax_code,
+              i.causale,
+              i.sdi_status_label,
+              // Le righe riportano corso, ID CORSO e CUP delle note di debito
+              ...i.lines.map((l) => l.description),
+            ].join(' '),
+            search,
+          ),
         ),
-      ),
-    [invoices, search],
+    [invoices, search, docType],
   )
 
   /** Crea clienti e fornitori dai dati delle fatture già importate che non li hanno. */
@@ -138,6 +152,7 @@ export function InvoicesPage() {
         `Fatto: ${res.partiesCreated} clienti/fornitori creati, ${res.linked} fatture collegate alla loro anagrafica` +
           (res.eipassCreated ? `, ${res.eipassCreated} corsisti EIPASS creati` : '') +
           (res.eipassLinked ? `, ${res.eipassLinked} fatture collegate a corsisti EIPASS` : '') +
+          (res.coursesLinked ? `, ${res.coursesLinked} fatture collegate ai corsi` : '') +
           '.',
       )
       setImportReport(res.report)
@@ -169,11 +184,17 @@ export function InvoicesPage() {
       valid.reduce((s, i) => s + (i[key] ?? 0) * (i.doc_type === 'TD04' ? -1 : 1), 0)
     const drafts = filteredInvoices.filter((i) => i.status === 'draft').length
     const unread = valid.filter((i) => i.total == null).length
+    const paid = valid
+      .filter((i) => i.paid_at)
+      .reduce((s, i) => s + (i.total ?? 0) * (i.doc_type === 'TD04' ? -1 : 1), 0)
     return [
       { key: 'count', label: tab === 'out' ? 'Fatture emesse' : 'Fatture ricevute', value: valid.length, hint: `Anno ${year}` },
       { key: 'taxable', label: 'Imponibile', value: `€ ${formatEuro(sum('taxable'))}`, hint: 'Note di credito sottratte' },
       { key: 'vat', label: 'IVA', value: `€ ${formatEuro(sum('vat_amount'))}` },
       { key: 'total', label: 'Totale documenti', value: `€ ${formatEuro(sum('total'))}`, hint: unread ? `${unread} senza importi` : undefined },
+      ...(tab === 'out'
+        ? [{ key: 'paid', label: 'Incassato', value: `€ ${formatEuro(paid)}`, hint: 'Incassi segnati su Aruba' }]
+        : []),
       ...(tab === 'out' ? [{ key: 'drafts', label: 'Bozze', value: drafts, tone: drafts ? ('warn' as const) : ('default' as const) }] : []),
     ]
   }, [filteredInvoices, tab, year])
@@ -250,11 +271,24 @@ export function InvoicesPage() {
             ))}
           </select>
         )}
+        {!partyTab && (
+          <select
+            aria-label="Tipo documento"
+            value={docType}
+            onChange={(e) => setDocType(e.target.value)}
+            className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm shadow-sm"
+          >
+            <option value="">Tutti i tipi</option>
+            <option value="TD01">Fatture</option>
+            <option value="TD05">Note di debito</option>
+            <option value="TD04">Note di credito</option>
+          </select>
+        )}
         <input
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder={partyTab ? `Cerca ${tab === 'suppliers' ? 'fornitore' : 'cliente'}, P.IVA, CF…` : 'Cerca numero, cliente/fornitore, P.IVA…'}
+          placeholder={partyTab ? `Cerca ${tab === 'suppliers' ? 'fornitore' : 'cliente'}, P.IVA, CF…` : 'Cerca numero, cliente, P.IVA, corso, CUP…'}
           className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm shadow-sm sm:max-w-sm"
         />
       </div>
@@ -358,6 +392,7 @@ export function InvoicesPage() {
                   <td className={tdClass + ' text-right font-medium'}>{euro(i.total)}</td>
                   <td className={tdClass}>
                     <InvoiceStatusPill invoice={i} />
+                    {i.paid_at && <span className="block text-xs text-emerald-700">Incassata {fmtDate(i.paid_at)}</span>}
                   </td>
                 </tr>
               ))}

@@ -26,6 +26,9 @@ import { CourseStatusBadge } from '../components/CourseStatusBadge'
 import { CourseProgress } from '../components/CourseProgress'
 import { DocumentsPanel } from '../components/DocumentsPanel'
 import { CourseReportLines } from '../components/CourseReportLines'
+import { CourseInvoicesPanel } from '../components/CourseInvoicesPanel'
+import { listCourseInvoices, type CourseInvoiceRow } from '../services/courseInvoices'
+import { courseInvoiceKindLabel, courseInvoiceSummary } from '../lib/courseInvoice'
 import { GenerateDocumentForm } from '../components/GenerateDocumentForm'
 import { BulkGenerateDocumentsForm } from '../components/BulkGenerateDocumentsForm'
 import { DangerButton, SecondaryButton } from '../components/Buttons'
@@ -60,6 +63,7 @@ const SECTIONS = [
   { id: 'alunni', label: 'Alunni' },
   { id: 'documenti', label: 'Documenti' },
   { id: 'verbali', label: 'Verbali' },
+  { id: 'fatture', label: 'Fatture' },
   { id: 'genera', label: 'Genera' },
   { id: 'fad', label: 'FAD' },
 ] as const
@@ -99,6 +103,8 @@ function saveOpenState(state: OpenState) {
 
 const money = (n: number) => `€ ${formatEuro(n)}`
 
+const NO_LINES: CourseReportLine[] = []
+
 function plural(n: number, one: string, many: string) {
   return `${n} ${n === 1 ? one : many}`
 }
@@ -121,6 +127,7 @@ export function CourseDetailPage() {
   })
   const [docs, setDocs] = useState<DocumentRow[] | null>(null)
   const [reportLines, setReportLines] = useState<CourseReportLine[] | null>(null)
+  const [invoiceRows, setInvoiceRows] = useState<CourseInvoiceRow[] | null>(null)
   const [docsKey, setDocsKey] = useState(0)
   const [peopleType, setPeopleType] = useState<PersonType>('student')
   const [genMode, setGenMode] = useState<'single' | 'bulk'>('bulk')
@@ -165,11 +172,20 @@ export function CourseDetailPage() {
       .catch(() => setReportLines([]))
   }, [id])
 
+  const reloadInvoices = useCallback(() => {
+    if (!id) return
+    listCourseInvoices([id])
+      .then(setInvoiceRows)
+      .catch(() => setInvoiceRows([]))
+  }, [id])
+
   useEffect(() => {
     if (id) {
       setCourse(null)
       setDocs(null)
       setReportLines(null)
+      setInvoiceRows(null)
+      reloadInvoices()
       getCourse(id).then(setCourse)
       void reloadStaff()
       reloadReportLines()
@@ -250,6 +266,14 @@ export function CourseDetailPage() {
         query,
       ),
     )
+    const invoiceMatches = (invoiceRows ?? []).filter((r) =>
+      matchesSearch(
+        [r.invoice.number, r.invoice.counterpart_name, courseInvoiceKindLabel(r.kind), r.description, 'fattura nota debito']
+          .filter(Boolean)
+          .join(' '),
+        query,
+      ),
+    )
     const courseFields = course
       ? [course.code, course.cup, course.notes, query.length >= 3 ? 'dati corso' : '']
           .filter(Boolean)
@@ -260,6 +284,7 @@ export function CourseDetailPage() {
       peopleCount,
       docs: docMatches,
       lines: lineMatches,
+      invoices: invoiceMatches,
       dati: Boolean(query) && matchesSearch(courseFields, query),
       // Le parole chiave delle sezioni contano solo da 3 lettere, per non accendere tutto con "de"
       genera: query.length >= 3 && matchesSearch('genera documenti modelli', query),
@@ -268,7 +293,7 @@ export function CourseDetailPage() {
         (peopleCount > 0 ||
           (query.length >= 3 && matchesSearch('fad moodle credenziali piattaforma', query))),
     }
-  }, [query, peopleByType, docs, reportLines, personNames, course])
+  }, [query, peopleByType, docs, reportLines, invoiceRows, personNames, course])
 
   const sectionHasMatch: Record<SectionId, boolean> = {
     dati: matches.dati,
@@ -278,6 +303,7 @@ export function CourseDetailPage() {
     alunni: (matches.people.student?.length ?? 0) > 0,
     documenti: matches.docs.length > 0,
     verbali: matches.lines.length > 0,
+    fatture: matches.invoices.length > 0,
     genera: matches.genera,
     fad: matches.fad,
   }
@@ -309,6 +335,7 @@ export function CourseDetailPage() {
   const balance = (reportLines ?? []).reduce((n, l) => n + Number(l.amount_balance ?? 0), 0)
   const recognized = (reportLines ?? []).reduce((n, l) => n + Number(l.amount_recognized ?? 0), 0)
   const hasLines = (reportLines?.length ?? 0) > 0
+  const billing = courseInvoiceSummary(invoiceRows ?? [], reportLines ?? [])
 
   const kpis: KpiCardItem[] = [
     {
@@ -363,6 +390,17 @@ export function CourseDetailPage() {
       tone: hasLines ? 'ok' : 'default',
       onClick: () => goTo('verbali'),
     },
+    {
+      key: 'fatturato',
+      label: 'Fatturato Regione',
+      value: invoiceRows == null ? '…' : money(billing.billed),
+      hint:
+        invoiceRows == null
+          ? 'Caricamento'
+          : `Incassato ${money(billing.paid)}${hasLines ? ` · saldo da fatturare ${money(billing.toBill)}` : ''}`,
+      tone: hasLines && billing.toBill > 0 ? 'warn' : billing.billed ? 'ok' : 'default',
+      onClick: () => goTo('fatture'),
+    },
   ]
 
   async function handleSave(input: CourseInput) {
@@ -393,6 +431,7 @@ export function CourseDetailPage() {
         alunni: matches.people.student?.length ?? 0,
         documenti: matches.docs.length,
         verbali: matches.lines.length,
+        fatture: matches.invoices.length,
         fad: matches.peopleCount,
       }
     : {}
@@ -401,6 +440,7 @@ export function CourseDetailPage() {
     matches.peopleCount ? plural(matches.peopleCount, 'persona', 'persone') : '',
     matches.docs.length ? plural(matches.docs.length, 'documento', 'documenti') : '',
     matches.lines.length ? plural(matches.lines.length, 'verbale', 'verbali') : '',
+    matches.invoices.length ? plural(matches.invoices.length, 'fattura', 'fatture') : '',
     matches.dati ? 'dati del corso' : '',
   ].filter(Boolean)
 
@@ -725,6 +765,37 @@ export function CourseDetailPage() {
               </button>
               : gli importi compaiono qui.
             </p>
+          )}
+        </CollapsibleSection>
+
+        <CollapsibleSection
+          id="fatture"
+          title="Note di debito e fatture"
+          badge={
+            invoiceRows == null
+              ? ''
+              : searching
+                ? plural(matches.invoices.length, 'trovata', 'trovate')
+                : invoiceRows.length
+                  ? money(billing.billed)
+                  : 'nessuna'
+          }
+          badgeTone={invoiceRows?.length ? 'ok' : 'muted'}
+          summary="Note di debito alla Regione: genera dal verbale, storico, incassi"
+          open={isOpen('fatture')}
+          onToggle={() => toggle('fatture')}
+          dimmed={searching && !sectionHasMatch.fatture}
+        >
+          {invoiceRows == null ? (
+            <p className="text-sm text-slate-400">Caricamento…</p>
+          ) : (
+            <CourseInvoicesPanel
+              course={course}
+              reportLines={reportLines ?? NO_LINES}
+              rows={invoiceRows}
+              shownRows={searching ? matches.invoices : invoiceRows}
+              onChanged={reloadInvoices}
+            />
           )}
         </CollapsibleSection>
 

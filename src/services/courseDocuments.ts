@@ -58,3 +58,11 @@ export async function listCourseReportLines(courseId: string): Promise<CourseRep
   if (error) throw error
   return data
 }
+
+/** Tutte le righe dei verbali indicati (anche degli altri corsi dello stesso verbale). */
+export async function listReportLinesForDocuments(documentIds: string[]): Promise<CourseReportLine[]> {
+  if (!documentIds.length) return []
+  const { data, error } = await supabase.from('course_report_lines').select('*').in('document_id', documentIds)
+  if (error) throw error
+  return data
+}

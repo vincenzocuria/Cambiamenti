@@ -8,14 +8,18 @@ centrale `Global Res\.env` e chiama le stesse funzioni interne che usa la pagina
 | Comando | Cosa fa |
 | --- | --- |
 | `npm run aruba -- accedi` | Login (l'OTP lo inserisci tu); la sessione resta salvata |
-| `npm run aruba -- sincronizza [anni...]` (es. `2025 2026`) | Scarica emesse e ricevute che mancano in Cambiamenti, le importa e aggiorna lo stato SdI delle emesse |
+| `npm run aruba -- sincronizza [anni...]` (es. `2025 2026`) | Scarica emesse e ricevute che mancano in Cambiamenti, le importa e aggiorna stato SdI e data d'incasso delle emesse |
 | `npm run aruba -- sincronizza --nascosto` | Come sopra, senza finestra (per l'Utilità di pianificazione) |
+| `npm run aruba -- anagrafiche` | Crea clienti/fornitori e corsisti EIPASS dalle fatture già importate e ricollega le note di debito ai corsi |
 | `npm run aruba -- invia` | Carica nelle **bozze** di Aruba le fatture preparate in Cambiamenti, con conferma una per una |
 | `npm run aruba -- importa <percorso>` | Importa XML/P7M/ZIP da file o cartella |
 | `npm run aruba -- esplora` / `codice` | Solo per lo sviluppo: registra com'è fatto il pannello |
 
 `invia` non manda niente allo SdI: la fattura finisce nelle Bozze del pannello, dove la controlli
 e premi «Invia». Alla sincronizzazione successiva Cambiamenti prende il file e lo stato SdI.
+
+Lancia un comando alla volta: due comandi insieme usano lo stesso profilo di Edge e il secondo si ferma.
+Se il pannello non si carica al primo colpo (ERR_ABORTED) lo script riprova da solo.
 
 I file scaricati restano in `scripts/aruba-sync/.data/scaricate/` (fuori da git).
 Se Aruba cambia il pannello, le chiamate in `panelApi.ts` vanno aggiornate (rilancia `codice`).
