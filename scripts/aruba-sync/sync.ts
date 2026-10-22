@@ -91,15 +91,16 @@ export async function syncFromAruba(opts: { year: number; hidden: boolean }): Pr
 
       for (const item of items) {
         const state = direction === 'out' ? OUT_STATES[item.Stato ?? -1] : undefined
-        if (direction === 'out' && OUT_INVALID_STATES.has(item.Stato ?? -1)) {
-          log.push(`Emessa n. ${item.Numero}: ${state}, non importata`)
-          continue
-        }
         const match = findKnown(direction, item, known)
         if (!match) {
-          missing.push(item)
+          // Le emesse scartate, annullate o in errore non entrano nel registro
+          if (direction === 'out' && OUT_INVALID_STATES.has(item.Stato ?? -1)) {
+            log.push(`Emessa n. ${item.Numero}: ${state}, non importata`)
+          } else missing.push(item)
           continue
         }
+        // Fattura preparata in Cambiamenti e caricata su Aruba: manca ancora il file di Aruba
+        if (!match.aruba_filename && !OUT_INVALID_STATES.has(item.Stato ?? -1)) missing.push(item)
         // Stato SdI aggiornato dal pannello (solo emesse)
         if (state && (match.sdi_status !== String(item.Stato) || match.sdi_status_label !== state)) {
           const { error } = await client
