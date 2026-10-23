@@ -30,25 +30,47 @@ interface SyncRequest {
   finished_at: string | null
 }
 
-/** Un solo servizio per PC: il file di blocco tiene il pid di quello acceso. */
+const LOCK_FILE = path.join(dataDir, 'servizio.pid')
+/** Un blocco non rinnovato da 90 secondi è di un servizio spento (anche se il pid è stato riusato). */
+const LOCK_STALE_MS = 90_000
+
+interface LockInfo {
+  pid: number
+  at: number
+}
+
+function readLock(): LockInfo | null {
+  try {
+    const raw = JSON.parse(fs.readFileSync(LOCK_FILE, 'utf8')) as Partial<LockInfo>
+    return raw.pid ? { pid: Number(raw.pid), at: Number(raw.at) || 0 } : null
+  } catch {
+    return null
+  }
+}
+
+function writeLock() {
+  fs.writeFileSync(LOCK_FILE, JSON.stringify({ pid: process.pid, at: Date.now() }))
+}
+
+/**
+ * Un solo servizio per PC. Il file di blocco tiene pid e ora dell'ultimo rinnovo: il servizio
+ * acceso lo rinnova ogni 30 secondi, quindi dopo un riavvio di Windows il vecchio blocco è scaduto.
+ */
 function acquireLock(): boolean {
   fs.mkdirSync(dataDir, { recursive: true })
-  const lock = path.join(dataDir, 'servizio.pid')
-  if (fs.existsSync(lock)) {
-    const pid = Number(fs.readFileSync(lock, 'utf8'))
+  const current = readLock()
+  if (current && current.pid !== process.pid && Date.now() - current.at < LOCK_STALE_MS) {
     try {
-      if (pid && pid !== process.pid) {
-        process.kill(pid, 0)
-        return false
-      }
+      process.kill(current.pid, 0)
+      return false
     } catch {
       // processo non più vivo: il blocco è vecchio
     }
   }
-  fs.writeFileSync(lock, String(process.pid))
+  writeLock()
   const release = () => {
     try {
-      if (Number(fs.readFileSync(lock, 'utf8')) === process.pid) fs.unlinkSync(lock)
+      if (readLock()?.pid === process.pid) fs.unlinkSync(LOCK_FILE)
     } catch {
       // ignorato
     }
@@ -155,7 +177,10 @@ export async function runService(opts: { everyHours: number }): Promise<void> {
     .eq('status', 'running')
 
   await beat()
-  setInterval(() => void beat(), HEARTBEAT_MS)
+  setInterval(() => {
+    writeLock()
+    void beat()
+  }, HEARTBEAT_MS)
   console.log(
     `[${stamp()}] Servizio Aruba acceso su ${agentId}. Aspetto le richieste dal gestionale` +
       (opts.everyHours > 0 ? ` e sincronizzo da solo ogni ${opts.everyHours} ore.` : '.'),
@@ -213,11 +238,10 @@ export function installService(everyHours: number): void {
 export function uninstallService(): void {
   if (process.platform !== 'win32') throw new Error('Solo su Windows')
   execFileSync('schtasks', ['/Delete', '/F', '/TN', TASK_NAME], { stdio: 'inherit' })
-  const lock = path.join(dataDir, 'servizio.pid')
-  if (fs.existsSync(lock)) {
-    const pid = Number(fs.readFileSync(lock, 'utf8'))
+  const lock = readLock()
+  if (lock && Date.now() - lock.at < LOCK_STALE_MS) {
     try {
-      if (pid) process.kill(pid)
+      process.kill(lock.pid)
     } catch {
       // già spento
     }

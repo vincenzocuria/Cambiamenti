@@ -53,14 +53,16 @@ export function ArubaSyncPanel({ years, onSynced }: { years: number[]; onSynced:
   const last = requests.find((r) => r.status === 'done' || r.status === 'error')
   const online = agentOnline(agent)
 
+  const isActive = !!active
   useEffect(() => {
     void refresh()
+    // Ogni 4 secondi mentre il PC lavora, altrimenti ogni 30 (dipende solo da «in corso sì/no»)
     const id = window.setInterval(() => {
       void refresh()
       tick((n) => n + 1)
-    }, active ? 4000 : 30000)
+    }, isActive ? 4000 : 30000)
     return () => window.clearInterval(id)
-  }, [refresh, active])
+  }, [refresh, isActive])
 
   async function handleSync() {
     setError('')
