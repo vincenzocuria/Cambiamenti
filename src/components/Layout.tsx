@@ -46,6 +46,16 @@ function Brand() {
   )
 }
 
+const SIDEBAR_KEY = 'cm.sidebarCollapsed'
+
+function readCollapsed(): boolean {
+  try {
+    return localStorage.getItem(SIDEBAR_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
 function initials(email: string | null | undefined): string {
   const name = (email ?? '').split('@')[0].replace(/[^a-zA-Z]/g, '')
   return (name.slice(0, 2) || '?').toUpperCase()
@@ -56,6 +66,8 @@ export function Layout({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
+  // Su desktop la barra laterale si può chiudere per dare tutta la larghezza al contenuto; la scelta resta salvata.
+  const [collapsed, setCollapsed] = useState(readCollapsed)
   const admin = isAdmin(profile?.role)
 
   // Chiude il menu mobile quando si cambia pagina o si preme Esc.
@@ -76,6 +88,21 @@ export function Layout({ children }: { children: ReactNode }) {
       document.body.style.overflow = ''
     }
   }, [menuOpen])
+
+  function toggleSidebar(next: boolean) {
+    setCollapsed(next)
+    try {
+      localStorage.setItem(SIDEBAR_KEY, next ? '1' : '0')
+    } catch {
+      // archivio non disponibile: la scelta vale solo per questa visita
+    }
+  }
+
+  // Il pulsante menu della barra superiore riapre la barra laterale su desktop e apre il menu a scomparsa altrove.
+  function openMenu() {
+    if (window.matchMedia('(min-width: 64rem)').matches) toggleSidebar(false)
+    else setMenuOpen(true)
+  }
 
   async function handleLogout() {
     await signOut()
@@ -157,22 +184,44 @@ export function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Barra laterale fissa su schermi larghi */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-slate-200 bg-white lg:flex">
-        <div className="flex h-16 items-center justify-between gap-2 border-b border-slate-200 px-4">
+      <aside
+        className={
+          'fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-slate-200 bg-white ' +
+          (collapsed ? '' : 'lg:flex')
+        }
+      >
+        <div className="flex h-16 items-center justify-between gap-1 border-b border-slate-200 pl-4 pr-2">
           <Brand />
-          <NotificationBell align="left" />
+          <div className="flex shrink-0 items-center">
+            <NotificationBell align="left" />
+            <button
+              type="button"
+              onClick={() => toggleSidebar(true)}
+              className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+              title="Chiudi barra laterale"
+              aria-label="Chiudi barra laterale"
+            >
+              <NavIcon name="sidebar" className="h-5 w-5" />
+            </button>
+          </div>
         </div>
         {nav}
         {userBox}
       </aside>
 
-      {/* Barra superiore e menu a scomparsa su tablet e telefono */}
-      <header className="flex h-14 items-center justify-between border-b border-slate-200 bg-white px-3 lg:hidden">
+      {/* Barra superiore e menu a scomparsa su tablet e telefono (e su desktop con la barra laterale chiusa) */}
+      <header
+        className={
+          'flex h-14 items-center justify-between border-b border-slate-200 bg-white px-3 ' +
+          (collapsed ? '' : 'lg:hidden')
+        }
+      >
         <button
           type="button"
-          onClick={() => setMenuOpen(true)}
+          onClick={openMenu}
           className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"
           aria-label="Apri menu"
+          title="Apri menu"
           aria-expanded={menuOpen}
         >
           <NavIcon name="menu" className="h-6 w-6" />
@@ -202,8 +251,8 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
       )}
 
-      <div className="lg:pl-64">
-        <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+      <div className={collapsed ? '' : 'lg:pl-64'}>
+        <main className={'mx-auto px-4 py-6 ' + (collapsed ? 'max-w-none lg:px-6' : 'max-w-6xl')}>{children}</main>
       </div>
     </div>
   )
