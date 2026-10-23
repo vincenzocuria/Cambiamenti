@@ -188,6 +188,24 @@ export interface CourseReportLine {
   created_at: string
 }
 
+export type CoursePaymentDirection = 'in' | 'out'
+export type CoursePaymentKind = 'anticipo' | 'saldo' | 'compenso' | 'altro'
+
+/** Incasso dalla Regione (in) o compenso erogato al personale (out) su un corso. */
+export interface CoursePayment {
+  id: string
+  course_id: string
+  direction: CoursePaymentDirection
+  kind: CoursePaymentKind
+  person_id: string | null
+  role: CourseStaffRole | null
+  amount: number
+  paid_on: string
+  reference: string
+  notes: string
+  created_at: string
+}
+
 /** Corsista EIPASS privato: acquisto diretto della certificazione, fuori dai corsi. */
 export interface EipassCandidate {
   id: string
