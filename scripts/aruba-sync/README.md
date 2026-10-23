@@ -9,7 +9,7 @@ centrale `Global Res\.env` e chiama le stesse funzioni interne che usa la pagina
 | --- | --- |
 | `npm run aruba -- accedi` | Login (l'OTP lo inserisci tu); la sessione resta salvata |
 | `npm run aruba -- sincronizza [anni...]` (es. `2025 2026`) | Scarica emesse e ricevute che mancano in Cambiamenti, le importa e aggiorna stato SdI e data d'incasso delle emesse |
-| `npm run aruba -- sincronizza --nascosto` | Come sopra, senza finestra (per l'Utilità di pianificazione) |
+| `npm run aruba -- sincronizza --nascosto` | Come sopra, senza finestra (Edge resta aperto fuori dallo schermo) |
 | `npm run aruba -- anagrafiche` | Crea clienti/fornitori e corsisti EIPASS dalle fatture già importate e ricollega le note di debito ai corsi |
 | `npm run aruba -- servizio [--ogni 6]` | Resta acceso: esegue il tasto «Sincronizza con Aruba» del gestionale e sincronizza da solo ogni 6 ore |
 | `npm run aruba -- installa-servizio` | Fa partire il servizio da solo all'accesso a Windows, senza finestra (`disinstalla-servizio` per toglierlo) |
