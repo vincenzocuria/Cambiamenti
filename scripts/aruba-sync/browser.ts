@@ -15,11 +15,21 @@ export async function openBrowser(opts: { hidden?: boolean } = {}): Promise<Brow
   try {
     return await chromium.launchPersistentContext(profileDir, {
       channel,
-      headless: !!opts.hidden,
+      // In headless il pannello Aruba non parte: «nascosto» = finestra vera ma fuori dallo schermo
+      headless: false,
       acceptDownloads: true,
       viewport: null,
       locale: 'it-IT',
-      args: ['--start-maximized'],
+      args: opts.hidden
+        ? [
+            '--window-position=-32000,-32000',
+            '--window-size=1366,900',
+            // una finestra non visibile altrimenti viene rallentata e il pannello non finisce di caricare
+            '--disable-backgrounding-occluded-windows',
+            '--disable-renderer-backgrounding',
+            '--disable-background-timer-throttling',
+          ]
+        : ['--start-maximized'],
     })
   } catch (err) {
     // Edge rifiuta un secondo avvio sullo stesso profilo

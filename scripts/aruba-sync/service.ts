@@ -213,31 +213,49 @@ export async function runService(opts: { everyHours: number }): Promise<void> {
   }
 }
 
-/** Avvio automatico all'accesso a Windows, senza finestra (Utilità di pianificazione). */
+/** File nella cartella Esecuzione automatica dell'utente (non servono diritti di amministratore). */
+function startupFile(): string {
+  const appData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming')
+  return path.join(appData, 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup', `${TASK_NAME}.vbs`)
+}
+
+/** Vecchia installazione con l'Utilità di pianificazione: la toglie se c'è. */
+function removeScheduledTask() {
+  try {
+    execFileSync('schtasks', ['/Delete', '/F', '/TN', TASK_NAME], { stdio: 'ignore' })
+  } catch {
+    // non c'era
+  }
+}
+
+/** Avvio automatico all'accesso a Windows, senza finestra (cartella Esecuzione automatica). */
 export function installService(everyHours: number): void {
   if (process.platform !== 'win32') throw new Error('L’avvio automatico si installa solo su Windows')
   fs.mkdirSync(dataDir, { recursive: true })
   const cmd = path.join(dataDir, 'servizio.cmd')
-  const vbs = path.join(dataDir, 'servizio.vbs')
   const log = path.join(dataDir, 'servizio.log')
   fs.writeFileSync(
     cmd,
     `@echo off\r\ncd /d "${repoRoot}"\r\ncall npm run aruba -- servizio --ogni ${everyHours} >> "${log}" 2>&1\r\n`,
   )
   // wscript avvia il .cmd nascosto (0 = nessuna finestra)
+  const vbs = startupFile()
+  fs.mkdirSync(path.dirname(vbs), { recursive: true })
   fs.writeFileSync(vbs, `CreateObject("WScript.Shell").Run """${cmd}""", 0, False\r\n`)
-  execFileSync('schtasks', ['/Create', '/F', '/TN', TASK_NAME, '/SC', 'ONLOGON', '/RL', 'LIMITED', '/TR', `wscript.exe "${vbs}"`], {
-    stdio: 'inherit',
-  })
-  execFileSync('schtasks', ['/Run', '/TN', TASK_NAME], { stdio: 'inherit' })
-  console.log(
-    `Servizio installato: parte da solo quando accedi a Windows ed è già acceso ora.\nRegistro: ${log}`,
-  )
+  removeScheduledTask()
+  // Lo accende subito (se è già acceso, il nuovo si ferma da solo)
+  execFileSync('wscript.exe', [vbs], { stdio: 'inherit' })
+  console.log(`Servizio installato: parte da solo quando accedi a Windows ed è già acceso ora.\nRegistro: ${log}`)
 }
 
 export function uninstallService(): void {
   if (process.platform !== 'win32') throw new Error('Solo su Windows')
-  execFileSync('schtasks', ['/Delete', '/F', '/TN', TASK_NAME], { stdio: 'inherit' })
+  try {
+    fs.unlinkSync(startupFile())
+  } catch {
+    // non c'era
+  }
+  removeScheduledTask()
   const lock = readLock()
   if (lock && Date.now() - lock.at < LOCK_STALE_MS) {
     try {
