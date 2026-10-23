@@ -12,6 +12,7 @@ import { PersonDetailPage } from '../pages/PersonDetailPage'
 import { UsersPage } from '../pages/UsersPage'
 import { TemplatesPage } from '../pages/TemplatesPage'
 import { TemplateEditPage } from '../pages/TemplateEditPage'
+import { PrivacyPage } from '../pages/PrivacyPage'
 import { RedirectToPersonale } from './RedirectToPersonale'
 import { JformaImportPage } from '../pages/JformaImportPage'
 import { EipassListPage } from '../pages/EipassListPage'
@@ -32,6 +33,7 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/reimposta-password" element={<ResetPasswordPage />} />
       <Route path="/in-attesa" element={<PendingPage />} />
       <Route path="/" element={page(<DashboardPage />)} />

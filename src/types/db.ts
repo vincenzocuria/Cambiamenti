@@ -20,6 +20,12 @@ export interface Profile {
   full_name: string
   role: Role
   created_at: string
+  birth_date: string | null
+  is_under_14: boolean
+  parental_consent_given: boolean | null
+  parental_guardian_name: string | null
+  parental_guardian_contact: string | null
+  parental_consent_timestamp: string | null
 }
 
 export interface Course {

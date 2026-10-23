@@ -2,7 +2,14 @@ import { createClient } from '@supabase/supabase-js'
 
 const url = process.env.VITE_SUPABASE_URL
 const key = process.env.VITE_SUPABASE_PUBLISHABLE_KEY
-const email = process.env.SUPERADMIN_EMAIL || 'curiavincenzo86@gmail.com'
+import { getSuperAdminEmails } from '../lib/securityConfig.js'
+
+const email = getSuperAdminEmails()[0] || ''
+
+if (!email) {
+  console.error('ERRORE: VITE_SUPERADMIN_EMAILS non configurato')
+  process.exit(1)
+}
 const password = process.env.SUPERADMIN_PASSWORD
 const fullName = process.env.SUPERADMIN_NAME || 'Vincenzo Curia'
 
