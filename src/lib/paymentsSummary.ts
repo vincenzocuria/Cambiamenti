@@ -57,6 +57,8 @@ export interface CoursePaymentSummary {
   received: number
   /** Parte di received che viene dalle note di debito incassate (Aruba). */
   receivedFromInvoices: number
+  /** Saldo del verbale non ancora incassato (senza indennità). */
+  balanceToReceive: number
   /** Indennità di frequenza fatturate e non ancora incassate. */
   allowanceToReceive: number
   /** Saldo non ancora incassato più indennità fatturate da incassare. */
@@ -150,7 +152,8 @@ export function summarizeCoursePayments(
       incoming.filter((p) => p.kind !== 'anticipo').reduce((acc, p) => acc + num(p.amount), 0) +
       invoicePaidOnBalance
     const allowanceToReceive = cents(Math.max(0, allowanceUnpaid))
-    const toReceive = cents(Math.max(0, balance - receivedOnBalance) + allowanceToReceive)
+    const balanceToReceive = cents(Math.max(0, balance - receivedOnBalance))
+    const toReceive = cents(balanceToReceive + allowanceToReceive)
 
     const outgoing = coursePayments.filter((p) => p.direction === 'out')
     const staff: StaffPaymentLine[] = (staffByCourse.get(course.id) ?? []).map((s) => {
@@ -184,6 +187,7 @@ export function summarizeCoursePayments(
       balance,
       received,
       receivedFromInvoices: cents(invoicePaid),
+      balanceToReceive,
       allowanceToReceive,
       toReceive,
       staff,

@@ -85,6 +85,7 @@ describe('summarizeCoursePayments', () => {
     expect(row.receivedFromInvoices).toBe(20300)
     expect(row.allowanceToReceive).toBe(7017.5)
     // 26051,40 − 1000 − 20000 = 5051,40 di saldo + 7017,50 di indennità
+    expect(row.balanceToReceive).toBe(5051.4)
     expect(row.toReceive).toBe(12068.9)
   })
 
