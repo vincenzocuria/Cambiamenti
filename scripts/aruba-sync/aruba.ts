@@ -7,6 +7,11 @@
  *   npm run aruba -- invia              carica nelle bozze di Aruba le fatture preparate in Cambiamenti
  *                                       (chiede conferma per ognuna; l'invio allo SdI lo fai dal pannello)
  *   npm run aruba -- anagrafiche        crea clienti/fornitori e corsisti EIPASS dalle fatture già importate
+ *   npm run aruba -- servizio [--ogni 6] resta acceso: esegue il tasto «Sincronizza con Aruba» del
+ *                                       gestionale e sincronizza da solo ogni 6 ore (0 = mai)
+ *   npm run aruba -- installa-servizio [--ogni 6]
+ *                                       fa partire il servizio da solo all'accesso a Windows
+ *   npm run aruba -- disinstalla-servizio
  *   npm run aruba -- accedi              apre il pannello e salva la sessione (OTP compreso)
  *   npm run aruba -- esplora             registra com'è fatto il pannello (per completare lo script)
  *   npm run aruba -- codice              scarica il codice pubblico del pannello (per lo sviluppo)
@@ -20,6 +25,7 @@ import { ensureLoggedIn, explainBrowserError, openBrowser } from './browser'
 import { explore } from './explore'
 import { downloadBundle } from './bundle'
 import { syncFromAruba, uploadDrafts } from './sync'
+import { installService, runService, uninstallService } from './service'
 
 function listFiles(target: string): string[] {
   const stat = fs.statSync(target)
@@ -59,12 +65,21 @@ async function login(): Promise<void> {
 async function main() {
   const [command, ...rest] = process.argv.slice(2)
   const hidden = rest.includes('--nascosto')
-  const args = rest.filter((a) => !a.startsWith('--'))
+  const everyAt = rest.indexOf('--ogni')
+  const everyHours = everyAt >= 0 ? Number(rest[everyAt + 1]) : 6
+  if (!Number.isFinite(everyHours) || everyHours < 0) throw new Error('--ogni vuole un numero di ore (0 = mai)')
+  const args = rest.filter((a, i) => !a.startsWith('--') && !(everyAt >= 0 && i === everyAt + 1))
   switch (command) {
     case 'sincronizza': {
       const years = args.map(Number).filter((y) => y > 2000)
       return syncFromAruba({ years: years.length ? years : [new Date().getFullYear()], hidden })
     }
+    case 'servizio':
+      return runService({ everyHours })
+    case 'installa-servizio':
+      return installService(everyHours)
+    case 'disinstalla-servizio':
+      return uninstallService()
     case 'invia':
       return uploadDrafts({ hidden })
     case 'accedi':
