@@ -683,12 +683,18 @@ export function CourseDetailPage() {
               open={isOpen(role.id)}
               onToggle={() => toggle(role.id)}
               dimmed={searching && !sectionHasMatch[role.id]}
+              actions={
+                isStudent && list.length ? (
+                  <SecondaryButton size="sm" onClick={() => goTo('fad')}>
+                    Invia credenziali FAD
+                  </SecondaryButton>
+                ) : undefined
+              }
             >
               {isStudent ? (
                 <CoursePeople
                   courseId={id}
                   type="student"
-                  fadShareChannels={false}
                   showTitle={false}
                   externalSearch={peopleSearch}
                   onChanged={() => void reloadStaff()}
@@ -699,7 +705,6 @@ export function CourseDetailPage() {
                   type={role.type}
                   takenPersonIds={staffTakenIds}
                   showStaffPoolHint={false}
-                  fadShareChannels={false}
                   showTitle={false}
                   wide
                   externalSearch={peopleSearch}
