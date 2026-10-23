@@ -222,9 +222,17 @@ function startupFile(): string {
 /** Vecchia installazione con l'Utilità di pianificazione: la toglie se c'è. */
 function removeScheduledTask() {
   try {
+    execFileSync('schtasks', ['/Query', '/TN', TASK_NAME], { stdio: 'ignore' })
+  } catch {
+    return // non c'è
+  }
+  try {
     execFileSync('schtasks', ['/Delete', '/F', '/TN', TASK_NAME], { stdio: 'ignore' })
   } catch {
-    // non c'era
+    console.warn(
+      `Attenzione: l'attività pianificata «${TASK_NAME}» c'è ancora e non sono riuscito a toglierla ` +
+        `(serve l'amministratore). Toglila da Utilità di pianificazione, altrimenti all'accesso parte un secondo avvio.`,
+    )
   }
 }
 
