@@ -70,6 +70,24 @@ describe('summarizeCoursePayments', () => {
     expect(t.toReceive).toBe(16051.4)
   })
 
+  it('conta le note di debito incassate su Aruba e le indennità da incassare', () => {
+    const inv = (kind: string, amount: number, paid_at: string | null, doc_type = 'TD05', status = 'imported') => ({
+      course_id: 'c1', kind, amount, doc_type, status, paid_at,
+    })
+    const [row] = summarizeCoursePayments([course], [line({})], [], [pay({ amount: 1000 })], [
+      inv('balance', 20000, '2026-10-20'),
+      inv('balance', 51.4, null),
+      inv('allowance', 7017.5, null),
+      inv('allowance', 999, null, 'TD05', 'draft'),
+      inv('advance', 300, '2026-03-01'),
+    ])
+    expect(row.received).toBe(21300)
+    expect(row.receivedFromInvoices).toBe(20300)
+    expect(row.allowanceToReceive).toBe(7017.5)
+    // 26051,40 − 1000 − 20000 = 5051,40 di saldo + 7017,50 di indennità
+    expect(row.toReceive).toBe(12068.9)
+  })
+
   it('corso senza verbale non ha nulla da ricevere', () => {
     const [row] = summarizeCoursePayments([course], [], [], [])
     expect(row.report).toBeNull()

@@ -161,12 +161,20 @@ export function PaymentsPage() {
                   <Amount label="Anticipo (verbale)" value={row.advance} />
                   <Amount label="Saldo da liquidare" value={row.balance} />
                   <Amount label="Incassato" value={row.received} />
+                  {row.allowanceToReceive > 0 && (
+                    <Amount label="Indennità fatturate da incassare" value={row.allowanceToReceive} />
+                  )}
                   <Amount label="Da ricevere" value={row.toReceive} strong warn={row.toReceive > 0} />
                 </dl>
               ) : (
                 <p className="text-sm text-slate-500">
                   Nessun verbale caricato.
                   {row.received > 0 ? ` Incassato ${money(row.received)}.` : ''}
+                </p>
+              )}
+              {row.receivedFromInvoices !== 0 && (
+                <p className="mt-2 text-xs text-slate-500">
+                  Di cui {money(row.receivedFromInvoices)} da note di debito incassate (Aruba).
                 </p>
               )}
               {row.report && (
