@@ -21,6 +21,18 @@ export interface PaymentsStaffRow {
   last_name: string
 }
 
+/** Riga di una nota di debito/fattura emessa collegata a un corso (tabella invoice_courses). */
+export interface PaymentsInvoiceLine {
+  course_id: string
+  /** balance = saldo, advance = anticipo, allowance = indennità di frequenza, other */
+  kind: string
+  amount: number | null
+  doc_type: string
+  status: string
+  /** Data d'incasso letta da Aruba. */
+  paid_at: string | null
+}
+
 export interface StaffPaymentLine {
   personId: string
   name: string
@@ -41,9 +53,15 @@ export interface CoursePaymentSummary {
   advance: number
   /** Saldo da liquidare indicato dal verbale. */
   balance: number
-  /** Incassi dalla Regione registrati (anticipi + saldi + altro). */
+  /** Incassi dalla Regione: registrati a mano più note di debito incassate su Aruba. */
   received: number
-  /** Saldo non ancora incassato. */
+  /** Parte di received che viene dalle note di debito incassate (Aruba). */
+  receivedFromInvoices: number
+  /** Saldo del verbale non ancora incassato (senza indennità). */
+  balanceToReceive: number
+  /** Indennità di frequenza fatturate e non ancora incassate. */
+  allowanceToReceive: number
+  /** Saldo non ancora incassato più indennità fatturate da incassare. */
   toReceive: number
   staff: StaffPaymentLine[]
   staffPlanned: number
@@ -58,6 +76,7 @@ export interface PaymentsTotals {
   recognized: number
   balance: number
   received: number
+  allowanceToReceive: number
   toReceive: number
   staffPlanned: number
   staffPaid: number
@@ -90,7 +109,12 @@ export function summarizeCoursePayments(
   reportLines: CourseReportLine[],
   staffRows: PaymentsStaffRow[],
   payments: CoursePayment[],
+  invoiceLines: PaymentsInvoiceLine[] = [],
 ): CoursePaymentSummary[] {
+  const invoicesByCourse = groupBy(
+    invoiceLines.filter((l) => l.status !== 'draft'),
+    (l) => l.course_id,
+  )
   const linesByCourse = groupBy(reportLines, (l) => l.course_id)
   const staffByCourse = groupBy(staffRows, (s) => s.course_id)
   const paymentsByCourse = groupBy(payments, (p) => p.course_id)
@@ -108,12 +132,28 @@ export function summarizeCoursePayments(
       : 0
 
     const incoming = coursePayments.filter((p) => p.direction === 'in')
-    const received = cents(incoming.reduce((acc, p) => acc + num(p.amount), 0))
+    // Note di debito: una nota di credito (TD04) storna l'importo
+    let invoicePaid = 0
+    let invoicePaidOnBalance = 0
+    let allowanceUnpaid = 0
+    for (const l of invoicesByCourse.get(course.id) ?? []) {
+      const amount = num(l.amount) * (l.doc_type === 'TD04' ? -1 : 1)
+      if (l.paid_at) {
+        invoicePaid += amount
+        if (l.kind === 'balance' || l.kind === 'other') invoicePaidOnBalance += amount
+      } else if (l.kind === 'allowance') {
+        allowanceUnpaid += amount
+      }
+    }
+    const manualReceived = incoming.reduce((acc, p) => acc + num(p.amount), 0)
+    const received = cents(manualReceived + invoicePaid)
     // L'anticipo è già fuori dal saldo del verbale: conta solo ciò che è incassato come saldo o altro
-    const receivedOnBalance = incoming
-      .filter((p) => p.kind !== 'anticipo')
-      .reduce((acc, p) => acc + num(p.amount), 0)
-    const toReceive = cents(Math.max(0, balance - receivedOnBalance))
+    const receivedOnBalance =
+      incoming.filter((p) => p.kind !== 'anticipo').reduce((acc, p) => acc + num(p.amount), 0) +
+      invoicePaidOnBalance
+    const allowanceToReceive = cents(Math.max(0, allowanceUnpaid))
+    const balanceToReceive = cents(Math.max(0, balance - receivedOnBalance))
+    const toReceive = cents(balanceToReceive + allowanceToReceive)
 
     const outgoing = coursePayments.filter((p) => p.direction === 'out')
     const staff: StaffPaymentLine[] = (staffByCourse.get(course.id) ?? []).map((s) => {
@@ -146,6 +186,9 @@ export function summarizeCoursePayments(
       advance,
       balance,
       received,
+      receivedFromInvoices: cents(invoicePaid),
+      balanceToReceive,
+      allowanceToReceive,
       toReceive,
       staff,
       staffPlanned: cents(staff.reduce((acc, s) => acc + (s.planned ?? 0), 0)),
@@ -164,6 +207,7 @@ export function paymentsTotals(rows: CoursePaymentSummary[]): PaymentsTotals {
     recognized: sum((r) => r.recognized),
     balance: sum((r) => r.balance),
     received: sum((r) => r.received),
+    allowanceToReceive: sum((r) => r.allowanceToReceive),
     toReceive: sum((r) => r.toReceive),
     staffPlanned: sum((r) => r.staffPlanned),
     staffPaid: sum((r) => r.staffPaid),

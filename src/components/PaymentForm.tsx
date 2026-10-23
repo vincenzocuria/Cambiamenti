@@ -123,6 +123,12 @@ export function PaymentForm({
           />
         </div>
         <TextField label="Note" value={notes} onChange={(e) => setNotes(e.target.value)} />
+        {incoming && (
+          <p className="text-xs text-slate-500">
+            Le note di debito segnate come incassate su Aruba sono già contate: registra qui solo
+            gli incassi che non passano da una nota.
+          </p>
+        )}
         {incoming && kind === 'anticipo' && (
           <p className="text-xs text-slate-500">
             L’anticipo non riduce il saldo da ricevere del verbale, che lo ha già detratto.

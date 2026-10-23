@@ -21,7 +21,7 @@ export function DashboardPayments({ data }: { data: PaymentsData | null }) {
         <div>
           <h2 className="text-lg font-semibold text-slate-800">Pagamenti</h2>
           <p className="text-xs text-slate-500">
-            Saldi dai verbali della Regione e compensi del personale (ore × tariffa).
+            Saldi dai verbali della Regione, note di debito incassate su Aruba e compensi del personale (ore × tariffa).
           </p>
         </div>
         <Link to="/pagamenti" className="text-sm font-medium text-indigo-600 hover:underline">
@@ -46,9 +46,10 @@ export function DashboardPayments({ data }: { data: PaymentsData | null }) {
             label: 'Da ricevere',
             value: v(t.toReceive),
             hint:
-              t.coursesToReceive > 0
+              (t.coursesToReceive > 0
                 ? `${t.coursesToReceive} corsi in attesa · incassati ${euro(t.received)}`
-                : `Incassati ${euro(t.received)}`,
+                : `Incassati ${euro(t.received)}`) +
+              (t.allowanceToReceive > 0 ? ` · di cui indennità ${euro(t.allowanceToReceive)}` : ''),
             to: '/pagamenti',
             tone: t.toReceive > 0 ? 'warn' : 'ok',
           },

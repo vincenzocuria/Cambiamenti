@@ -24,7 +24,13 @@ function courseLabel(row: CoursePaymentSummary): string {
 }
 
 function hasMoney(row: CoursePaymentSummary): boolean {
-  return row.report != null || row.staffPlanned > 0 || row.payments.length > 0
+  return (
+    row.report != null ||
+    row.staffPlanned > 0 ||
+    row.payments.length > 0 ||
+    row.received !== 0 ||
+    row.allowanceToReceive > 0
+  )
 }
 
 /** Saldi della Regione da ricevere e compensi del personale da erogare, corso per corso. */
@@ -147,7 +153,8 @@ export function PaymentsPage() {
                         courseId: row.course.id,
                         courseLabel: courseLabel(row),
                         direction: 'in',
-                        suggested: row.toReceive,
+                        // Solo il saldo: le indennità passano dalle note di debito
+                        suggested: row.balanceToReceive,
                       })
                     }
                   >
@@ -161,12 +168,23 @@ export function PaymentsPage() {
                   <Amount label="Anticipo (verbale)" value={row.advance} />
                   <Amount label="Saldo da liquidare" value={row.balance} />
                   <Amount label="Incassato" value={row.received} />
+                  {row.allowanceToReceive > 0 && (
+                    <Amount label="Indennità fatturate da incassare" value={row.allowanceToReceive} />
+                  )}
                   <Amount label="Da ricevere" value={row.toReceive} strong warn={row.toReceive > 0} />
                 </dl>
               ) : (
                 <p className="text-sm text-slate-500">
                   Nessun verbale caricato.
-                  {row.received > 0 ? ` Incassato ${money(row.received)}.` : ''}
+                  {row.received !== 0 ? ` Incassato ${money(row.received)}.` : ''}
+                  {row.allowanceToReceive > 0
+                    ? ` Indennità fatturate da incassare ${money(row.allowanceToReceive)}.`
+                    : ''}
+                </p>
+              )}
+              {row.receivedFromInvoices !== 0 && (
+                <p className="mt-2 text-xs text-slate-500">
+                  Di cui {money(row.receivedFromInvoices)} da note di debito incassate (Aruba).
                 </p>
               )}
               {row.report && (
