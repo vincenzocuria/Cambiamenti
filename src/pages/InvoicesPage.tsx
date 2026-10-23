@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import type { Customer, CustomerInput, Invoice, InvoiceDirection } from '../types/db'
 import {
@@ -20,6 +20,7 @@ import { PrimaryButton, SecondaryButton, DangerButton } from '../components/Butt
 import { Modal } from '../components/Modal'
 import { CustomerForm } from '../components/CustomerForm'
 import { InvoiceStatusPill } from '../components/InvoiceStatusPill'
+import { ArubaSyncPanel } from '../components/ArubaSyncPanel'
 import {
   tableWideClass,
   tableWrapClass,
@@ -81,6 +82,11 @@ export function InvoicesPage() {
       setLoading(false)
     }
   }
+
+  // Ricarica dopo una sincronizzazione finita sul PC (callback stabile per il pannello)
+  const reloadRef = useRef(reload)
+  reloadRef.current = reload
+  const handleSynced = useCallback(() => void reloadRef.current(), [])
 
   useEffect(() => {
     setSearch('')
@@ -301,8 +307,8 @@ export function InvoicesPage() {
       )}
       {!partyTab && (
         <p className="text-xs text-slate-500">
-          Su Aruba seleziona le fatture (emesse o ricevute) e scaricale: qui puoi caricare i file XML, P7M o lo ZIP
-          così com'è. Le fatture già presenti non vengono duplicate.
+          «Sincronizza con Aruba» scarica da solo le fatture nuove, gli stati SdI e gli incassi (lo esegue il PC). In
+          alternativa scarica le fatture da Aruba e caricale con «Importa da Aruba»: le già presenti non si duplicano.
         </p>
       )}
       {importMessage && <p className="text-sm text-slate-600">{importMessage}</p>}
@@ -312,6 +318,10 @@ export function InvoicesPage() {
             <li key={i}>{line}</li>
           ))}
         </ul>
+      )}
+
+      {!partyTab && (
+        <ArubaSyncPanel years={[...new Set([year, currentYear])].sort()} onSynced={handleSynced} />
       )}
 
       {!partyTab && <KpiCards items={kpis} />}
