@@ -86,6 +86,12 @@ const paths = {
       <line x1="4" x2="20" y1="18" y2="18" />
     </>
   ),
+  sidebar: (
+    <>
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="M9 3v18" />
+    </>
+  ),
   close: (
     <>
       <path d="M18 6 6 18" />
