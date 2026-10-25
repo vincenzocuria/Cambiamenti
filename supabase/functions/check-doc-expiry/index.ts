@@ -1,8 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { corsHeaders, jsonResponse } from './cors.ts'
-
-const DAYS_AHEAD = 30
+import { DAYS_AHEAD, shouldRemind } from './reminderDays.ts'
 
 interface ExpiringRow {
   id: string
@@ -31,6 +30,8 @@ Deno.serve(async (req) => {
     const headerSecret = req.headers.get('x-cron-secret')
     let authorized = Boolean(cronSecret && headerSecret === cronSecret)
 
+    // Il cron giornaliero avvisa solo alle soglie (30, 7, 0 giorni); il tasto manuale avvisa sempre.
+    const fromCron = authorized
     if (!authorized) {
       const authHeader = req.headers.get('Authorization')
       if (authHeader) {
@@ -87,6 +88,10 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: true, count: 0 })
     }
 
+    if (fromCron && !shouldRemind(rows.map((r) => r.doc_expiry_date), from)) {
+      return jsonResponse({ ok: true, count: rows.length, notified: false })
+    }
+
     const lines = rows.map((r) => {
       const name = `${r.last_name} ${r.first_name}`.trim()
       const path = r.kind === 'student' ? `/alunni/${r.id}` : `/personale/${r.id}`
@@ -112,7 +117,7 @@ Deno.serve(async (req) => {
       if (insertError) throw insertError
     }
 
-  // Email via send-notification-email logic inline
+    // Email via send-notification-email logic inline
     const resendKey = Deno.env.get('RESEND_API_KEY')
     if (resendKey) {
       const { data: adminEmails } = await admin
