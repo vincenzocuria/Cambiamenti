@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { getSupabaseAccessToken } from './lib/supabaseAccessToken.mjs'
 import { loadEnvFile } from './lib/loadEnvFile.mjs'
 import { emailBrand } from './lib/emailBrand.mjs'
+import { getResendConfig } from './lib/resendConfig.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 import { CAMBIAMENTI_SUPABASE_PROJECT_REF } from './lib/cambiamentiSupabaseProject.mjs'
@@ -11,6 +12,15 @@ const projectRef = CAMBIAMENTI_SUPABASE_PROJECT_REF
 
 loadEnvFile(path.join(root, 'scripts', 'cambiamenti-secrets.env'))
 const localSenderName = process.env.SMTP_SENDER_NAME?.trim()
+// Chiave Resend di Cambia-Menti dal file centrale (prima del fallback Lidia)
+const resendCfg = await getResendConfig(root)
+if (resendCfg) {
+  process.env.SMTP_HOST ||= 'smtp.resend.com'
+  process.env.SMTP_PORT ||= '465'
+  process.env.SMTP_USER ||= 'resend'
+  process.env.SMTP_PASS = resendCfg.apiKey
+  process.env.SMTP_ADMIN_EMAIL = resendCfg.fromEmail
+}
 // Fallback opzionale: stesso Resend già usato su vcuria.app (Lidia)
 if (!process.env.SMTP_PASS) {
   loadEnvFile(path.join(root, '..', 'lidia', 'scripts', 'auth-smtp.env'))

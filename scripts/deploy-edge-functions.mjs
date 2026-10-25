@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { getSupabaseAccessToken } from './lib/supabaseAccessToken.mjs'
 import { CAMBIAMENTI_SUPABASE_PROJECT_REF } from './lib/cambiamentiSupabaseProject.mjs'
 import { loadEnvFile } from './lib/loadEnvFile.mjs'
+import { getResendConfig } from './lib/resendConfig.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 loadEnvFile(path.join(root, 'scripts', 'cambiamenti-secrets.env'))
@@ -59,9 +60,11 @@ loadEnvFile(path.join(root, '..', 'Global Res', '.env'), [
 
 const pairs = {}
 
-// Resend per email notifiche
-const resendKey = process.env.SMTP_PASS?.trim()
-const fromEmail = process.env.SMTP_ADMIN_EMAIL?.trim() || 'no-reply@vcuria.app'
+// Resend per email notifiche: chiave Cambia-Menti dal file centrale, altrimenti SMTP_PASS
+const resendCfg = await getResendConfig(root)
+const resendKey = resendCfg?.apiKey || process.env.SMTP_PASS?.trim()
+const fromEmail =
+  resendCfg?.fromEmail || process.env.SMTP_ADMIN_EMAIL?.trim() || 'no-reply@vcuria.app'
 const senderName = 'Cambia-Menti Formazione'
 if (resendKey && resendKey !== 're_INCOLLA_API_KEY') {
   const adminEmail =
