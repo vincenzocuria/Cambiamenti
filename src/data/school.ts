@@ -25,7 +25,7 @@ export const school = {
     /** RF01 = regime ordinario. */
     taxRegime: 'RF01',
   },
-  logoSrc: '/logo-cambia-menti.png',
+  logoSrc: '/logo-cambia-menti-trasparente.png',
 } as const
 
 export type SchoolInfo = typeof school

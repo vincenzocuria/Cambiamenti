@@ -144,7 +144,7 @@ export function DocumentPreview({ doc, onClose }: Props) {
         <iframe
           title={doc.file_name}
           src={url}
-          className="h-[70vh] w-full rounded-lg border border-slate-200"
+          className="paper h-[70vh] w-full rounded-lg border border-slate-200"
         />
       )}
       {url && shownKind === 'html' && (
@@ -152,7 +152,7 @@ export function DocumentPreview({ doc, onClose }: Props) {
           title={doc.file_name}
           src={url}
           sandbox=""
-          className="h-[70vh] w-full rounded-lg border border-slate-200 bg-white"
+          className="paper h-[70vh] w-full rounded-lg border border-slate-200"
         />
       )}
       {url && shownKind === 'text' && shown?.textInFrame && (
@@ -160,7 +160,7 @@ export function DocumentPreview({ doc, onClose }: Props) {
           title={doc.file_name}
           src={url}
           sandbox=""
-          className="h-[70vh] w-full rounded-lg border border-slate-200 bg-white"
+          className="paper h-[70vh] w-full rounded-lg border border-slate-200"
         />
       )}
       {url && shownKind === 'text' && !shown?.textInFrame && (

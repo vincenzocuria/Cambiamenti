@@ -6,6 +6,17 @@
     <link rel="apple-touch-icon" href="/logo-cambia-menti.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex, nofollow" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      // Applica il tema salvato prima del disegno della pagina, per non vedere un lampo bianco (vedi src/lib/theme.ts).
+      (function () {
+        var c = 'auto'
+        try { c = localStorage.getItem('cm.theme') || 'auto' } catch (e) {}
+        if (c !== 'light' && c !== 'soft' && c !== 'dark')
+          c = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+        document.documentElement.dataset.theme = c
+      })()
+    </script>
     <title>Cambia-Menti Formazione — Gestionale</title>
   </head>
   <body>
