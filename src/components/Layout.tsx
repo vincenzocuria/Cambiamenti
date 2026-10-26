@@ -5,6 +5,7 @@ import { signOut } from '../services/auth'
 import { isAdmin, roleLabels } from '../lib/roles'
 import { BrandLogo } from './BrandLogo'
 import { NotificationBell } from './NotificationBell'
+import { ThemeMenu } from './ThemeMenu'
 import { NavIcon, type NavIconName } from './NavIcon'
 import { school } from '../data/school'
 
@@ -168,6 +169,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </p>
           {profile?.role && <p className="text-xs text-slate-500">{roleLabels[profile.role]}</p>}
         </div>
+        <ThemeMenu up />
         <button
           type="button"
           onClick={() => void handleLogout()}
@@ -227,7 +229,10 @@ export function Layout({ children }: { children: ReactNode }) {
           <NavIcon name="menu" className="h-6 w-6" />
         </button>
         <Brand />
-        <NotificationBell />
+        <div className="flex items-center">
+          <ThemeMenu />
+          <NotificationBell />
+        </div>
       </header>
 
       {menuOpen && (
