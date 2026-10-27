@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Person, PersonType } from '../types/db'
 import { metaFor } from '../data/personTypes'
 import { fullName } from '../lib/format'
@@ -88,6 +88,27 @@ export function FadShareBulk({ peopleByType, courseLabel, externalSearch, showTi
   }, [role, peopleKey, courseLabel])
 
   const selectedRows = rows.filter((row) => selected.has(row.person.id))
+  // «Seleziona tutti» agisce sulle persone visibili (dopo la ricerca) che possono ricevere
+  const selectableIds = rows.filter((row) => canReceive(row.share)).map((row) => row.person.id)
+  const selectedVisible = selectableIds.filter((personId) => selected.has(personId)).length
+  const allSelected = selectableIds.length > 0 && selectedVisible === selectableIds.length
+  const someSelected = selectedVisible > 0 && !allSelected
+  const selectAllRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = someSelected
+  }, [someSelected])
+
+  function toggleAll() {
+    setSelected((current) => {
+      const next = new Set(current)
+      for (const personId of selectableIds) {
+        if (allSelected) next.delete(personId)
+        else next.add(personId)
+      }
+      return next
+    })
+  }
   const emailCount = selectedRows.filter((row) => row.share?.mailto).length
   const whatsappCount = selectedRows.filter((row) => row.share?.whatsapp).length
 
@@ -189,6 +210,19 @@ export function FadShareBulk({ peopleByType, courseLabel, externalSearch, showTi
               sortKeys={peopleSortKeys}
             />
           </div>
+          <label className="mb-2 flex cursor-pointer items-center gap-2.5 px-3 text-sm font-medium text-slate-700">
+            <input
+              ref={selectAllRef}
+              type="checkbox"
+              disabled={selectableIds.length === 0}
+              checked={allSelected}
+              onChange={toggleAll}
+            />
+            Seleziona tutti
+            <span className="text-xs font-normal text-slate-400">
+              {selectedVisible} di {selectableIds.length} selezionati
+            </span>
+          </label>
         <ul className="max-h-80 divide-y divide-slate-100 overflow-auto rounded-lg border border-slate-200">
           {rows.map((row) => {
             const share = row.share
