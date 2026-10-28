@@ -385,7 +385,7 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
             <table className={tableClass}>
               <thead>
                 <tr className={theadRowClass}>
-                  <th className={thCompactClass}>File</th>
+                  <th className={`${thCompactClass} w-full`}>File</th>
                   <th className={thCompactClass}>Categoria</th>
                   {props.mode === 'course' && <th className={thCompactClass}>Persona</th>}
                   {props.mode === 'person' && <th className={thCompactClass}>Corso</th>}
@@ -397,11 +397,11 @@ export function DocumentsPanel(props: DocumentsPanelProps) {
               <tbody>
                 {visibleDocs.map((d) => (
                   <tr key={d.id} className={trClass}>
-                    <td className={tdCompactClass}>
+                    <td className={`${tdCompactClass} min-w-[14rem]`}>
                       <button
                         type="button"
                         onClick={() => handleOpen(d)}
-                        className="max-w-[16rem] truncate text-left font-medium text-indigo-600 hover:underline sm:max-w-xs"
+                        className="text-left font-medium text-indigo-600 [overflow-wrap:anywhere] hover:underline"
                         title={
                           canPreviewDocument(d.file_name, d.mime_type)
                             ? `Apri ${d.file_name}`
