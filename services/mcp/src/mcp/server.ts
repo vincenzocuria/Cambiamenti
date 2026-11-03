@@ -7,10 +7,12 @@ import { registerCourseTools } from './tools/corsi'
 import { registerLookupTools } from './tools/consultazione'
 import { registerDocumentTools } from './tools/documenti'
 import { registerWriteTools } from './tools/modifiche'
+import { registerMailTools } from './tools/posta'
 
 const INSTRUCTIONS = `Gestionale dei corsi di formazione di Cambia-Menti S.r.l. (Regione Calabria, GOL e altri avvisi).
 Ciclo di un corso: bando/avviso e decreto di finanziamento → creazione e attivazione (organico, allievi, calendario) → svolgimento → fine → rendicontazione (verbale della Regione con importi riconosciuti, anticipo e saldo) → incasso del saldo e delle indennità (note di debito su Aruba) → esito chiuso.
 Usa scheda_corso per vedere l'iter completo e il prossimo passo. Per gli aggiornamenti da PEC: cerca il corso (ID corso es. 673.7 + edizione es. "ED2 - 2025", oppure CUP), poi aggiorna i dati, cambia lo stato con il motivo e carica il documento. Il CUP non sempre c'è.
+PEC: il servizio sul PC copia le PEC nel gestionale ogni 2 ore. Elaborale con posta_da_elaborare → leggi_pec → aggiorna corsi/documenti (allega_pec_a_corso) → segna_pec. Ricevute, pubblicità e PEC non sui corsi: ignorata. Se non sei sicuro del corso o del dato: da_verificare, senza modificare. Le PEC inviate (direction out) sono di Cambia-Menti: utili per date di avvio, vidimazioni, calendari.
 Non esistono strumenti di cancellazione. Ogni modifica finisce nel registro (registro_modifiche).`
 
 export function createGestionaleMcp(env: Env, auth: McpAuth): McpServer {
@@ -20,5 +22,6 @@ export function createGestionaleMcp(env: Env, auth: McpAuth): McpServer {
   registerLookupTools(ctx)
   registerDocumentTools(ctx)
   registerWriteTools(ctx)
+  registerMailTools(ctx)
   return server
 }

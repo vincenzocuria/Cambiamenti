@@ -16,10 +16,13 @@ import { explainBrowserError } from './browser'
 import { syncFromAruba } from './sync'
 import { linkAllInvoiceCourses } from '../../src/services/invoiceImportCore'
 import { autoSyncDue, defaultYears } from '../../src/lib/arubaSync'
+import { syncPec } from '../pec-sync/sync'
 
 const TASK_NAME = 'Cambiamenti - sincronizzazione Aruba'
 const POLL_MS = 15_000
 const HEARTBEAT_MS = 30_000
+/** Ogni quanto copiare nel gestionale le PEC nuove. */
+const PEC_EVERY_MS = 2 * 60 * 60 * 1000
 
 interface SyncRequest {
   id: string
@@ -183,10 +186,20 @@ export async function runService(opts: { everyHours: number }): Promise<void> {
   }, HEARTBEAT_MS)
   console.log(
     `[${stamp()}] Servizio Aruba acceso su ${agentId}. Aspetto le richieste dal gestionale` +
-      (opts.everyHours > 0 ? ` e sincronizzo da solo ogni ${opts.everyHours} ore.` : '.'),
+      (opts.everyHours > 0 ? ` e sincronizzo da solo ogni ${opts.everyHours} ore` : '') + '; copio le PEC nuove ogni 2 ore.',
   )
 
+  let lastPec = 0
   for (;;) {
+    if (Date.now() - lastPec > PEC_EVERY_MS) {
+      lastPec = Date.now()
+      try {
+        const added = await syncPec(client, () => undefined)
+        console.log(`[${stamp()}] PEC nuove copiate nel gestionale: ${added}`)
+      } catch (err) {
+        console.error(`[${stamp()}] PEC non lette: ${err instanceof Error ? err.message : err}`)
+      }
+    }
     try {
       let req = await claimPending(client)
       if (!req && autoSyncDue(await lastFinished(client), opts.everyHours)) {

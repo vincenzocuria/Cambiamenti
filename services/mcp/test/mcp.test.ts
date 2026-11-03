@@ -43,6 +43,11 @@ describe('server MCP', () => {
     expect(names).toEqual(
       [
         'aggiorna_corso',
+        'allega_pec_a_corso',
+        'leggi_allegato_pec',
+        'leggi_pec',
+        'posta_da_elaborare',
+        'segna_pec',
         'aggiungi_lezione',
         'aggiungi_nota_corso',
         'cambia_stato_corso',
