@@ -26,6 +26,25 @@ export async function fetchProposals(status: ProposalStatus | 'tutte'): Promise<
   return ((data ?? []) as Joined[]).map(({ courses, pec_messages, ...p }) => ({ ...p, course: one(courses), pec: one(pec_messages) }))
 }
 
+/** Proposte collegate a queste PEC, raggruppate per PEC. */
+export async function fetchProposalsForPec(pecIds: string[]): Promise<Map<string, ProposalWithRefs[]>> {
+  const out = new Map<string, ProposalWithRefs[]>()
+  if (!pecIds.length) return out
+  const { data, error } = await supabase
+    .from('proposals')
+    .select('*, courses(id, name, edition), pec_messages(id, subject, sent_at, from_address)')
+    .in('pec_message_id', pecIds)
+    .order('created_at')
+  if (error) throw error
+  for (const { courses, pec_messages, ...p } of (data ?? []) as Joined[]) {
+    const row = { ...p, course: one(courses), pec: one(pec_messages) }
+    const list = out.get(String(p.pec_message_id)) ?? []
+    list.push(row)
+    out.set(String(p.pec_message_id), list)
+  }
+  return out
+}
+
 export async function countPendingProposals(): Promise<number> {
   const { count, error } = await supabase.from('proposals').select('id', { count: 'exact', head: true }).eq('status', 'proposta')
   if (error) return 0

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { appendDatedNote, proposalDiff } from '../lib/proposals'
+import { appendDatedNote, proposalAction, proposalDiff } from '../lib/proposals'
 
 describe('proposte', () => {
   it('aggiorna_corso mostra valore attuale e proposto', () => {
@@ -27,5 +27,12 @@ describe('proposte', () => {
 
   it('appendDatedNote', () => {
     expect(appendDatedNote('a', 'b', '2026-11-03')).toBe('a\n[2026-11-03] b')
+  })
+})
+
+describe('proposalAction', () => {
+  it('dice cosa succede accettando', () => {
+    expect(proposalAction({ kind: 'aggiorna_corso', payload: { changes: { cup: 'J1' } } }, 'Eipass')).toBe('Se accetti, aggiorno CUP del corso «Eipass».')
+    expect(proposalAction({ kind: 'allega_documento', payload: { file_name: 'a.pdf' } })).toBe('Se accetti, copio il file «a.pdf» nei documenti.')
   })
 })
