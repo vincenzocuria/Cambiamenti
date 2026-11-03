@@ -27,6 +27,7 @@ const groups: NavGroup[] = [
   {
     title: 'Amministrazione',
     items: [
+      { to: '/posta', label: 'Posta da verificare', icon: 'mail' },
       { to: '/pagamenti', label: 'Pagamenti', icon: 'payments' },
       { to: '/fatturazione', label: 'Fatturazione', icon: 'invoices' },
       { to: '/template', label: 'Template', icon: 'templates' },

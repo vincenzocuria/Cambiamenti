@@ -19,6 +19,7 @@ import { EipassDetailPage } from '../pages/EipassDetailPage'
 import { InvoicesPage } from '../pages/InvoicesPage'
 import { InvoiceDetailPage } from '../pages/InvoiceDetailPage'
 import { PaymentsPage } from '../pages/PaymentsPage'
+import { MailPage } from '../pages/MailPage'
 
 function page(element: React.ReactNode, adminOnly = false) {
   return (
@@ -51,6 +52,7 @@ export function AppRoutes() {
       <Route path="/eipass" element={page(<EipassListPage />)} />
       <Route path="/eipass/:id" element={page(<EipassDetailPage />)} />
       <Route path="/pagamenti" element={page(<PaymentsPage />)} />
+      <Route path="/posta" element={page(<MailPage />)} />
       <Route path="/fatturazione" element={page(<InvoicesPage />)} />
       <Route path="/fatturazione/:id" element={page(<InvoiceDetailPage />)} />
       <Route path="/template" element={page(<TemplatesPage />)} />
