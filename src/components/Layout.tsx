@@ -13,7 +13,12 @@ type NavItem = { to: string; label: string; icon: NavIconName; end?: boolean; ad
 type NavGroup = { title?: string; items: NavItem[] }
 
 const groups: NavGroup[] = [
-  { items: [{ to: '/', label: 'Dashboard', icon: 'dashboard', end: true }] },
+  {
+    items: [
+      { to: '/', label: 'Dashboard', icon: 'dashboard', end: true },
+      { to: '/cose-da-fare', label: 'Cose da fare', icon: 'todos' },
+    ],
+  },
   {
     title: 'Didattica',
     items: [

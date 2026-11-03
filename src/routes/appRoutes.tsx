@@ -20,6 +20,7 @@ import { InvoicesPage } from '../pages/InvoicesPage'
 import { InvoiceDetailPage } from '../pages/InvoiceDetailPage'
 import { PaymentsPage } from '../pages/PaymentsPage'
 import { MailPage } from '../pages/MailPage'
+import { TodosPage } from '../pages/TodosPage'
 
 function page(element: React.ReactNode, adminOnly = false) {
   return (
@@ -36,6 +37,7 @@ export function AppRoutes() {
       <Route path="/reimposta-password" element={<ResetPasswordPage />} />
       <Route path="/in-attesa" element={<PendingPage />} />
       <Route path="/" element={page(<DashboardPage />)} />
+      <Route path="/cose-da-fare" element={page(<TodosPage />)} />
       <Route path="/corsi" element={page(<CoursesPage />)} />
       <Route path="/corsi/:id" element={page(<CourseDetailPage />)} />
       <Route path="/import/jforma" element={page(<JformaImportPage />)} />
