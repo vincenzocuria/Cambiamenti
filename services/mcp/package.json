@@ -1,0 +1,28 @@
+{
+  "name": "cambiamenti-mcp",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Connettore MCP del gestionale Cambia-Menti (Cloudflare Worker, OAuth con utente del gestionale, dati via RLS Supabase)",
+  "scripts": {
+    "dev": "wrangler dev",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:migrate": "wrangler d1 migrations apply cambiamenti-mcp --remote",
+    "deploy": "npm run typecheck && npm test && wrangler d1 migrations apply cambiamenti-mcp --remote && wrangler deploy"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "@modelcontextprotocol/server": "2.4.0",
+    "@supabase/supabase-js": "2.118.0",
+    "agents": "0.32.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261103.1",
+    "@types/node": "^26.6.6",
+    "typescript": "7.0.2",
+    "vitest": "5.1.0",
+    "wrangler": "4.156.2"
+  }
+}

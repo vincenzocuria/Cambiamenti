@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cambiamenti-mcp",
+  // Account Cloudflare personale
+  "account_id": "a8400e419eff530311725e4b43d5c4f0",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-28",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "routes": [{ "pattern": "mcp.cambiamenti.vcuria.app", "custom_domain": true }],
+  "observability": { "enabled": true },
+  "vars": {
+    "APP_ORIGIN": "https://mcp.cambiamenti.vcuria.app",
+    "SUPABASE_URL": "https://oevppwtjbzbopjvsvoiu.supabase.co",
+    // Chiave publishable: è pubblica (la stessa del sito), i dati restano protetti da RLS.
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_QiXu-SiXnULF-ZFaY64rOg_r8Ob025j"
+  },
+  // Segreto (wrangler secret put CAMBIAMENTI_MCP_TOKEN_KEY): chiave AES-256 in base64.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cambiamenti-mcp",
+      "database_id": "af00fab1-a752-45e2-aff2-d994cba33dab",
+      "migrations_dir": "migrations"
+    }
+  ]
+}
