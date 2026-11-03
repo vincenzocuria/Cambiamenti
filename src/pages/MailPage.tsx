@@ -18,7 +18,7 @@ type Filter = PecStatus | 'tutte'
 
 const filters: { value: Filter; label: string }[] = [
   { value: 'da_verificare', label: 'Da verificare' },
-  { value: 'elaborata', label: 'Elaborate da Claude' },
+  { value: 'elaborata', label: 'Elaborate' },
   { value: 'nuova', label: 'Nuove' },
   { value: 'verificata', label: 'Verificate' },
   { value: 'ignorata', label: 'Ignorate' },
@@ -27,7 +27,7 @@ const filters: { value: Filter; label: string }[] = [
 
 const statusMeta: Record<PecStatus, { label: string; className: string }> = {
   nuova: { label: 'Nuova', className: 'bg-sky-50 text-sky-800' },
-  elaborata: { label: 'Elaborata da Claude', className: 'bg-emerald-50 text-emerald-800' },
+  elaborata: { label: 'Elaborata', className: 'bg-emerald-50 text-emerald-800' },
   da_verificare: { label: 'Da verificare', className: 'bg-amber-50 text-amber-900' },
   ignorata: { label: 'Ignorata', className: 'bg-slate-100 text-slate-600' },
   verificata: { label: 'Verificata', className: 'bg-teal-50 text-teal-900' },
@@ -90,8 +90,8 @@ export function MailPage() {
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Posta da verificare</h1>
         <p className="mt-1 text-sm text-slate-500">
-          PEC di Cambia-Menti copiate ogni 2 ore dal PC. Claude le legge, aggiorna corsi e documenti e scrive qui cosa ha fatto;
-          quelle «da verificare» aspettano un controllo.
+          PEC di Cambia-Menti copiate ogni 2 ore dal PC. Ogni PEC viene letta e le modifiche trovate finiscono in{' '}
+          <Link to="/proposte" className="text-indigo-700 hover:underline">Proposte</Link>; quelle «da verificare» aspettano un controllo.
         </p>
       </div>
 

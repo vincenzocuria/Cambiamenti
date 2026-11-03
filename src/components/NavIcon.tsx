@@ -55,6 +55,13 @@ const paths = {
       <path d="M13 18h8" />
     </>
   ),
+  proposals: (
+    <>
+      <path d="M12 3v12" />
+      <path d="m8 11 4 4 4-4" />
+      <rect width="18" height="6" x="3" y="15" rx="2" />
+    </>
+  ),
   mail: (
     <>
       <rect width="20" height="16" x="2" y="4" rx="2" />

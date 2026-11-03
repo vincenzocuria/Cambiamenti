@@ -47,6 +47,7 @@ describe('server MCP', () => {
         'leggi_allegato_pec',
         'leggi_pec',
         'posta_da_elaborare',
+        'proponi_modifica',
         'segna_pec',
         'aggiungi_lezione',
         'aggiungi_nota_corso',
@@ -56,6 +57,7 @@ describe('server MCP', () => {
         'cerca_persone',
         'collega_documento',
         'crea_corso',
+        'elenco_proposte',
         'leggi_documento',
         'prepara_caricamento',
         'registra_documento',
@@ -131,5 +133,15 @@ describe('utilità', () => {
     const enc = await encryptText(key, 'segreto')
     expect(enc).not.toContain('segreto')
     expect(await decryptText(key, enc)).toBe('segreto')
+  })
+})
+
+describe('proposte', () => {
+  it('toPayload produce la forma letta dalla pagina Proposte', async () => {
+    const { toPayload } = await import('../src/mcp/tools/proposte')
+    expect(toPayload({ tipo: 'aggiorna_corso', corso_id: 'c1', dati: { cup: 'J1' } })).toEqual({ kind: 'aggiorna_corso', courseId: 'c1', payload: { changes: { cup: 'J1' } } })
+    expect(
+      toPayload({ tipo: 'registra_pagamento', corso_id: 'c1', direzione: 'in', tipo_movimento: 'saldo', importo: 10, data: '2026-01-01' }).payload,
+    ).toMatchObject({ direzione: 'in', tipo: 'saldo', importo: 10, data: '2026-01-01' })
   })
 })
