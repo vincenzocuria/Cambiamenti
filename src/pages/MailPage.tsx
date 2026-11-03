@@ -118,7 +118,7 @@ export function MailPage() {
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Posta da verificare</h1>
         <p className="mt-1 text-sm text-slate-500">
-          PEC di Cambia-Menti copiate ogni 2 ore dal PC. Sotto ogni PEC trovi cosa propongo di fare: il gestionale cambia solo se premi «Accetta». Tutte le proposte sono anche in{' '}
+          PEC di Cambia-Menti copiate una volta al giorno dal PC. Sotto ogni PEC trovi cosa propongo di fare: il gestionale cambia solo se premi «Accetta». Tutte le proposte sono anche in{' '}
           <Link to="/proposte" className="text-indigo-700 hover:underline">Proposte</Link>.
         </p>
       </div>

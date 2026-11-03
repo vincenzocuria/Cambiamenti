@@ -13,6 +13,6 @@ segnato come letto o spostato) e copia nel gestionale le PEC nuove di `INBOX` e 
 | --- | --- |
 | `npm run pec -- sincronizza` | Copia le PEC nuove (riprende dall'ultima copiata) |
 
-Il servizio Aruba sul PC (`npm run aruba -- servizio`) lo fa da solo ogni 2 ore.
+Il servizio Aruba sul PC (`npm run aruba -- servizio`) lo fa da solo una volta al giorno.
 Claude le elabora con il connettore MCP (`posta_da_elaborare`, `leggi_pec`, `allega_pec_a_corso`,
 `segna_pec`); l'esito si vede nella pagina **Posta da verificare** del gestionale.
