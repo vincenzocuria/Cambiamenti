@@ -19,7 +19,7 @@ const toneValue: Record<NonNullable<KpiCardItem['tone']>, string> = {
 
 function cardClass(active?: boolean, compact?: boolean): string {
   return (
-    `rounded-2xl border bg-white ${compact ? 'p-4' : 'p-5'} min-w-0 text-left shadow-sm transition ` +
+    `@container rounded-2xl border bg-white ${compact ? 'p-4' : 'p-4 sm:p-5'} min-w-0 text-left shadow-sm transition ` +
     (active
       ? 'border-indigo-400 ring-2 ring-indigo-100'
       : 'border-slate-200 hover:border-indigo-300 hover:shadow')
@@ -31,7 +31,7 @@ function CardBody({ item, compact }: { item: KpiCardItem; compact?: boolean }) {
     <>
       <p className="truncate text-sm font-medium text-slate-500">{item.label}</p>
       <p
-        className={`${compact ? 'mt-1 truncate text-xl sm:text-2xl' : 'mt-2 text-3xl'} font-bold tabular-nums ${toneValue[item.tone ?? 'default']}`}
+        className={`${compact ? 'mt-1 truncate text-xl sm:text-2xl' : 'mt-2 text-[clamp(1rem,13cqi,1.875rem)] leading-tight'} whitespace-nowrap font-bold tabular-nums ${toneValue[item.tone ?? 'default']}`}
       >
         {item.value}
       </p>
