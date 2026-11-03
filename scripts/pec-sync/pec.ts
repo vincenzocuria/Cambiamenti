@@ -3,7 +3,7 @@
  *
  *   npm run pec -- sincronizza     copia nel gestionale le PEC nuove con allegati e testo dei PDF
  *
- * Il servizio Aruba sul PC (npm run aruba -- servizio) lo fa da solo ogni 2 ore.
+ * Il servizio Aruba sul PC (npm run aruba -- servizio) lo fa da solo una volta al giorno.
  * Claude le elabora con il connettore MCP; la pagina «Posta da verificare» mostra l'esito.
  */
 import { supabaseAdmin } from '../aruba-sync/env'
