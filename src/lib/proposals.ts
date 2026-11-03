@@ -125,6 +125,30 @@ export function proposalDiff(p: Pick<ProposalRow, 'kind' | 'payload' | 'current_
   }
 }
 
+/** Frase semplice su cosa succede premendo «Accetta». */
+export function proposalAction(p: Pick<ProposalRow, 'kind' | 'payload'>, courseName?: string | null): string {
+  const pl = p.payload ?? {}
+  const corso = courseName ? ` del corso «${courseName}»` : ''
+  switch (p.kind) {
+    case 'crea_corso':
+      return `Se accetti, creo il corso «${show(pl.name)}» ${show(pl.edition)} con i dati qui sotto.`
+    case 'aggiorna_corso': {
+      const fields = Object.keys((pl.changes ?? {}) as object).map((f) => courseFieldLabel[f] ?? f)
+      return `Se accetti, aggiorno ${fields.join(', ') || 'i dati'}${corso}.`
+    }
+    case 'cambia_stato_corso':
+      return `Se accetti, porto lo stato${corso} a «${show(pl.stato)}» e lo scrivo nelle note.`
+    case 'aggiungi_nota_corso':
+      return `Se accetti, aggiungo questa nota${corso}.`
+    case 'registra_pagamento':
+      return `Se accetti, registro ${euro(pl.importo)} nei pagamenti${corso}.`
+    case 'allega_documento':
+      return `Se accetti, copio il file «${show(pl.file_name)}» nei documenti${corso}.`
+    case 'aggiungi_lezione':
+      return `Se accetti, aggiungo la lezione al calendario${corso}.`
+  }
+}
+
 /** Riga di nota datata in coda alle note del corso. */
 export function appendDatedNote(existing: string | null | undefined, note: string, day = new Date().toISOString().slice(0, 10)): string {
   const line = `[${day}] ${note.trim()}`
