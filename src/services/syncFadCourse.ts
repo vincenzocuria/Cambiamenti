@@ -10,6 +10,7 @@ export interface FadSyncResult {
   bbbInstanceId: number | null
   enrolled: number
   createdUsers: number
+  regionEnrolled?: boolean
   events: number
   attendance: number
   skipped: FadSyncSkip[]

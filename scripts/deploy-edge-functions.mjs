@@ -32,6 +32,8 @@ const functions = [
   { name: 'send-fad-credentials', verifyJwt: true },
   { name: 'check-doc-expiry', verifyJwt: false },
   { name: 'sync-fad-course', verifyJwt: true },
+  // Chiamata anche dal cron notturno (x-cron-secret): l'autenticazione la fa la funzione
+  { name: 'sync-fad-attendance', verifyJwt: false },
   { name: 'aruba-invoice', verifyJwt: true },
 ]
 
@@ -83,7 +85,14 @@ if (resendKey && resendKey !== 're_INCOLLA_API_KEY') {
   console.warn('SKIP secrets Resend: SMTP_PASS assente o ancora placeholder in secrets.env')
 }
 
-for (const key of ['MOODLE_URL', 'MOODLE_WS_TOKEN', 'MOODLE_CATEGORY_ID']) {
+// Le credenziali admin servono a sync-fad-attendance per scaricare il registro eventi (sola lettura)
+for (const key of [
+  'MOODLE_URL',
+  'MOODLE_WS_TOKEN',
+  'MOODLE_CATEGORY_ID',
+  'MOODLE_ADMIN_USER',
+  'MOODLE_ADMIN_PASSWORD',
+]) {
   const value = process.env[key]?.trim()
   if (value) pairs[key] = value
 }

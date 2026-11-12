@@ -54,6 +54,8 @@ export interface SyncFadResult {
   bbbInstanceId: number | null
   enrolled: number
   createdUsers: number
+  /** Account della Regione iscritto come alunno, per poter assistere alle lezioni. */
+  regionEnrolled: boolean
   events: number
   attendance: number
   skipped: { name: string; reason: string }[]
@@ -70,6 +72,7 @@ export async function syncFadCourse(
   const skipped: SyncFadResult['skipped'] = []
   const people = await loadPeople(db, courseId)
   const { enrolled, createdUsers } = await enrolPeople(room.courseid, people, skipped)
+  const regionEnrolled = await enrolRegionAccount(room.courseid, skipped)
   const events = await syncEvents(db, courseId, room.courseid)
   const attendance = room.bbbinstanceid
     ? await syncAttendance(db, courseId, room.bbbinstanceid, people)
@@ -90,6 +93,7 @@ export async function syncFadCourse(
     bbbInstanceId: room.bbbinstanceid,
     enrolled,
     createdUsers,
+    regionEnrolled,
     events,
     attendance,
     skipped,
@@ -246,6 +250,39 @@ async function enrolPeople(
     }
   }
   return { enrolled, createdUsers }
+}
+
+/** Username Moodle dell'account della Regione Calabria (già presente su Moodle). */
+export const REGION_USERNAME_DEFAULT = 'regionecalabria'
+
+async function enrolRegionAccount(
+  courseid: number,
+  skipped: SyncFadResult['skipped'],
+): Promise<boolean> {
+  const username = (Deno.env.get('MOODLE_REGION_USERNAME') || REGION_USERNAME_DEFAULT).trim().toLowerCase()
+  if (!username) return false
+  try {
+    const users = await moodleCall<MoodleUser[]>('core_user_get_users_by_field', {
+      field: 'username',
+      'values[0]': username,
+    })
+    const user = users[0]
+    if (!user) {
+      skipped.push({ name: 'Account Regione', reason: `Utente Moodle «${username}» non trovato` })
+      return false
+    }
+    await moodleCall('enrol_manual_enrol_users', {
+      'enrolments[0][roleid]': STUDENT_ROLE,
+      'enrolments[0][userid]': user.id,
+      'enrolments[0][courseid]': courseid,
+    })
+    return true
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Iscrizione non riuscita'
+    if (/already|già iscrit/i.test(message)) return true
+    skipped.push({ name: 'Account Regione', reason: message })
+    return false
+  }
 }
 
 async function findMoodleUser(username: string, email: string): Promise<MoodleUser | null> {

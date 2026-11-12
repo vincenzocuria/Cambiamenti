@@ -26,7 +26,7 @@ export function FadMoodleSync({ courseId }: { courseId: string }) {
         <div>
           <h3 className="text-sm font-semibold text-slate-700">Corso su Moodle</h3>
           <p className="mt-1 text-xs text-slate-500">
-            Crea o aggiorna il corso, crea gli utenti mancanti con le credenziali FAD e pubblica il calendario.
+            Crea o aggiorna il corso, crea gli utenti mancanti con le credenziali FAD, iscrive l'account della Regione e pubblica il calendario.
           </p>
         </div>
         <SecondaryButton type="button" onClick={() => void run()} disabled={busy}>
@@ -41,6 +41,7 @@ export function FadMoodleSync({ courseId }: { courseId: string }) {
             {result.bbbInstanceId ? ` · stanza ${result.bbbInstanceId}` : ''} · utenti creati{' '}
             {result.createdUsers} · iscritti {result.enrolled} · lezioni {result.events} · presenze{' '}
             {result.attendance}
+            {result.regionEnrolled ? ' · account Regione iscritto' : ''}
           </p>
           {result.warning && <p className="text-amber-700">{result.warning}</p>}
           {result.skipped.length > 0 && (
