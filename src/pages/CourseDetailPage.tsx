@@ -39,6 +39,7 @@ import { takenStaffIds } from '../lib/takenStaffIds'
 import { formatCourseShareLabel } from '../lib/fadShareMessage'
 import { FadShareBulk } from '../components/FadShareBulk'
 import { FadMoodleSync } from '../components/FadMoodleSync'
+import { FadAttendancePanel } from '../components/FadAttendancePanel'
 
 const genRoles: { type: PersonType; label: string }[] = [
   { type: 'teacher', label: 'Docente' },
@@ -66,6 +67,7 @@ const SECTIONS = [
   { id: 'fatture', label: 'Fatture' },
   { id: 'genera', label: 'Genera' },
   { id: 'fad', label: 'FAD' },
+  { id: 'presenze', label: 'Presenze FAD' },
 ] as const
 type SectionId = (typeof SECTIONS)[number]['id']
 type OpenState = Record<SectionId, boolean>
@@ -292,6 +294,7 @@ export function CourseDetailPage() {
         Boolean(query) &&
         (peopleCount > 0 ||
           (query.length >= 3 && matchesSearch('fad moodle credenziali piattaforma', query))),
+      presenze: query.length >= 3 && matchesSearch('presenze fad moodle log regione dichiarazione', query),
     }
   }, [query, peopleByType, docs, reportLines, invoiceRows, personNames, course])
 
@@ -306,6 +309,7 @@ export function CourseDetailPage() {
     fatture: matches.invoices.length > 0,
     genera: matches.genera,
     fad: matches.fad,
+    presenze: matches.presenze,
   }
 
   /** Durante la ricerca restano aperte solo le sezioni con risultati. */
@@ -866,6 +870,21 @@ export function CourseDetailPage() {
             />
             <FadMoodleSync courseId={id} />
           </div>
+        </CollapsibleSection>
+
+        <CollapsibleSection
+          id="presenze"
+          title="Presenze FAD"
+          badge={course.moodle_course_id ? `Moodle ${course.moodle_course_id}` : 'non collegato'}
+          badgeTone={course.moodle_course_id ? 'ok' : 'muted'}
+          summary="Entrate, uscite e chiusura dell'aula lette dai log Moodle; correzioni a mano; dichiarazione per la Regione"
+          open={isOpen('presenze')}
+          onToggle={() => toggle('presenze')}
+          dimmed={searching && !sectionHasMatch.presenze}
+        >
+          {isOpen('presenze') && (
+            <FadAttendancePanel course={course} onCourseChanged={() => void getCourse(id).then(setCourse)} />
+          )}
         </CollapsibleSection>
       </div>
     </div>

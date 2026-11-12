@@ -320,3 +320,53 @@ export interface Invoice {
 export type InvoiceInput = Partial<
   Omit<Invoice, 'id' | 'created_at' | 'updated_at' | 'aruba_filename' | 'sdi_id' | 'sdi_status' | 'sdi_status_label' | 'paid_at'>
 >
+
+export type FadClosedSource = 'registrata' | 'ricostruita' | 'manuale' | 'non_determinabile'
+export type FadAttendanceStatus = 'fino_chiusura' | 'uscito_prima' | 'assente' | 'da_verificare'
+export type FadExitSource = '' | 'log' | 'chiusura' | 'manuale'
+
+/** Giornata di lezione FAD letta dai log Moodle. */
+export interface FadSession {
+  id: string
+  course_id: string
+  day: string
+  closed_at: string | null
+  closed_source: FadClosedSource
+  closed_note: string
+  closed_by: string
+  manual: boolean
+  note: string
+  created_at: string
+  updated_at: string
+}
+
+/** Presenza di un alunno in una giornata FAD. */
+export interface FadAttendance {
+  id: string
+  session_id: string
+  student_id: string
+  first_join_at: string | null
+  exit_at: string | null
+  exit_source: FadExitSource
+  status: FadAttendanceStatus
+  minutes: number | null
+  pause_minutes: number
+  joins: number
+  moodle_name: string
+  manual: boolean
+  note: string
+  created_at: string
+  updated_at: string
+}
+
+export interface FadLogEventRow {
+  id: string
+  course_id: string
+  event_key: string
+  occurred_at: string
+  kind: 'join' | 'leave' | 'end'
+  moodle_user_id: number | null
+  user_name: string
+  description: string
+  ip: string
+}
