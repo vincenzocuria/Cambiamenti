@@ -17,6 +17,15 @@ export interface FadStudent {
   id: string
   firstName: string
   lastName: string
+  /** Primo giorno nel corso (trasferito da un altro corso); vuoto = dall'inizio. */
+  fromDay?: string | null
+  /** Primo giorno non più nel corso (ritirato o trasferito); vuoto = fino alla fine. */
+  untilDay?: string | null
+}
+
+/** L'alunno fa parte del corso in quella giornata? */
+export function enrolledOn(student: FadStudent, day: string): boolean {
+  return (!student.fromDay || day >= student.fromDay) && (!student.untilDay || day < student.untilDay)
 }
 
 export interface SessionClosure {
@@ -341,7 +350,7 @@ export function reconstructCourse(
       perPerson.set(k, l)
     }
 
-    const studentsOut = students.map((s) =>
+    const studentsOut = students.filter((s) => enrolledOn(s, day)).map((s) =>
       studentDay(s, perPerson.get(nameKey(`${s.firstName} ${s.lastName}`)) ?? [], closure.at),
     )
     const others: FadDay['others'] = []

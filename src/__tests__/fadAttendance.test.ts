@@ -128,6 +128,15 @@ describe('ricostruzione presenze', () => {
     expect(day.students.find((s) => s.studentId === 'c')?.status).toBe('uscito_prima')
   })
 
+  it('conta un alunno solo nei giorni in cui è iscritto (ritiro / trasferimento)', () => {
+    const windowed = students.map((s) =>
+      s.id === 'a' ? { ...s, untilDay: '2026-03-13' } : s.id === 'b' ? { ...s, fromDay: '2026-03-13' } : s,
+    )
+    const [day] = reconstructCourse(events, windowed)
+    expect(day.students.map((s) => s.studentId)).not.toContain('a')
+    expect(day.students.map((s) => s.studentId)).toContain('b')
+  })
+
   it('una chiusura indicata a mano prevale', () => {
     const at = Date.parse('2026-03-13T14:30:00Z') // 15:30 a Roma
     const [day] = reconstructCourse(events, students, new Map([['2026-03-13', at]]))

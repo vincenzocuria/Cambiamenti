@@ -222,3 +222,99 @@ export async function listCourseStaffAssignments(
     ]),
   )
 }
+
+export type EnrollmentStatus = 'attivo' | 'ritirato' | 'trasferito'
+
+export interface EnrollmentInfo {
+  status: EnrollmentStatus
+  enrolled_on: string | null
+  left_on: string | null
+  status_note: string
+  from_course: { id: string; name: string; edition: string | null } | null
+  to_course: { id: string; name: string; edition: string | null } | null
+}
+
+/** Stato dell'iscrizione di ogni alunno del corso (attivo, ritirato, trasferito). */
+export async function listCourseEnrollments(courseId: string): Promise<Map<string, EnrollmentInfo>> {
+  const { data, error } = await supabase
+    .from('course_students')
+    .select(
+      'student_id, status, enrolled_on, left_on, status_note, from_course:courses!course_students_transferred_from_fkey(id, name, edition), to_course:courses!course_students_transferred_to_fkey(id, name, edition)',
+    )
+    .eq('course_id', courseId)
+  if (error) throw error
+  const map = new Map<string, EnrollmentInfo>()
+  for (const r of (data ?? []) as unknown as (EnrollmentInfo & { student_id: string })[]) {
+    map.set(r.student_id, {
+      status: r.status,
+      enrolled_on: r.enrolled_on,
+      left_on: r.left_on,
+      status_note: r.status_note ?? '',
+      from_course: r.from_course,
+      to_course: r.to_course,
+    })
+  }
+  return map
+}
+
+/** Ritiro: l'alunno resta nello storico del corso ma non conta più dal giorno indicato. */
+export async function withdrawStudent(courseId: string, studentId: string, onDay: string, note: string) {
+  const { error } = await supabase
+    .from('course_students')
+    .update({ status: 'ritirato', left_on: onDay, status_note: note, transferred_to: null })
+    .eq('course_id', courseId)
+    .eq('student_id', studentId)
+  if (error) throw error
+}
+
+/**
+ * Trasferimento ad altro corso dal giorno indicato: nel corso di partenza l'alunno risulta
+ * «trasferito», in quello di arrivo è iscritto da quel giorno.
+ */
+export async function transferStudent(
+  fromCourseId: string,
+  toCourseId: string,
+  studentId: string,
+  onDay: string,
+  note: string,
+) {
+  if (fromCourseId === toCourseId) throw new Error('Scegli un corso diverso da quello attuale')
+  const { data: existing, error: readError } = await supabase
+    .from('course_students')
+    .select('status')
+    .eq('course_id', toCourseId)
+    .eq('student_id', studentId)
+    .maybeSingle()
+  if (readError) throw readError
+  if (existing && existing.status === 'attivo') throw new Error("L'alunno è già iscritto al corso di destinazione")
+  const { error: insertError } = await supabase.from('course_students').upsert(
+    {
+      course_id: toCourseId,
+      student_id: studentId,
+      status: 'attivo',
+      enrolled_on: onDay,
+      left_on: null,
+      status_note: note,
+      transferred_from: fromCourseId,
+      transferred_to: null,
+    },
+    { onConflict: 'course_id,student_id' },
+  )
+  if (insertError) throw insertError
+  const { error } = await supabase
+    .from('course_students')
+    .update({ status: 'trasferito', left_on: onDay, status_note: note, transferred_to: toCourseId })
+    .eq('course_id', fromCourseId)
+    .eq('student_id', studentId)
+  if (error) throw error
+}
+
+/** Annulla ritiro o trasferimento: l'alunno torna attivo nel corso (il corso di arrivo non viene toccato). */
+export async function reactivateStudent(courseId: string, studentId: string) {
+  const { error } = await supabase
+    .from('course_students')
+    .update({ status: 'attivo', left_on: null, status_note: '', transferred_to: null })
+    .eq('course_id', courseId)
+    .eq('student_id', studentId)
+  if (error) throw error
+}
