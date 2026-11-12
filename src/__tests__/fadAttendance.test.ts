@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { parseReportLog } from '../../supabase/functions/sync-fad-attendance/reportCsv'
 import { parseMoodleDateTime, romeDay } from '../../supabase/functions/sync-fad-attendance/romeTime'
-import { nameKey, reconstructCourse } from '../../supabase/functions/sync-fad-attendance/reconstruct'
+import { nameKey, reconstructCourse, withStudentAliases } from '../../supabase/functions/sync-fad-attendance/reconstruct'
 import { eventsForSessions, exportableSessions, periodText, romeIso, romeTime } from '../lib/fadAttendance'
 import type { FadSessionWithRows } from '../services/fadAttendance'
 import type { FadLogEventRow } from '../types/db'
@@ -41,6 +41,16 @@ describe('orari Moodle', () => {
     expect(iso).toBe('2026-03-13T15:00:00.000Z')
     expect(romeTime(iso)).toBe('16:00:00')
     expect(romeIso('2026-03-13', '25:00')).toBeNull()
+  })
+
+  it('abbina nomi scritti in modo diverso solo se il caso è univoco', () => {
+    const st = [
+      { id: 'x', firstName: 'Mariantonia', lastName: 'Buonofiglio' },
+      { id: 'y', firstName: 'Natale', lastName: 'Scarpello' },
+    ]
+    const ev = (userName: string) => ({ key: userName, at: 0, kind: 'join' as const, moodleUserId: 1, userName, description: '', ip: '' })
+    const out = withStudentAliases([ev('MARIA ANTONIA BUONOFIGLIO'), ev('Marco Busa')], st, new Set(st.map((s) => nameKey(`${s.firstName} ${s.lastName}`))))
+    expect(out.map((e) => e.userName)).toEqual(['Mariantonia Buonofiglio', 'Marco Busa'])
   })
 
   it('confronta i nomi senza accenti e in qualsiasi ordine', () => {
