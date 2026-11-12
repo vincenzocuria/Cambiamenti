@@ -99,6 +99,25 @@ describe('ricostruzione presenze', () => {
     expect(day.students.find((s) => s.studentId === 'b')?.status).toBe('fino_chiusura')
   })
 
+  it('ignora le uscite di gruppo seguite da rientro (pausa)', () => {
+    const pause = [
+      HEAD,
+      row('12:01:00', 'Elisa Ginese', 'join', 1),
+      row('12:02:00', 'Sandra Godino', 'join', 2),
+      row('12:03:00', 'Irene Gatto', 'join', 3),
+      row('13:31:00', 'Elisa Ginese', 'leave', 1),
+      row('13:31:20', 'Sandra Godino', 'leave', 2),
+      row('13:31:40', 'Irene Gatto', 'leave', 3),
+      row('13:40:00', 'Elisa Ginese', 'join', 1),
+      row('13:41:00', 'Sandra Godino', 'join', 2),
+      row('16:01:05', 'Elisa Ginese', 'leave', 1),
+      row('16:01:10', 'Sandra Godino', 'leave', 2),
+    ].join('\n')
+    const [day] = reconstructCourse(parseReportLog(pause), students)
+    expect(romeTime(new Date(day.closure.at!).toISOString())).toBe('16:01:05')
+    expect(day.students.find((s) => s.studentId === 'c')?.status).toBe('uscito_prima')
+  })
+
   it('una chiusura indicata a mano prevale', () => {
     const at = Date.parse('2026-03-13T14:30:00Z') // 15:30 a Roma
     const [day] = reconstructCourse(events, students, new Map([['2026-03-13', at]]))

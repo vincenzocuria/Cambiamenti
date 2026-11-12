@@ -54,6 +54,8 @@ export const MIN_STUDENTS_PER_DAY = 3
 export const CLOSE_TOLERANCE_MS = 5 * 60_000
 /** Uscite entro questo tempo l'una dall'altra fanno parte dello stesso gruppo. */
 const GROUP_GAP_MS = 2 * 60_000
+/** Chi esce e rientra entro questo tempo stava facendo una pausa. */
+const REJOIN_WINDOW_MS = 30 * 60_000
 /** La chiusura si cerca almeno un'ora dopo il primo ingresso degli alunni. */
 const MIN_LESSON_MS = 60 * 60_000
 
@@ -109,7 +111,17 @@ export function findClosure(events: FadLogEvent[], studentNames: Set<string>): S
     }
   }
   for (const g of groups) {
-    const people = new Set(g.map((e) => nameKey(e.userName))).size
+    const who = new Set(g.map((e) => nameKey(e.userName)))
+    const people = who.size
+    // Una pausa, non la chiusura: la maggior parte di chi esce rientra entro poco
+    const groupEnd = g[g.length - 1].at
+    const back = new Set(
+      events
+        .filter((e) => e.kind === 'join' && e.at > groupEnd && e.at <= groupEnd + REJOIN_WINDOW_MS)
+        .map((e) => nameKey(e.userName))
+        .filter((k) => who.has(k)),
+    )
+    if (back.size * 2 > people) continue
     if (people >= 3 && g[0].at >= floor) {
       candidates.push({
         at: g[0].at,
