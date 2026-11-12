@@ -46,6 +46,8 @@ for (const fn of functions) {
     '--project-ref',
     projectRef,
     '--use-api',
+    // la CLI chiede conferma e senza terminale non fa nulla
+    '--yes',
   ]
   if (!fn.verifyJwt) args.push('--no-verify-jwt')
   console.log(`Deploy ${fn.name}...`)
@@ -124,7 +126,7 @@ if (Object.keys(pairs).length > 0) {
   try {
     execFileSync(
       'npx',
-      ['supabase', 'secrets', 'set', '--env-file', envFile, '--project-ref', projectRef],
+      ['supabase', 'secrets', 'set', '--env-file', envFile, '--project-ref', projectRef, '--yes'],
       { cwd: root, stdio: 'inherit', env: process.env, shell: true },
     )
   } finally {
