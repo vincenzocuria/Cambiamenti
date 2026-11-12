@@ -4,7 +4,10 @@ import type { Person } from '../types/db'
 import type { EnrollmentInfo } from '../services/enrollments'
 import { getCourse } from '../services/courses'
 import { uploadDocument } from '../services/documents'
+import { registerProtocol, updateProtocol } from '../services/protocol'
+import { protocolLabel, type ProtocolEntry } from '../lib/protocol'
 import {
+  courseTitle,
   courseVariations,
   regionAddressFor,
   variationLetterHtml,
@@ -32,6 +35,8 @@ export function VariationLetterPanel({
   const [open, setOpen] = useState(false)
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [protocol, setProtocol] = useState('')
+  // numero preso dal registro in questa sessione: non se ne consuma un altro a ogni clic
+  const [taken, setTaken] = useState<ProtocolEntry | null>(null)
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [address, setAddress] = useState<RegionAddress | null>(null)
   const [busy, setBusy] = useState(false)
@@ -72,6 +77,24 @@ export function VariationLetterPanel({
     setInfo('')
     try {
       const course = await getCourse(courseId)
+      // Salvando senza numero, il numero si prende dal registro di protocollo
+      let prot = protocol.trim()
+      let entry = taken && protocolLabel(taken) === prot ? taken : null
+      if (save && !prot) {
+        entry = await registerProtocol({
+          entry_date: date,
+          direction: 'uscita',
+          channel: 'PEC',
+          counterpart: address.recipient.replace(/\s*\n\s*/g, ', ').slice(0, 500),
+          subject: `Comunicazione variazione allievi – ${courseTitle(course)}`,
+          external_ref: '',
+          notes: address.pecTo ? `PEC a ${address.pecTo}` : '',
+          course_id: courseId,
+        })
+        prot = protocolLabel(entry)
+        setTaken(entry)
+        setProtocol(prot)
+      }
       // Elenco aggiornato: chi è iscritto alla data della comunicazione
       const students = people.filter((p) => {
         const e = enrollments.get(p.id)
@@ -84,7 +107,7 @@ export function VariationLetterPanel({
         course,
         variations: chosen,
         students,
-        protocol,
+        protocol: prot,
         date,
         address,
         logoUrl: `${window.location.origin}${school.logoSrc}`,
@@ -94,17 +117,22 @@ export function VariationLetterPanel({
         w.document.close()
       }
       if (save) {
-        const title = `Comunicazione variazione allievi${protocol ? ` prot. ${protocol}` : ''} del ${date
+        const title = `Comunicazione variazione allievi${prot ? ` prot. ${prot}` : ''} del ${date
           .split('-')
           .reverse()
           .join('/')}`
-        await uploadDocument({
+        const doc = await uploadDocument({
           courseId,
           category: 'module',
           title,
           file: new File([html], `${title.replace(/[^\w.-]+/g, '-')}.html`, { type: 'text/html' }),
         })
-        setInfo('Salvata nei documenti del corso.')
+        if (entry) await updateProtocol(entry.id, { document_id: doc.id })
+        setInfo(
+          entry
+            ? `Protocollata con il n. ${protocolLabel(entry)} e salvata nei documenti del corso.`
+            : 'Salvata nei documenti del corso.',
+        )
       }
       if (!w) setError('Il browser ha bloccato la nuova finestra: consenti i popup per questo sito')
     } catch (e) {
@@ -153,7 +181,8 @@ export function VariationLetterPanel({
               <input
                 value={protocol}
                 onChange={(e) => setProtocol(e.target.value)}
-                className="h-8 w-24 rounded-lg border border-slate-300 px-2"
+                placeholder="automatico"
+                className="h-8 w-28 rounded-lg border border-slate-300 px-2"
               />
             </label>
             <label className="flex flex-col gap-0.5 text-xs text-slate-600">
@@ -201,7 +230,8 @@ export function VariationLetterPanel({
             </SecondaryButton>
           </div>
           <p className="text-xs text-slate-500">
-            Si apre la lettera con il Mod. 1/B aggiornato: stampala o salvala in PDF, firmala e inviala via PEC.
+            Si apre la lettera con il Mod. 1/B aggiornato: stampala o salvala in PDF, firmala e inviala via PEC. Se il
+            protocollo è vuoto, salvando prende il prossimo numero dal registro di protocollo (l'anteprima non lo usa).
           </p>
           {info && <p className="text-xs text-emerald-700">{info}</p>}
         </div>
