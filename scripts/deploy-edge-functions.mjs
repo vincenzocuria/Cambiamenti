@@ -119,7 +119,8 @@ if (Object.keys(pairs).length > 0) {
   writeFileSync(
     envFile,
     Object.entries(pairs)
-      .map(([k, v]) => `${k}=${v}`)
+      // tra apici: un # o un $ nel valore (es. password) non devono troncarlo o espanderlo
+      .map(([k, v]) => `${k}=${quoteEnv(v)}`)
       .join('\n') + '\n',
     'utf8',
   )
@@ -139,3 +140,8 @@ if (Object.keys(pairs).length > 0) {
 }
 
 console.log('OK edge functions')
+
+function quoteEnv(value) {
+  if (!value.includes("'")) return `'${value}'`
+  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\$/g, '\\$')}"`
+}
