@@ -100,8 +100,8 @@ export function PersonDetailPage({ type }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <Link to={meta.basePath} className="text-xs text-indigo-600 hover:underline">
             ← {meta.title}
           </Link>

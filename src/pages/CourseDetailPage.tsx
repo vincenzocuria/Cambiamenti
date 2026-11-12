@@ -526,7 +526,7 @@ export function CourseDetailPage() {
           </div>
           <nav
             aria-label="Sezioni della scheda"
-            className="-mx-1 flex items-center gap-1 overflow-x-auto px-1 pb-0.5"
+            className="no-scrollbar -mx-1 flex items-center gap-1 overflow-x-auto px-1 pb-0.5"
           >
             {SECTIONS.map((s) => {
               const count = sectionCounts[s.id]
