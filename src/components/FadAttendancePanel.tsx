@@ -21,6 +21,7 @@ import {
   exportableSessions,
   exitSourceLabels,
   fadTotals,
+  isOutsideEnrollment,
   itDate,
   logCsv,
   periodText,
@@ -497,7 +498,9 @@ function AttendanceRow({
             onChange={(e) => setStatus(e.target.value as FadAttendanceStatus)}
             className="h-8 rounded border border-slate-300 bg-white px-1"
           >
-            {Object.entries(statusLabels).map(([k, v]) => (
+            {Object.entries(statusLabels)
+              .filter(([k]) => !isOutsideEnrollment(k as FadAttendanceStatus))
+              .map(([k, v]) => (
               <option key={k} value={k}>
                 {v}
               </option>

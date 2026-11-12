@@ -393,3 +393,77 @@ async function syncAttendance(
 function courseLabel(course: CourseRow): string {
   return course.edition ? `${course.name} · ${course.edition}` : course.name
 }
+
+/** Mezzanotte (ora italiana, approssimata a CET) del giorno indicato, in secondi Unix. */
+function dayStart(day: string | null): number {
+  if (!day) return 0
+  const ms = Date.parse(`${day.slice(0, 10)}T00:00:00+01:00`)
+  return Number.isFinite(ms) ? Math.floor(ms / 1000) : 0
+}
+
+export interface StudentEnrolmentResult {
+  done: boolean
+  message: string
+}
+
+/**
+ * Riporta su Moodle lo stato dell'iscrizione di un alunno a un corso:
+ * attivo = accesso dal giorno di inizio (enrolled_on) senza scadenza;
+ * ritirato o trasferito = accesso fino al giorno di uscita (left_on). L'iscrizione
+ * non viene mai cancellata, così i log delle lezioni seguite restano su Moodle.
+ */
+export async function syncStudentEnrolment(
+  db: SupabaseClient,
+  courseId: string,
+  studentId: string,
+): Promise<StudentEnrolmentResult> {
+  const course = await loadCourse(db, courseId)
+  if (!course.moodle_course_id) return { done: false, message: 'Corso non collegato a Moodle' }
+
+  const { data, error } = await db
+    .from('course_students')
+    .select('status, enrolled_on, left_on, person:students(id, first_name, last_name, email, fad_email, fad_password)')
+    .eq('course_id', courseId)
+    .eq('student_id', studentId)
+    .maybeSingle()
+  if (error) throw error
+  const row = data as unknown as {
+    status: string
+    enrolled_on: string | null
+    left_on: string | null
+    person: PersonRow | null
+  } | null
+  if (!row?.person) return { done: false, message: 'Alunno non iscritto al corso' }
+
+  const person = row.person
+  const name = `${person.last_name} ${person.first_name}`.trim()
+  const active = row.status === 'attivo'
+  let user: MoodleUser | null
+  if (active) {
+    const skipped: SyncFadResult['skipped'] = []
+    await enrolPeople(course.moodle_course_id, [{ person, roleid: STUDENT_ROLE }], skipped)
+    if (skipped.length) return { done: false, message: `${name}: ${skipped[0].reason}` }
+    const username = moodleUsername(person.fad_email, person.email)
+    user = username ? await findMoodleUser(username, person.email) : null
+  } else {
+    const username = moodleUsername(person.fad_email, person.email)
+    user = username ? await findMoodleUser(username, person.email) : null
+    if (!user) return { done: true, message: `${name} non ha un account Moodle: nulla da chiudere` }
+  }
+  if (!user) return { done: false, message: `${name}: account Moodle non trovato` }
+
+  await moodleCall('enrol_manual_enrol_users', {
+    'enrolments[0][roleid]': STUDENT_ROLE,
+    'enrolments[0][userid]': user.id,
+    'enrolments[0][courseid]': course.moodle_course_id,
+    'enrolments[0][timestart]': dayStart(row.enrolled_on),
+    'enrolments[0][timeend]': active ? 0 : dayStart(row.left_on),
+    'enrolments[0][suspend]': 0,
+  })
+  return {
+    done: true,
+    message: active
+      ? `${name} iscritto su Moodle${row.enrolled_on ? ` dal ${row.enrolled_on.split('-').reverse().join('/')}` : ''}`
+      : `${name}: accesso su Moodle fino al ${row.left_on ? row.left_on.split('-').reverse().join('/') : 'giorno di uscita'} (log conservati)`,
+  }
+}

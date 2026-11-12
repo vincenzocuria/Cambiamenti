@@ -230,8 +230,8 @@ export interface EnrollmentInfo {
   enrolled_on: string | null
   left_on: string | null
   status_note: string
-  from_course: { id: string; name: string; edition: string | null } | null
-  to_course: { id: string; name: string; edition: string | null } | null
+  from_course: { id: string; name: string; code: string; edition: string | null } | null
+  to_course: { id: string; name: string; code: string; edition: string | null } | null
 }
 
 /** Stato dell'iscrizione di ogni alunno del corso (attivo, ritirato, trasferito). */
@@ -239,7 +239,7 @@ export async function listCourseEnrollments(courseId: string): Promise<Map<strin
   const { data, error } = await supabase
     .from('course_students')
     .select(
-      'student_id, status, enrolled_on, left_on, status_note, from_course:courses!course_students_transferred_from_fkey(id, name, edition), to_course:courses!course_students_transferred_to_fkey(id, name, edition)',
+      'student_id, status, enrolled_on, left_on, status_note, from_course:courses!course_students_transferred_from_fkey(id, name, code, edition), to_course:courses!course_students_transferred_to_fkey(id, name, code, edition)',
     )
     .eq('course_id', courseId)
   if (error) throw error

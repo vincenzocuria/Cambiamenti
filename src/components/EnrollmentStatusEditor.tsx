@@ -7,6 +7,7 @@ import {
   type EnrollmentInfo,
 } from '../services/enrollments'
 import { recomputeFadAttendance } from '../services/fadAttendance'
+import { syncMoodleEnrolment } from '../services/syncFadCourse'
 import { PrimaryButton, SecondaryButton } from './Buttons'
 
 function itDay(day: string | null): string {
@@ -18,6 +19,20 @@ function itDay(day: string | null): string {
 /** Le presenze FAD già lette tengono conto del nuovo stato (errori ignorati: corso senza presenze). */
 async function refreshFad(courseIds: string[]) {
   await Promise.all(courseIds.map((id) => recomputeFadAttendance(id).catch(() => undefined)))
+}
+
+/** Moodle segue il gestionale: messaggi dei corsi collegati (quelli non collegati vengono saltati). */
+async function syncMoodle(courseIds: string[], studentId: string): Promise<string> {
+  const out: string[] = []
+  for (const id of courseIds) {
+    try {
+      const r = await syncMoodleEnrolment(id, studentId)
+      if (r.done || !/non collegato/i.test(r.message)) out.push(r.message)
+    } catch (e) {
+      out.push(`Moodle: ${e instanceof Error ? e.message : 'aggiornamento non riuscito'}`)
+    }
+  }
+  return out.filter(Boolean).join(' · ')
 }
 
 function courseLabel(c: { name: string; edition: string | null } | null): string {
@@ -46,6 +61,7 @@ export function EnrollmentStatusEditor({
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [moodleInfo, setMoodleInfo] = useState('')
 
   const status = info?.status ?? 'attivo'
 
@@ -63,7 +79,9 @@ export function EnrollmentStatusEditor({
     try {
       if (action === 'ritiro') await withdrawStudent(courseId, studentId, day, note.trim())
       else await transferStudent(courseId, target, studentId, day, note.trim())
-      await refreshFad(action === 'ritiro' ? [courseId] : [courseId, target])
+      const ids = action === 'ritiro' ? [courseId] : [courseId, target]
+      setMoodleInfo(await syncMoodle(ids, studentId))
+      await refreshFad(ids)
       setOpen(false)
       onChanged()
     } catch (e) {
@@ -78,6 +96,7 @@ export function EnrollmentStatusEditor({
     setError('')
     try {
       await reactivateStudent(courseId, studentId)
+      setMoodleInfo(await syncMoodle([courseId], studentId))
       await refreshFad([courseId])
       onChanged()
     } catch (e) {
@@ -181,6 +200,7 @@ export function EnrollmentStatusEditor({
           </SecondaryButton>
         </div>
       )}
+      {moodleInfo && <p className="mt-1 text-slate-500">{moodleInfo}</p>}
       {error && <p className="mt-1 text-red-600">{error}</p>}
     </div>
   )

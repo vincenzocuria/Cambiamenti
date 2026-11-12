@@ -13,6 +13,14 @@ export const statusLabels: Record<FadAttendanceStatus, string> = {
   uscito_prima: 'Uscito prima della chiusura',
   assente: 'Assente',
   da_verificare: 'Da verificare',
+  ritirato: 'Ritirato',
+  trasferito: 'Trasferito ad altro corso',
+  non_iscritto: 'Non ancora nel corso',
+}
+
+/** Righe del registro fuori dal periodo di iscrizione: non contano né come presenze né come assenze. */
+export function isOutsideEnrollment(status: FadAttendanceStatus): boolean {
+  return status === 'ritirato' || status === 'trasferito' || status === 'non_iscritto'
 }
 
 export const statusTone: Record<FadAttendanceStatus, string> = {
@@ -20,6 +28,9 @@ export const statusTone: Record<FadAttendanceStatus, string> = {
   uscito_prima: 'bg-red-50 text-red-700',
   assente: 'bg-slate-100 text-slate-500',
   da_verificare: 'bg-amber-50 text-amber-800',
+  ritirato: 'bg-slate-100 text-slate-600 italic',
+  trasferito: 'bg-indigo-50 text-indigo-700 italic',
+  non_iscritto: 'bg-slate-50 text-slate-400 italic',
 }
 
 export const closedSourceLabels: Record<FadClosedSource, string> = {
@@ -80,7 +91,7 @@ export function fadTotals(sessions: FadSessionWithRows[]): FadTotals {
       if (r.status === 'fino_chiusura') t.fino++
       else if (r.status === 'uscito_prima') t.prima++
       else if (r.status === 'da_verificare') t.verificare++
-      else t.assenti++
+      else if (r.status === 'assente') t.assenti++
     }
   }
   return t
@@ -212,6 +223,7 @@ export function declarationHtml(
         if (r.status === 'fino_chiusura') counts.fino++
         else if (r.status === 'uscito_prima') counts.prima++
         else if (r.status === 'da_verificare') counts.ver++
+        else if (isOutsideEnrollment(r.status)) continue
         else counts.ass++
       }
       return `<tr><td>${itDate(s.day)}</td><td>${esc(romeTime(s.closed_at)) || '—'}</td><td>${esc(
@@ -246,7 +258,7 @@ h1{font-size:17px;text-align:center;margin:0 0 4px}h2{font-size:14px;margin:22px
 .sub{text-align:center;margin:0 0 18px}table{border-collapse:collapse;width:100%;margin:6px 0}
 th,td{border:1px solid #999;padding:3px 5px;vertical-align:top}th{background:#eee;text-align:left}
 .n{text-align:right}tr.uscito_prima td{background:#fde2e2}tr.da_verificare td{background:#fff3cd}
-tr.assente td{color:#777}small{color:#444}.sign{margin-top:40px;display:flex;justify-content:space-between}
+tr.assente td{color:#777}tr.ritirato td,tr.trasferito td,tr.non_iscritto td{color:#555;font-style:italic;background:#f4f4f4}small{color:#444}.sign{margin-top:40px;display:flex;justify-content:space-between}
 @media print{body{margin:12mm}h2{break-after:avoid}tr{break-inside:avoid}}
 </style></head><body>
 <h1>DICHIARAZIONE SOSTITUTIVA DI ATTO DI NOTORIETÀ</h1>
@@ -265,7 +277,11 @@ tr.assente td{color:#777}small{color:#444}.sign{margin-top:40px;display:flex;jus
 <li>che l'ora di chiusura dell'aula di ogni giornata è stata determinata dall'evento «Termine forzato della riunione», quando registrato, oppure dall'uscita simultanea dei partecipanti (almeno tre partecipanti che escono entro due minuti), come indicato giornata per giornata nella Tabella 1;</li>
 <li>che un allievo è indicato come «Collegato fino alla chiusura» quando, all'ora di chiusura dell'aula (con una tolleranza di 5 minuti), risultava entrato e non uscito; eventuali uscite anticipate e i casi non determinabili dai log sono indicati espressamente nella Tabella 2;</li>
 <li>che il presente prospetto riguarda le sole giornate di lezione svolte in modalità FAD ${esc(period)}${options.partial ? ', limitatamente al periodo indicato' : ''}, per un totale di ${totals.days} giornate, elencate nella Tabella 1;</li>
-<li>che nel complesso, nelle ${totals.days} giornate FAD considerate, risultano <b>${totals.fino}</b> presenze con collegamento fino alla chiusura dell'aula, <b>${totals.prima}</b> uscite anticipate, <b>${totals.verificare}</b> casi da verificare con il registro didattico e ${totals.assenti} assenze.</li>
+${
+    sessions.some((s) => s.rows.some((r) => isOutsideEnrollment(r.status)))
+      ? '<li>che gli allievi ritirati o trasferiti ad altro percorso, e quelli entrati nel percorso dopo l’avvio, compaiono nel prospetto per l’intera durata del corso: nelle giornate in cui non facevano parte del percorso la riga riporta «Ritirato», «Trasferito ad altro corso» o «Non ancora nel corso» con la data e il corso di destinazione o di provenienza, e tali giornate non sono conteggiate né come presenze né come assenze;</li>\n'
+      : ''
+  }<li>che nel complesso, nelle ${totals.days} giornate FAD considerate, risultano <b>${totals.fino}</b> presenze con collegamento fino alla chiusura dell'aula, <b>${totals.prima}</b> uscite anticipate, <b>${totals.verificare}</b> casi da verificare con il registro didattico e ${totals.assenti} assenze.</li>
 </ol>
 <h2>Tabella 1 – Chiusura dell'aula per giornata</h2>
 <table><thead><tr><th>Data</th><th>Ora chiusura</th><th>Come è determinata</th><th>Allievi collegati</th><th>Fino alla chiusura</th><th>Usciti prima</th><th>Da verificare</th><th>Assenti</th></tr></thead><tbody>${daysRows}</tbody></table>

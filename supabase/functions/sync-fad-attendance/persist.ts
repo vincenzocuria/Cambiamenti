@@ -56,14 +56,23 @@ async function loadEvents(db: SupabaseClient, courseId: string): Promise<FadLogE
 async function loadStudents(db: SupabaseClient, courseId: string): Promise<FadStudent[]> {
   const { data, error } = await db
     .from('course_students')
-    .select('enrolled_on, left_on, student:students(id, first_name, last_name)')
+    .select(
+      'status, enrolled_on, left_on, status_note, student:students(id, first_name, last_name), from_course:courses!course_students_transferred_from_fkey(code, edition), to_course:courses!course_students_transferred_to_fkey(code, edition)',
+    )
     .eq('course_id', courseId)
   if (error) throw error
+  type CourseRef = { code: string; edition: string | null } | null
   type Row = {
+    status: string
     enrolled_on: string | null
     left_on: string | null
+    status_note: string | null
     student: { id: string; first_name: string; last_name: string } | null
+    from_course: CourseRef
+    to_course: CourseRef
   }
+  const label = (c: CourseRef) => (c ? [c.code, c.edition].filter(Boolean).join(' ') : 'altro corso')
+  const it = (d: string | null) => (d ? d.split('-').reverse().join('/') : '')
   return ((data ?? []) as unknown as Row[])
     .filter((r) => r.student)
     .map((r) => ({
@@ -71,7 +80,18 @@ async function loadStudents(db: SupabaseClient, courseId: string): Promise<FadSt
       firstName: r.student!.first_name,
       lastName: r.student!.last_name,
       fromDay: r.enrolled_on,
-      untilDay: r.left_on,
+      // Un alunno attivo non ha uscita anche se è rimasta una data vecchia
+      untilDay: r.status === 'attivo' ? null : r.left_on,
+      leftAs: r.status === 'trasferito' ? ('trasferito' as const) : r.status === 'ritirato' ? ('ritirato' as const) : null,
+      leftNote:
+        r.status === 'trasferito'
+          ? `Trasferito a ${label(r.to_course)} dal ${it(r.left_on)}`
+          : r.status === 'ritirato'
+            ? `Ritirato dal ${it(r.left_on)}${r.status_note ? ` (${r.status_note})` : ''}`
+            : '',
+      enteredNote: r.from_course
+        ? `Nel corso dal ${it(r.enrolled_on)}, trasferito da ${label(r.from_course)}`
+        : `Nel corso dal ${it(r.enrolled_on)}`,
     }))
 }
 
@@ -155,6 +175,9 @@ export async function recompute(db: SupabaseClient, courseId: string): Promise<R
         pause_minutes: s.pauseMinutes,
         joins: s.joins,
         moodle_name: s.moodleName,
+        // annotazione automatica del registro (ritiro, trasferimento, ingresso); le righe corrette
+        // a mano, con le loro note, non passano di qui
+        note: s.note ?? '',
       }))
     if (upserts.length) {
       const { error } = await db.from('fad_attendance').upsert(upserts, { onConflict: 'session_id,student_id' })
