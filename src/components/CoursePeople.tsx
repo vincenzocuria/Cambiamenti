@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import type { CourseStaffAssignment, Person, PersonInput, PersonType } from '../types/db'
+import type { Course, CourseStaffAssignment, Person, PersonInput, PersonType } from '../types/db'
 import {
   addStudentsToCourse,
   addToCourse,
+  listCourseEnrollments,
   listCoursePeople,
   listCourseStaffAssignments,
   listStudentCourseMap,
   removeFromCourse,
+  type EnrollmentInfo,
 } from '../services/enrollments'
+import { listCourses } from '../services/courses'
+import { EnrollmentStatusEditor } from './EnrollmentStatusEditor'
 import { createPerson, listPeople } from '../services/people'
 import { isStaffType, metaFor } from '../data/personTypes'
 import { formatCourseMembership, type CourseMembership } from '../lib/courseMembershipLabel'
@@ -63,18 +67,22 @@ export function CoursePeople({
   const [assignments, setAssignments] = useState<Map<string, CourseStaffAssignment>>(
     () => new Map(),
   )
+  const [enrollments, setEnrollments] = useState<Map<string, EnrollmentInfo>>(() => new Map())
+  const [allCourses, setAllCourses] = useState<Course[]>([])
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
   const meta = metaFor(type)
   const browse = usePeopleBrowseControls()
 
   async function reload() {
-    const [people, courses] = await Promise.all([
+    const [people, courses, status] = await Promise.all([
       listCoursePeople(type, courseId),
       type === 'student' ? listStudentCourseMap() : Promise.resolve(null),
+      type === 'student' ? listCourseEnrollments(courseId) : Promise.resolve(null),
     ])
     setEnrolled(people)
     if (courses) setCoursesByStudent(courses)
+    if (status) setEnrollments(status)
     // Lettera di incarico: moduli, ore e compenso dei docenti
     if (type === 'teacher') {
       setAssignments(await listCourseStaffAssignments(courseId, 'teacher'))
@@ -84,6 +92,7 @@ export function CoursePeople({
   useEffect(() => {
     void reload()
     listPeople(isStaffType(type) ? 'staff' : type).then(setAll)
+    if (type === 'student') listCourses().then(setAllCourses).catch(() => setAllCourses([]))
     setCreating(false)
     setSelected('')
     setError('')
@@ -179,6 +188,7 @@ export function CoursePeople({
   }
 
   const belowMin = meta.courseMin > 0 && enrolled.length < meta.courseMin
+  const inactive = type === 'student' ? enrolled.filter((p) => (enrollments.get(p.id)?.status ?? 'attivo') !== 'attivo').length : 0
 
   return (
     <div className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
@@ -192,7 +202,8 @@ export function CoursePeople({
             }
           >
             {meta.title} ({enrolled.length}
-            {meta.courseMin > 0 ? ` / min. ${meta.courseMin}` : ''})
+            {meta.courseMin > 0 ? ` / min. ${meta.courseMin}` : ''}
+            {inactive ? `, di cui ${inactive} ritirati o trasferiti` : ''})
           </h3>
           {meta.courseMin > 0 && (
             <p className="mt-1 min-h-4 text-xs text-amber-700" aria-hidden={!belowMin}>
@@ -301,6 +312,18 @@ export function CoursePeople({
                     {p.phone ? <WhatsAppLink value={p.phone} className="text-xs" /> : null}
                     {p.email ? <EmailLink value={p.email} className="text-xs" /> : null}
                   </p>
+                )}
+                {type === 'student' && (
+                  <EnrollmentStatusEditor
+                    courseId={courseId}
+                    studentId={p.id}
+                    info={enrollments.get(p.id)}
+                    courses={allCourses}
+                    onChanged={() => {
+                      void reload()
+                      onChanged?.()
+                    }}
+                  />
                 )}
                 {type === 'teacher' && (
                   <StaffAssignmentEditor

@@ -175,7 +175,7 @@ async function loadPeople(
 ): Promise<Array<{ person: PersonRow; roleid: number }>> {
   const [{ data: students, error: studentError }, { data: teachers, error: teacherError }] =
     await Promise.all([
-      db.from('course_students').select('person:students(id, first_name, last_name, email, fad_email, fad_password)').eq('course_id', courseId),
+      db.from('course_students').select('person:students(id, first_name, last_name, email, fad_email, fad_password)').eq('course_id', courseId).eq('status', 'attivo'),
       db.from('course_staff').select('person:people(id, first_name, last_name, email, fad_email, fad_password)').eq('course_id', courseId).eq('role', 'teacher'),
     ])
   if (studentError) throw studentError

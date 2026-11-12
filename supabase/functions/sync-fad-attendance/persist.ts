@@ -56,12 +56,23 @@ async function loadEvents(db: SupabaseClient, courseId: string): Promise<FadLogE
 async function loadStudents(db: SupabaseClient, courseId: string): Promise<FadStudent[]> {
   const { data, error } = await db
     .from('course_students')
-    .select('student:students(id, first_name, last_name)')
+    .select('enrolled_on, left_on, student:students(id, first_name, last_name)')
     .eq('course_id', courseId)
   if (error) throw error
-  return ((data ?? []) as unknown as { student: { id: string; first_name: string; last_name: string } | null }[])
+  type Row = {
+    enrolled_on: string | null
+    left_on: string | null
+    student: { id: string; first_name: string; last_name: string } | null
+  }
+  return ((data ?? []) as unknown as Row[])
     .filter((r) => r.student)
-    .map((r) => ({ id: r.student!.id, firstName: r.student!.first_name, lastName: r.student!.last_name }))
+    .map((r) => ({
+      id: r.student!.id,
+      firstName: r.student!.first_name,
+      lastName: r.student!.last_name,
+      fromDay: r.enrolled_on,
+      untilDay: r.left_on,
+    }))
 }
 
 export interface RecomputeResult {
@@ -150,6 +161,12 @@ export async function recompute(db: SupabaseClient, courseId: string): Promise<R
       if (error) throw error
       rows += upserts.length
     }
+    // Alunni non più nel corso quel giorno (ritirati, trasferiti, tolti): via le righe calcolate
+    const inDay = d.students.map((s) => s.studentId)
+    let stale = db.from('fad_attendance').delete().eq('session_id', sessionId).eq('manual', false)
+    if (inDay.length) stale = stale.not('student_id', 'in', `(${inDay.join(',')})`)
+    const { error: staleError } = await stale
+    if (staleError) throw staleError
     for (const o of d.others) unmatched.add(o.name)
   }
   return { days: days.length, rows, keptManual, unmatched: [...unmatched].sort() }
