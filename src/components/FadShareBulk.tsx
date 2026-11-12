@@ -170,7 +170,7 @@ export function FadShareBulk({ peopleByType, courseLabel, externalSearch, showTi
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           {showTitle && <h3 className="text-sm font-semibold text-slate-700">Invia credenziali FAD</h3>}
           <p className="mt-1 text-xs text-slate-500">
             Il messaggio include link, username e password.
