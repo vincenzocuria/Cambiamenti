@@ -265,6 +265,38 @@ export function studentDay(
   }
 }
 
+function tokens(name: string): string[] {
+  return nameKey(name).split(' ').filter(Boolean)
+}
+
+/**
+ * Nomi scritti in modo diverso tra Moodle e gestionale (es. «Maria Antonia» / «Mariantonia»):
+ * se il cognome compare per intero e un solo alunno del corso ha quel cognome e un nome con le
+ * stesse prime 4 lettere, gli eventi vengono attribuiti a quell'alunno.
+ */
+export function withStudentAliases(
+  events: FadLogEvent[],
+  students: FadStudent[],
+  studentNames: Set<string>,
+): FadLogEvent[] {
+  const alias = new Map<string, string>()
+  for (const userName of new Set(events.map((e) => e.userName))) {
+    const key = nameKey(userName)
+    if (!key || studentNames.has(key)) continue
+    const t = tokens(userName)
+    const hits = students.filter((s) => {
+      const last = tokens(s.lastName)
+      if (!last.length || !last.every((x) => t.includes(x))) return false
+      const rest = t.filter((x) => !last.includes(x))
+      const first = tokens(s.firstName)[0] ?? ''
+      return first.length >= 4 && rest.some((x) => x.slice(0, 4) === first.slice(0, 4))
+    })
+    if (hits.length === 1) alias.set(userName, `${hits[0].firstName} ${hits[0].lastName}`)
+  }
+  if (!alias.size) return events
+  return events.map((e) => (alias.has(e.userName) ? { ...e, userName: alias.get(e.userName)! } : e))
+}
+
 /**
  * Tutte le giornate FAD di un corso.
  * `closureOverrides` contiene le chiusure corrette a mano (giorno → istante).
@@ -277,6 +309,7 @@ export function reconstructCourse(
   const byKey = new Map<string, FadStudent>()
   for (const s of students) byKey.set(nameKey(`${s.firstName} ${s.lastName}`), s)
   const studentNames = new Set(byKey.keys())
+  events = withStudentAliases(events, students, studentNames)
 
   const byDay = new Map<string, FadLogEvent[]>()
   for (const e of [...events].sort((a, b) => a.at - b.at || (a.kind === 'end' ? -1 : 0))) {
