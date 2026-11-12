@@ -33,7 +33,13 @@ Deno.serve(async (req) => {
     const cronSecret = Deno.env.get('CRON_SECRET')
     if (cronSecret && req.headers.get('x-cron-secret') === cronSecret) {
       if (!serviceKey) return jsonResponse({ error: 'Configurazione server mancante' }, 500)
-      return jsonResponse(await syncAll(createClient(supabaseUrl, serviceKey)))
+      const admin = createClient(supabaseUrl, serviceKey)
+      // Con un corso indicato legge solo quello (anche se finito da tempo), altrimenti il giro notturno
+      const body = (await req.json().catch(() => ({}))) as { courseId?: unknown }
+      if (typeof body.courseId === 'string' && body.courseId.trim()) {
+        return jsonResponse(await syncCourse(admin, body.courseId.trim(), MoodleWebSession.fromEnv()))
+      }
+      return jsonResponse(await syncAll(admin))
     }
 
     const authHeader = req.headers.get('Authorization')
