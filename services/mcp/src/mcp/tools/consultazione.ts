@@ -37,7 +37,7 @@ export function registerLookupTools({ server, db }: McpCtx): void {
       if (tipo !== 'personale') {
         const { data, error } = await db
           .from('students')
-          .select(`${PERSON_COLUMNS}, inps_benefit, course_students(courses(id, name, edition, status))`)
+          .select(`${PERSON_COLUMNS}, inps_benefit, course_students(courses!course_students_course_id_fkey(id, name, edition, status))`)
           .or(filter)
           .limit(30)
         if (error) throw dbError(error, 'Ricerca allievi')

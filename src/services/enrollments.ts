@@ -24,7 +24,7 @@ export async function listStudentCourseMap(): Promise<Map<string, CourseMembersh
   for (;;) {
     const { data, error } = await supabase
       .from('course_students')
-      .select('student_id, course:courses(name, edition)')
+      .select('student_id, course:courses!course_students_course_id_fkey(name, edition)')
       .range(from, from + pageSize - 1)
     if (error) throw error
     for (const row of data) {
@@ -89,7 +89,7 @@ export async function listPersonCourses(type: PersonType, personId: string): Pro
   if (type === 'student') {
     const { data, error } = await supabase
       .from('course_students')
-      .select('course:courses(*)')
+      .select('course:courses!course_students_course_id_fkey(*)')
       .eq('student_id', personId)
     if (error) throw error
     return (data as unknown as { course: Course }[]).map((r) => r.course)
