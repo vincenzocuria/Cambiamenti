@@ -75,7 +75,7 @@ export async function listFadSessions(courseId: string): Promise<FadSessionWithR
 
 export async function updateFadSession(
   id: string,
-  input: Partial<Pick<FadSession, 'closed_at' | 'closed_source' | 'closed_note' | 'manual' | 'note'>>,
+  input: Partial<Pick<FadSession, 'closed_at' | 'closed_source' | 'closed_note' | 'manual' | 'excluded' | 'note'>>,
 ): Promise<void> {
   const { error } = await supabase.from('fad_sessions').update(input).eq('id', id)
   if (error) throw error

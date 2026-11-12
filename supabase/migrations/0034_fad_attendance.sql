@@ -31,6 +31,8 @@ create table if not exists public.fad_sessions (
   closed_note text not null default '',
   closed_by text not null default '',
   manual boolean not null default false,
+  -- giornata da non includere in dichiarazioni ed esportazioni (es. lezione in presenza)
+  excluded boolean not null default false,
   note text not null default '',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),

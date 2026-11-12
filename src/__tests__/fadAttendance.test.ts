@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { parseReportLog } from '../../supabase/functions/sync-fad-attendance/reportCsv'
 import { parseMoodleDateTime, romeDay } from '../../supabase/functions/sync-fad-attendance/romeTime'
 import { nameKey, reconstructCourse } from '../../supabase/functions/sync-fad-attendance/reconstruct'
-import { romeIso, romeTime } from '../lib/fadAttendance'
+import { eventsForSessions, exportableSessions, periodText, romeIso, romeTime } from '../lib/fadAttendance'
+import type { FadSessionWithRows } from '../services/fadAttendance'
+import type { FadLogEventRow } from '../types/db'
 
 const HEAD =
   'Data/Ora,"Nome completo dell\'utente","Utente coinvolto","Contesto dell\'evento",Componente,Evento,Descrizione,Origine,"Indirizzo IP"'
@@ -102,5 +104,24 @@ describe('ricostruzione presenze', () => {
     const [day] = reconstructCourse(events, students, new Map([['2026-03-13', at]]))
     expect(day.closure.source).toBe('manuale')
     expect(day.students.find((s) => s.studentId === 'd')?.status).toBe('uscito_prima')
+  })
+})
+
+describe('esportazioni parziali', () => {
+  const ses = (day: string, excluded = false) => ({ day, excluded, rows: [] }) as unknown as FadSessionWithRows
+  const all = [ses('2026-03-04'), ses('2026-03-05', true), ses('2026-03-06'), ses('2026-03-10')]
+
+  it('toglie le giornate escluse e quelle fuori periodo', () => {
+    expect(exportableSessions(all).map((s) => s.day)).toEqual(['2026-03-04', '2026-03-06', '2026-03-10'])
+    const part = exportableSessions(all, { from: '2026-03-05', to: '2026-03-08' })
+    expect(part.map((s) => s.day)).toEqual(['2026-03-06'])
+    expect(periodText(exportableSessions(all))).toBe('dal 04/03/2026 al 10/03/2026')
+    expect(periodText(part)).toBe('del 06/03/2026')
+  })
+
+  it('tiene solo i log delle giornate esportate (ora di Roma)', () => {
+    const ev = (at: string) => ({ occurred_at: at }) as FadLogEventRow
+    const kept = eventsForSessions([ev('2026-03-05T23:30:00Z'), ev('2026-03-04T10:00:00Z')], [ses('2026-03-06')])
+    expect(kept).toHaveLength(1)
   })
 })

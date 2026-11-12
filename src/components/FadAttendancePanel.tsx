@@ -17,10 +17,13 @@ import {
   attendanceCsv,
   closedSourceLabels,
   declarationHtml,
+  eventsForSessions,
+  exportableSessions,
   exitSourceLabels,
   fadTotals,
   itDate,
   logCsv,
+  periodText,
   romeIso,
   romeTime,
   sortedRows,
@@ -50,6 +53,7 @@ export function FadAttendancePanel({ course, onCourseChanged }: { course: Course
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [openDay, setOpenDay] = useState<string | null>(null)
+  const [period, setPeriod] = useState({ from: '', to: '' })
 
   const load = useCallback(async () => {
     try {
@@ -79,6 +83,10 @@ export function FadAttendancePanel({ course, onCourseChanged }: { course: Course
   }
 
   const totals = useMemo(() => fadTotals(sessions ?? []), [sessions])
+  const selected = useMemo(() => exportableSessions(sessions ?? [], period), [sessions, period])
+  const partial = !!(period.from || period.to)
+  const excludedCount = (sessions ?? []).filter((s) => s.excluded).length
+  const suffix = partial && selected.length ? ` ${periodText(selected).replace(/\//g, '-')}` : ''
 
   const sync = () =>
     run('sync', async () => {
@@ -88,11 +96,12 @@ export function FadAttendancePanel({ course, onCourseChanged }: { course: Course
       }`
     })
 
-  const exportCsv = () => download(`${fileBase(course)}.csv`, attendanceCsv(sessions ?? []), 'text/csv;charset=utf-8')
+  const exportCsv = () => download(`${fileBase(course)}${suffix}.csv`, attendanceCsv(selected), 'text/csv;charset=utf-8')
 
   const exportLog = () =>
     run('log', async () => {
-      download(`Log Moodle ${fileBase(course)}.csv`, logCsv(await listFadLogEvents(course.id)), 'text/csv;charset=utf-8')
+      const events = eventsForSessions(await listFadLogEvents(course.id), selected)
+      download(`Log Moodle ${fileBase(course)}${suffix}.csv`, logCsv(events), 'text/csv;charset=utf-8')
     })
 
   const openDeclaration = () => {
@@ -101,7 +110,7 @@ export function FadAttendancePanel({ course, onCourseChanged }: { course: Course
       setError('Il browser ha bloccato la nuova finestra: consenti i popup per questo sito')
       return
     }
-    w.document.write(declarationHtml(course, sessions ?? []))
+    w.document.write(declarationHtml(course, selected, { partial }))
     w.document.close()
   }
 
@@ -113,16 +122,48 @@ export function FadAttendancePanel({ course, onCourseChanged }: { course: Course
         <PrimaryButton type="button" onClick={sync} disabled={!!busy || !course.moodle_course_id}>
           {busy === 'sync' ? 'Leggo da Moodle…' : 'Leggi presenze da Moodle'}
         </PrimaryButton>
-        <SecondaryButton type="button" onClick={openDeclaration} disabled={!sessions?.length}>
+        <SecondaryButton type="button" onClick={openDeclaration} disabled={!selected.length}>
           Dichiarazione per la Regione
         </SecondaryButton>
-        <SecondaryButton type="button" onClick={exportCsv} disabled={!sessions?.length}>
+        <SecondaryButton type="button" onClick={exportCsv} disabled={!selected.length}>
           Esporta presenze (Excel)
         </SecondaryButton>
-        <SecondaryButton type="button" onClick={exportLog} disabled={!!busy || !sessions?.length}>
+        <SecondaryButton type="button" onClick={exportLog} disabled={!!busy || !selected.length}>
           {busy === 'log' ? 'Preparo…' : 'Log Moodle originale'}
         </SecondaryButton>
       </div>
+      {sessions && sessions.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm">
+          <span className="text-slate-600">Esporta le giornate</span>
+          <label className="flex items-center gap-1 text-slate-500">
+            dal
+            <input
+              type="date"
+              value={period.from}
+              onChange={(e) => setPeriod((p) => ({ ...p, from: e.target.value }))}
+              className="h-8 rounded-lg border border-slate-300 px-2"
+            />
+          </label>
+          <label className="flex items-center gap-1 text-slate-500">
+            al
+            <input
+              type="date"
+              value={period.to}
+              onChange={(e) => setPeriod((p) => ({ ...p, to: e.target.value }))}
+              className="h-8 rounded-lg border border-slate-300 px-2"
+            />
+          </label>
+          {partial && (
+            <SecondaryButton size="sm" type="button" onClick={() => setPeriod({ from: '', to: '' })}>
+              Tutto il corso
+            </SecondaryButton>
+          )}
+          <span className="text-xs text-slate-500">
+            {selected.length} giornate {selected.length ? periodText(selected) : ''}
+            {excludedCount ? ` · ${excludedCount} escluse (non FAD)` : ''}
+          </span>
+        </div>
+      )}
       <p className="text-xs text-slate-500">
         Le presenze si aggiornano da sole ogni notte per i corsi collegati a Moodle. Le correzioni fatte a mano restano.
       </p>
@@ -309,12 +350,21 @@ function SessionRows({
     await onChanged(true)
   }
 
+  async function toggleExcluded() {
+    await updateFadSession(session.id, { excluded: !session.excluded })
+    await onChanged(false)
+  }
+
   return (
     <>
-      <tr className="cursor-pointer border-b border-slate-100 hover:bg-slate-50" onClick={onToggle}>
+      <tr
+        className={`cursor-pointer border-b border-slate-100 hover:bg-slate-50 ${session.excluded ? 'opacity-50' : ''}`}
+        onClick={onToggle}
+      >
         <td className="px-3 py-2 font-medium text-slate-800">
           <span className="mr-1 inline-block w-3 text-slate-400">{open ? '▾' : '▸'}</span>
           {itDate(session.day)}
+          {session.excluded && <span className="ml-2 text-xs font-normal text-slate-500">esclusa</span>}
         </td>
         <td className="px-3 py-2 tabular-nums">{romeTime(session.closed_at) || '—'}</td>
         <td className="px-3 py-2 text-xs text-slate-500">
@@ -345,6 +395,9 @@ function SessionRows({
                   Torna al calcolo automatico
                 </SecondaryButton>
               )}
+              <SecondaryButton size="sm" type="button" onClick={() => void toggleExcluded()}>
+                {session.excluded ? 'Includi nelle esportazioni' : 'Escludi dalle esportazioni (non FAD)'}
+              </SecondaryButton>
               {error && <span className="text-red-600">{error}</span>}
             </div>
             <div className="overflow-x-auto">

@@ -86,6 +86,34 @@ export function fadTotals(sessions: FadSessionWithRows[]): FadTotals {
   return t
 }
 
+export interface FadPeriod {
+  from: string
+  to: string
+}
+
+/** Giornate da esportare: escluse quelle segnate come non FAD e quelle fuori dal periodo scelto. */
+export function exportableSessions(sessions: FadSessionWithRows[], period: FadPeriod = { from: '', to: '' }) {
+  return sessions.filter(
+    (s) => !s.excluded && (!period.from || s.day >= period.from) && (!period.to || s.day <= period.to),
+  )
+}
+
+/** Testo del periodo coperto da un'esportazione, es. «dal 04/03/2026 al 08/04/2026». */
+export function periodText(sessions: FadSessionWithRows[]): string {
+  if (!sessions.length) return ''
+  const days = sessions.map((s) => s.day).sort()
+  const first = days[0]
+  const last = days[days.length - 1]
+  return first === last ? `del ${itDate(first)}` : `dal ${itDate(first)} al ${itDate(last)}`
+}
+
+/** Eventi del log che cadono nelle giornate esportate. */
+export function eventsForSessions(events: FadLogEventRow[], sessions: FadSessionWithRows[]): FadLogEventRow[] {
+  const days = new Set(sessions.map((s) => s.day))
+  const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome' })
+  return events.filter((e) => days.has(fmt.format(new Date(e.occurred_at))))
+}
+
 export function studentName(r: FadSessionWithRows['rows'][number]): string {
   return r.student ? `${r.student.last_name} ${r.student.first_name}`.trim() : r.moodle_name
 }
@@ -167,8 +195,14 @@ function esc(s: string | number | null | undefined): string {
  * Dichiarazione per la Regione: pagina stampabile (Salva come PDF) con metodo,
  * riepilogo per giornata e prospetto per alunno.
  */
-export function declarationHtml(course: Course, sessions: FadSessionWithRows[], issuedOn = new Date()): string {
+export function declarationHtml(
+  course: Course,
+  sessions: FadSessionWithRows[],
+  options: { partial?: boolean; issuedOn?: Date } = {},
+): string {
+  const issuedOn = options.issuedOn ?? new Date()
   const totals = fadTotals(sessions)
+  const period = periodText(sessions)
   const edition = course.edition ? ` – ${course.edition}` : ''
   const today = new Intl.DateTimeFormat('it-IT').format(issuedOn)
   const daysRows = sessions
@@ -216,7 +250,7 @@ tr.assente td{color:#777}small{color:#444}.sign{margin-top:40px;display:flex;jus
 @media print{body{margin:12mm}h2{break-after:avoid}tr{break-inside:avoid}}
 </style></head><body>
 <h1>DICHIARAZIONE SOSTITUTIVA DI ATTO DI NOTORIETÀ</h1>
-<p class="sub">(art. 47 D.P.R. 28 dicembre 2000, n. 445)<br>Presenze in Formazione a Distanza – permanenza degli allievi fino alla chiusura dell'aula virtuale</p>
+<p class="sub">(art. 47 D.P.R. 28 dicembre 2000, n. 445)<br>Presenze in Formazione a Distanza – permanenza degli allievi fino alla chiusura dell'aula virtuale<br><b>Giornate FAD ${esc(period)}</b>${options.partial ? ' (prospetto parziale)' : ''}</p>
 <p>Il/La sottoscritto/a ______________________________, in qualità di legale rappresentante di <b>Cambia-Menti S.r.l.</b>, ente di formazione accreditato presso la Regione Calabria, consapevole delle sanzioni penali previste dall'art. 76 del D.P.R. 445/2000 in caso di dichiarazioni mendaci,</p>
 <p style="text-align:center"><b>DICHIARA</b></p>
 <p>con riferimento al corso <b>${esc(course.name)}${esc(edition)}</b>${course.code ? `, ID ${esc(course.code)}` : ''}${
@@ -230,13 +264,14 @@ tr.assente td{color:#777}small{color:#444}.sign{margin-top:40px;display:flex;jus
 <li>che al termine di ciascuna lezione il docente chiude l'aula virtuale per tutti i partecipanti: in quel momento gli allievi che avevano chiuso la finestra o l'applicazione della videoconferenza non generano alcun evento di uscita. Per tali allievi <b>l'assenza dell'evento di uscita non indica un abbandono anticipato</b>: l'uscita coincide con la chiusura dell'aula;</li>
 <li>che l'ora di chiusura dell'aula di ogni giornata è stata determinata dall'evento «Termine forzato della riunione», quando registrato, oppure dall'uscita simultanea dei partecipanti (almeno tre partecipanti che escono entro due minuti), come indicato giornata per giornata nella Tabella 1;</li>
 <li>che un allievo è indicato come «Collegato fino alla chiusura» quando, all'ora di chiusura dell'aula (con una tolleranza di 5 minuti), risultava entrato e non uscito; eventuali uscite anticipate e i casi non determinabili dai log sono indicati espressamente nella Tabella 2;</li>
-<li>che nel complesso, su ${totals.days} giornate di lezione, risultano <b>${totals.fino}</b> presenze con collegamento fino alla chiusura dell'aula, <b>${totals.prima}</b> uscite anticipate, <b>${totals.verificare}</b> casi da verificare con il registro didattico e ${totals.assenti} assenze.</li>
+<li>che il presente prospetto riguarda le sole giornate di lezione svolte in modalità FAD ${esc(period)}${options.partial ? ', limitatamente al periodo indicato' : ''}, per un totale di ${totals.days} giornate, elencate nella Tabella 1;</li>
+<li>che nel complesso, nelle ${totals.days} giornate FAD considerate, risultano <b>${totals.fino}</b> presenze con collegamento fino alla chiusura dell'aula, <b>${totals.prima}</b> uscite anticipate, <b>${totals.verificare}</b> casi da verificare con il registro didattico e ${totals.assenti} assenze.</li>
 </ol>
 <h2>Tabella 1 – Chiusura dell'aula per giornata</h2>
 <table><thead><tr><th>Data</th><th>Ora chiusura</th><th>Come è determinata</th><th>Allievi collegati</th><th>Fino alla chiusura</th><th>Usciti prima</th><th>Da verificare</th><th>Assenti</th></tr></thead><tbody>${daysRows}</tbody></table>
 <h2>Tabella 2 – Prospetto per allievo e giornata</h2>
 <table><thead><tr><th>Data</th><th>Allievo</th><th>Codice fiscale</th><th>Primo accesso</th><th>Uscita</th><th>Uscita da</th><th>Minuti</th><th>Esito</th></tr></thead><tbody>${studentRows}</tbody></table>
-<p>Allegati: registro eventi Moodle originale (accessi, abbandoni, chiusure forzate) per il corso indicato.</p>
+<p>Allegati: registro eventi Moodle originale (accessi, abbandoni, chiusure forzate) per il corso indicato e le giornate ${esc(period)}.</p>
 <div class="sign"><div>Luogo e data: ____________, ${today}</div><div>Il legale rappresentante<br><br>______________________________</div></div>
 </body></html>`
 }

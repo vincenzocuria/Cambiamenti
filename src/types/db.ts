@@ -335,6 +335,7 @@ export interface FadSession {
   closed_note: string
   closed_by: string
   manual: boolean
+  excluded: boolean
   note: string
   created_at: string
   updated_at: string
