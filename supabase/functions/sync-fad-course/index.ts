@@ -2,7 +2,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { corsHeaders, jsonResponse } from '../send-fad-credentials/cors.ts'
 import { parseSyncFadBody } from './parseBody.ts'
-import { syncFadCourse } from './sync.ts'
+import { syncFadCourse, syncStudentEnrolment } from './sync.ts'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -38,6 +38,7 @@ Deno.serve(async (req) => {
     }
 
     const body = parseSyncFadBody(await req.json())
+    if (body.studentId) return jsonResponse(await syncStudentEnrolment(caller, body.courseId, body.studentId))
     const result = await syncFadCourse(caller, body.courseId)
     return jsonResponse(result)
   } catch (error) {

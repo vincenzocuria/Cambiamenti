@@ -17,6 +17,20 @@ export interface FadSyncResult {
   warning: string
 }
 
+/** Riporta su Moodle il ritiro, il trasferimento o la riattivazione di un alunno. */
+export async function syncMoodleEnrolment(
+  courseId: string,
+  studentId: string,
+): Promise<{ done: boolean; message: string }> {
+  const { data, error } = await supabase.functions.invoke('sync-fad-course', {
+    body: { courseId, studentId },
+  })
+  if (error) throw new Error(await readFunctionError(error))
+  const body = data as { done?: boolean; message?: string; error?: string } | null
+  if (body?.error) throw new Error(body.error)
+  return { done: !!body?.done, message: body?.message ?? '' }
+}
+
 export async function syncFadCourse(courseId: string): Promise<FadSyncResult> {
   const { data, error } = await supabase.functions.invoke('sync-fad-course', {
     body: { courseId },

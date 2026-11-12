@@ -13,6 +13,7 @@ import {
 } from '../services/enrollments'
 import { listCourses } from '../services/courses'
 import { EnrollmentStatusEditor } from './EnrollmentStatusEditor'
+import { VariationLetterPanel } from './VariationLetterPanel'
 import { createPerson, listPeople } from '../services/people'
 import { isStaffType, metaFor } from '../data/personTypes'
 import { formatCourseMembership, type CourseMembership } from '../lib/courseMembershipLabel'
@@ -293,6 +294,10 @@ export function CoursePeople({
       )}
 
       {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
+
+      {type === 'student' && (
+        <VariationLetterPanel courseId={courseId} people={enrolled} enrollments={enrollments} />
+      )}
 
       {enrolled.length === 0 ? (
         <p className="text-sm text-slate-400">Nessuno associato in questo ruolo.</p>

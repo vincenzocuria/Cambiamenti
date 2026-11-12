@@ -5,6 +5,20 @@ export const school = {
   /** Ragione sociale e legale rappresentante per lettere di incarico e dichiarazioni. */
   companyName: 'Cambia-Menti S.r.l.',
   legalRepresentative: 'Basile Giordano',
+  /** Dati del legale rappresentante per le comunicazioni alla Regione. */
+  legalRepresentativeDetails: {
+    name: 'GIORDANO BASILE',
+    birthPlace: 'CORIGLIANO CALABRO',
+    birthProvince: 'CS',
+    birthDate: '27/09/1993',
+    taxCode: 'BSLGDN93P27D005H',
+  },
+  taxCode: '03936190788',
+  /** Sede legale e operativa come scritte nelle comunicazioni alla Regione. */
+  officialSeat: 'via CARDAME, SNC, CAP 87064 CORIGLIANO ROSSANO (CS)',
+  pec: 'cambiamentisrl@pec.it',
+  /** Accreditamento regionale (DGR n. 335/2021). */
+  accreditation: 'Decreto 7637 del 26/05/2025',
   city: 'Corigliano Rossano',
   address: 'C.da Cardame snc, Corigliano-Rossano',
   vatNumber: '03936190788',

@@ -10,7 +10,17 @@ import type { FadLogEvent } from './reportCsv.ts'
 import { romeDay } from './romeTime.ts'
 
 export type ClosedSource = 'registrata' | 'ricostruita' | 'manuale' | 'non_determinabile'
-export type AttendanceStatus = 'fino_chiusura' | 'uscito_prima' | 'assente' | 'da_verificare'
+export type AttendanceStatus =
+  | 'fino_chiusura'
+  | 'uscito_prima'
+  | 'assente'
+  | 'da_verificare'
+  /** Giorni dopo il ritiro */
+  | 'ritirato'
+  /** Giorni dopo il trasferimento ad altro corso */
+  | 'trasferito'
+  /** Giorni prima dell'ingresso nel corso (trasferito da altro corso o inserito dopo) */
+  | 'non_iscritto'
 export type ExitSource = '' | 'log' | 'chiusura'
 
 export interface FadStudent {
@@ -21,6 +31,11 @@ export interface FadStudent {
   fromDay?: string | null
   /** Primo giorno non più nel corso (ritirato o trasferito); vuoto = fino alla fine. */
   untilDay?: string | null
+  /** Perché esce dal corso da untilDay. */
+  leftAs?: 'ritirato' | 'trasferito' | null
+  /** Testo per il registro nei giorni fuori iscrizione, es. «Trasferito a 938.1 ED1 dal 06/12/2025». */
+  leftNote?: string
+  enteredNote?: string
 }
 
 /** L'alunno fa parte del corso in quella giornata? */
@@ -47,6 +62,26 @@ export interface StudentDay {
   joins: number
   /** Minuti tra l'uscita e la chiusura, per chi è uscito prima. */
   minutesBeforeClose: number | null
+  /** Annotazione automatica per il registro (ritiro, trasferimento, ingresso). */
+  note?: string
+}
+
+/** Riga del registro per un giorno in cui l'alunno non fa parte del corso. */
+function outsideDay(s: FadStudent, day: string): StudentDay {
+  const before = !!s.fromDay && day < s.fromDay
+  return {
+    studentId: s.id,
+    moodleName: '',
+    firstJoinAt: null,
+    exitAt: null,
+    exitSource: '',
+    status: before ? 'non_iscritto' : (s.leftAs ?? 'ritirato'),
+    minutes: null,
+    pauseMinutes: 0,
+    joins: 0,
+    minutesBeforeClose: null,
+    note: before ? (s.enteredNote ?? '') : (s.leftNote ?? ''),
+  }
 }
 
 export interface FadDay {
@@ -350,8 +385,12 @@ export function reconstructCourse(
       perPerson.set(k, l)
     }
 
-    const studentsOut = students.filter((s) => enrolledOn(s, day)).map((s) =>
-      studentDay(s, perPerson.get(nameKey(`${s.firstName} ${s.lastName}`)) ?? [], closure.at),
+    // Il registro riporta tutti gli alunni per tutta la durata: fuori dal periodo di iscrizione
+    // la riga dice ritirato / trasferito / non ancora iscritto, senza contare presenze
+    const studentsOut = students.map((s) =>
+      enrolledOn(s, day)
+        ? studentDay(s, perPerson.get(nameKey(`${s.firstName} ${s.lastName}`)) ?? [], closure.at)
+        : outsideDay(s, day),
     )
     const others: FadDay['others'] = []
     for (const [k, l] of perPerson) {

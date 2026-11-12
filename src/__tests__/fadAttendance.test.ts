@@ -128,13 +128,23 @@ describe('ricostruzione presenze', () => {
     expect(day.students.find((s) => s.studentId === 'c')?.status).toBe('uscito_prima')
   })
 
-  it('conta un alunno solo nei giorni in cui è iscritto (ritiro / trasferimento)', () => {
+  it('nel registro restano ritirati, trasferiti e non ancora iscritti, senza contare presenze', () => {
     const windowed = students.map((s) =>
-      s.id === 'a' ? { ...s, untilDay: '2026-03-13' } : s.id === 'b' ? { ...s, fromDay: '2026-03-13' } : s,
+      s.id === 'a'
+        ? { ...s, untilDay: '2026-03-13', leftAs: 'trasferito' as const, leftNote: 'Trasferito a 474 ED2 dal 13/03/2026' }
+        : s.id === 'b'
+          ? { ...s, fromDay: '2026-03-14', enteredNote: 'Nel corso dal 14/03/2026' }
+          : s.id === 'c'
+            ? { ...s, untilDay: '2026-03-01', leftAs: 'ritirato' as const, leftNote: 'Ritirato dal 01/03/2026' }
+            : s,
     )
     const [day] = reconstructCourse(events, windowed)
-    expect(day.students.map((s) => s.studentId)).not.toContain('a')
-    expect(day.students.map((s) => s.studentId)).toContain('b')
+    const by = Object.fromEntries(day.students.map((s) => [s.studentId, s]))
+    expect(day.students).toHaveLength(5)
+    expect(by.a).toMatchObject({ status: 'trasferito', minutes: null, note: 'Trasferito a 474 ED2 dal 13/03/2026' })
+    expect(by.b).toMatchObject({ status: 'non_iscritto', note: 'Nel corso dal 14/03/2026' })
+    expect(by.c).toMatchObject({ status: 'ritirato' })
+    expect(by.d.status).toBe('uscito_prima')
   })
 
   it('una chiusura indicata a mano prevale', () => {

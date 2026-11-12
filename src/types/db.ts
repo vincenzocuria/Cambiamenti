@@ -322,7 +322,14 @@ export type InvoiceInput = Partial<
 >
 
 export type FadClosedSource = 'registrata' | 'ricostruita' | 'manuale' | 'non_determinabile'
-export type FadAttendanceStatus = 'fino_chiusura' | 'uscito_prima' | 'assente' | 'da_verificare'
+export type FadAttendanceStatus =
+  | 'fino_chiusura'
+  | 'uscito_prima'
+  | 'assente'
+  | 'da_verificare'
+  | 'ritirato'
+  | 'trasferito'
+  | 'non_iscritto'
 export type FadExitSource = '' | 'log' | 'chiusura' | 'manuale'
 
 /** Giornata di lezione FAD letta dai log Moodle. */
