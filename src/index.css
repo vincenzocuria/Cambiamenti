@@ -284,3 +284,18 @@ body {
   .todo-in, .todo-pop, .todo-spark, .todo-float, .todo-toast, .todo-hero-shine::after { animation: none; }
   .todo-out { animation-duration: 0.01s; }
 }
+
+/* Barre orizzontali scorrevoli (tab, filtri): su telefono niente barra di scorrimento visibile. */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Email, link e codici lunghi senza spazi vanno a capo invece di uscire dallo schermo su telefono. */
+@layer base {
+  body {
+    overflow-wrap: break-word;
+  }
+}
