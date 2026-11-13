@@ -226,9 +226,15 @@ function spansOf(events: FadLogEvent[]): Span[] {
   for (const e of events) {
     if (e.kind === 'join') {
       if (open === null) open = e.at
-    } else if (e.kind === 'leave' && open !== null) {
-      spans.push({ from: open, to: e.at })
-      open = null
+    } else if (e.kind === 'leave') {
+      if (open !== null) {
+        spans.push({ from: open, to: e.at })
+        open = null
+      } else if (spans.length && spans[spans.length - 1].to !== null && e.at > spans[spans.length - 1].to!) {
+        // Altra uscita senza un nuovo ingresso: l'alunno era collegato da più schede o
+        // dispositivi, e un'uscita registrata prova che era nell'aula fino a quel momento.
+        spans[spans.length - 1].to = e.at
+      }
     }
   }
   if (open !== null) spans.push({ from: open, to: null })

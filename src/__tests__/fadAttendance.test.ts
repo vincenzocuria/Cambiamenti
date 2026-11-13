@@ -128,6 +128,26 @@ describe('ricostruzione presenze', () => {
     expect(day.students.find((s) => s.studentId === 'c')?.status).toBe('uscito_prima')
   })
 
+  it('collegata da due schede: l’ultima uscita vale; un rientro dopo la lezione non la rende «da verificare»', () => {
+    const tabs = [
+      HEAD,
+      row('12:01:00', 'Elisa Ginese', 'join', 1),
+      row('12:02:00', 'Sandra Godino', 'join', 2),
+      row('12:03:00', 'Irene Gatto', 'join', 3),
+      row('12:04:00', 'Paola Figola', 'join', 4),
+      // Figola apre una seconda scheda, ne chiude una e resta nell'aula fino alla fine
+      row('14:00:00', 'Paola Figola', 'join', 4),
+      row('14:00:20', 'Paola Figola', 'leave', 4),
+      row('16:00:21', 'System Administrator', 'end', 2),
+      row('16:00:40', 'Paola Figola', 'leave', 4),
+      // e rientra brevemente nel pomeriggio, a lezione finita
+      row('18:52:00', 'Paola Figola', 'join', 4),
+      row('18:52:40', 'Paola Figola', 'leave', 4),
+    ].join('\n')
+    const [day] = reconstructCourse(parseReportLog(tabs), students)
+    expect(day.students.find((s) => s.studentId === 'd')).toMatchObject({ status: 'fino_chiusura', exitSource: 'log', minutes: 237 })
+  })
+
   it('nel registro restano ritirati, trasferiti e non ancora iscritti, senza contare presenze', () => {
     const windowed = students.map((s) =>
       s.id === 'a'
