@@ -406,7 +406,7 @@ function SessionRows({
                 <thead>
                   <tr className="text-left text-xs text-slate-500">
                     <th className="py-1 pr-3 font-medium">Alunno</th>
-                    <th className="py-1 pr-3 font-medium">Primo accesso</th>
+                    <th className="py-1 pr-3 font-medium">Ingresso</th>
                     <th className="py-1 pr-3 font-medium">Uscita</th>
                     <th className="py-1 pr-3 font-medium">Uscita da</th>
                     <th className="py-1 pr-3 text-right font-medium">Minuti</th>

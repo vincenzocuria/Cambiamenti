@@ -146,11 +146,11 @@ export function attendanceCsv(sessions: FadSessionWithRows[]): string {
     'Chiusura determinata da',
     'Alunno',
     'Codice fiscale',
-    'Primo accesso',
+    'Ingresso',
     'Uscita',
     'Uscita da',
     'Esito',
-    'Minuti dal primo accesso all\'uscita',
+    'Minuti dall\'ingresso all\'uscita',
     'N. accessi',
     'Correzione manuale',
     'Note',
@@ -273,7 +273,7 @@ tr.assente td{color:#777}tr.ritirato td,tr.trasferito td,tr.non_iscritto td{colo
 <li>che la piattaforma registra l'evento «Accesso alla riunione» a ogni ingresso dell'allievo nell'aula virtuale, mentre registra l'evento «Abbandono della riunione» <b>solo quando il browser dell'allievo ritorna sulla pagina del corso Moodle</b>;</li>
 <li>che al termine di ciascuna lezione il docente chiude l'aula virtuale per tutti i partecipanti: in quel momento gli allievi che avevano chiuso la finestra o l'applicazione della videoconferenza non generano alcun evento di uscita. Per tali allievi <b>l'assenza dell'evento di uscita non indica un abbandono anticipato</b>: l'uscita coincide con la chiusura dell'aula;</li>
 <li>che l'ora di chiusura dell'aula di ogni giornata è stata determinata dall'evento «Termine forzato della riunione», quando registrato, oppure dall'uscita simultanea dei partecipanti (almeno tre partecipanti che escono entro due minuti), come indicato giornata per giornata nella Tabella 1;</li>
-<li>che un allievo è indicato come «Collegato fino alla chiusura» quando, all'ora di chiusura dell'aula (con una tolleranza di 5 minuti), risultava entrato e non uscito; eventuali uscite anticipate e i casi non determinabili dai log sono indicati espressamente nella Tabella 2;</li>
+<li>che un allievo è indicato come «Collegato fino alla chiusura» quando, all'ora di chiusura dell'aula (con una tolleranza di 30 minuti), risultava entrato e non uscito; eventuali uscite anticipate e i casi non determinabili dai log sono indicati espressamente nella Tabella 2;</li>
 <li>che il presente prospetto riguarda le sole giornate di lezione svolte in modalità FAD ${esc(period)}${options.partial ? ', limitatamente al periodo indicato' : ''}, per un totale di ${totals.days} giornate, elencate nella Tabella 1;</li>
 ${
     sessions.some((s) => s.rows.some((r) => isOutsideEnrollment(r.status)))
@@ -284,7 +284,7 @@ ${
 <h2>Tabella 1 – Chiusura dell'aula per giornata</h2>
 <table><thead><tr><th>Data</th><th>Ora chiusura</th><th>Come è determinata</th><th>Allievi collegati</th><th>Fino alla chiusura</th><th>Usciti prima</th><th>Da verificare</th><th>Assenti</th></tr></thead><tbody>${daysRows}</tbody></table>
 <h2>Tabella 2 – Prospetto per allievo e giornata</h2>
-<table><thead><tr><th>Data</th><th>Allievo</th><th>Codice fiscale</th><th>Primo accesso</th><th>Uscita</th><th>Uscita da</th><th>Minuti</th><th>Esito</th></tr></thead><tbody>${studentRows}</tbody></table>
+<table><thead><tr><th>Data</th><th>Allievo</th><th>Codice fiscale</th><th>Ingresso</th><th>Uscita</th><th>Uscita da</th><th>Minuti</th><th>Esito</th></tr></thead><tbody>${studentRows}</tbody></table>
 <p>Allegati: registro eventi Moodle originale (accessi, abbandoni, chiusure forzate) per il corso indicato e le giornate ${esc(period)}.</p>
 <div class="sign"><div>Luogo e data: ____________, ${today}</div><div>Il legale rappresentante<br><br>______________________________</div></div>
 </body></html>`

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2'
 import type { FadLogEvent } from './reportCsv.ts'
 import { reconstructCourse, type FadStudent } from './reconstruct.ts'
+import { romeDay } from './romeTime.ts'
 
 const PAGE = 1000
 
@@ -95,6 +96,19 @@ async function loadStudents(db: SupabaseClient, courseId: string): Promise<FadSt
     }))
 }
 
+/** Inizio della prima lezione di ogni giornata, dal calendario del corso. */
+async function loadLessonStarts(db: SupabaseClient, courseId: string): Promise<Map<string, number>> {
+  const { data, error } = await db.from('calendar_events').select('starts_at').eq('course_id', courseId)
+  if (error) throw error
+  const out = new Map<string, number>()
+  for (const r of data ?? []) {
+    const at = Date.parse(r.starts_at)
+    const day = romeDay(at)
+    if (!out.has(day) || at < out.get(day)!) out.set(day, at)
+  }
+  return out
+}
+
 export interface RecomputeResult {
   days: number
   rows: number
@@ -109,6 +123,7 @@ export async function recompute(db: SupabaseClient, courseId: string): Promise<R
     loadStudents(db, courseId),
     db.from('fad_sessions').select('id, day, closed_at, manual').eq('course_id', courseId),
   ])
+  const lessonStarts = await loadLessonStarts(db, courseId)
   if (sessionsRes.error) throw sessionsRes.error
   const existing = new Map((sessionsRes.data ?? []).map((s) => [s.day as string, s]))
   const overrides = new Map<string, number | null>()
@@ -116,7 +131,7 @@ export async function recompute(db: SupabaseClient, courseId: string): Promise<R
     if (s.manual) overrides.set(s.day, s.closed_at ? Date.parse(s.closed_at) : null)
   }
 
-  const days = reconstructCourse(events, students, overrides)
+  const days = reconstructCourse(events, students, overrides, lessonStarts)
   const iso = (ms: number | null) => (ms == null ? null : new Date(ms).toISOString())
   let rows = 0
   let keptManual = 0

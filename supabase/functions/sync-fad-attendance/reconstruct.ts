@@ -95,7 +95,7 @@ export interface FadDay {
 /** Una giornata conta come lezione se almeno questi alunni si collegano. */
 export const MIN_STUDENTS_PER_DAY = 3
 /** Tolleranza attorno all'ora di chiusura. */
-export const CLOSE_TOLERANCE_MS = 5 * 60_000
+export const CLOSE_TOLERANCE_MS = 30 * 60_000
 /** Uscite entro questo tempo l'una dall'altra fanno parte dello stesso gruppo. */
 const GROUP_GAP_MS = 2 * 60_000
 /** Chi esce e rientra entro questo tempo stava facendo una pausa. */
@@ -242,16 +242,32 @@ function spansOf(events: FadLogEvent[]): Span[] {
 }
 
 /** Esito di un alunno in una giornata, data l'ora di chiusura. */
+/**
+ * Ingresso della giornata: con più ingressi conta quello più vicino all'inizio della lezione,
+ * cioè l'ultimo fatto entro l'ora d'inizio (o, se è entrato dopo, il primo).
+ */
+export function lessonEntry(joins: number[], lessonStart: number | null | undefined): number | null {
+  if (!joins.length) return null
+  if (lessonStart == null) return joins[0]
+  const before = joins.filter((at) => at <= lessonStart)
+  return before.length ? before[before.length - 1] : joins[0]
+}
+
 export function studentDay(
   student: FadStudent,
   events: FadLogEvent[],
   closeAt: number | null,
+  lessonStart: number | null = null,
 ): StudentDay {
   const joins = events.filter((e) => e.kind === 'join')
+  const entryAt = lessonEntry(
+    joins.map((e) => e.at),
+    lessonStart,
+  )
   const base: StudentDay = {
     studentId: student.id,
     moodleName: events[0]?.userName ?? '',
-    firstJoinAt: joins[0]?.at ?? null,
+    firstJoinAt: entryAt,
     exitAt: null,
     exitSource: '',
     status: 'assente',
@@ -300,8 +316,8 @@ export function studentDay(
     minutesBeforeClose = Math.round((closeAt - exitAt) / 60_000)
   }
 
-  // Minuti di collegamento: dal primo accesso all'uscita, pause comprese
-  const ms = Math.max(0, exitAt - joins[0].at)
+  // Minuti di collegamento: dall'ingresso all'uscita, pause comprese
+  const ms = Math.max(0, exitAt - (entryAt ?? joins[0].at))
   return {
     ...base,
     exitAt,
@@ -352,6 +368,8 @@ export function reconstructCourse(
   events: FadLogEvent[],
   students: FadStudent[],
   closureOverrides: Map<string, number | null> = new Map(),
+  /** inizio della lezione da calendario, per giornata (ms) */
+  lessonStarts: Map<string, number> = new Map(),
 ): FadDay[] {
   const byKey = new Map<string, FadStudent>()
   for (const s of students) byKey.set(nameKey(`${s.firstName} ${s.lastName}`), s)
@@ -392,7 +410,7 @@ export function reconstructCourse(
     // la riga dice ritirato / trasferito / non ancora iscritto, senza contare presenze
     const studentsOut = students.map((s) =>
       enrolledOn(s, day)
-        ? studentDay(s, perPerson.get(nameKey(`${s.firstName} ${s.lastName}`)) ?? [], closure.at)
+        ? studentDay(s, perPerson.get(nameKey(`${s.firstName} ${s.lastName}`)) ?? [], closure.at, lessonStarts.get(day) ?? null)
         : outsideDay(s, day),
     )
     const others: FadDay['others'] = []

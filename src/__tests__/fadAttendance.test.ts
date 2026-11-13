@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { parseReportLog } from '../../supabase/functions/sync-fad-attendance/reportCsv'
 import { parseMoodleDateTime, romeDay } from '../../supabase/functions/sync-fad-attendance/romeTime'
-import { nameKey, reconstructCourse, withStudentAliases } from '../../supabase/functions/sync-fad-attendance/reconstruct'
+import { lessonEntry, nameKey, reconstructCourse, withStudentAliases } from '../../supabase/functions/sync-fad-attendance/reconstruct'
 import { eventsForSessions, exportableSessions, periodText, romeIso, romeTime } from '../lib/fadAttendance'
 import type { FadSessionWithRows } from '../services/fadAttendance'
 import type { FadLogEventRow } from '../types/db'
@@ -148,6 +148,13 @@ describe('ricostruzione presenze', () => {
     expect(day.students.find((s) => s.studentId === 'd')).toMatchObject({ status: 'fino_chiusura', exitSource: 'log', minutes: 237 })
   })
 
+  it('con più ingressi conta quello più vicino all’inizio della lezione', () => {
+    expect(lessonEntry([10, 50, 90], 60)).toBe(50)
+    expect(lessonEntry([70, 90], 60)).toBe(70)
+    expect(lessonEntry([10, 50], null)).toBe(10)
+    expect(lessonEntry([], 60)).toBeNull()
+  })
+
   it('nel registro restano ritirati, trasferiti e non ancora iscritti, senza contare presenze', () => {
     const windowed = students.map((s) =>
       s.id === 'a'
@@ -168,7 +175,7 @@ describe('ricostruzione presenze', () => {
   })
 
   it('una chiusura indicata a mano prevale', () => {
-    const at = Date.parse('2026-03-13T14:30:00Z') // 15:30 a Roma
+    const at = Date.parse('2026-03-13T14:45:00Z') // 15:45 a Roma: Figola è uscita alle 15:00, oltre la tolleranza
     const [day] = reconstructCourse(events, students, new Map([['2026-03-13', at]]))
     expect(day.closure.source).toBe('manuale')
     expect(day.students.find((s) => s.studentId === 'd')?.status).toBe('uscito_prima')
