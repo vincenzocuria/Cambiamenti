@@ -300,11 +300,8 @@ export function studentDay(
     minutesBeforeClose = Math.round((closeAt - exitAt) / 60_000)
   }
 
-  let ms = 0
-  for (const s of spans) {
-    const end = Math.min(s.to ?? exitAt, exitAt)
-    if (end > s.from) ms += end - s.from
-  }
+  // Minuti di collegamento: dal primo accesso all'uscita, pause comprese
+  const ms = Math.max(0, exitAt - joins[0].at)
   return {
     ...base,
     exitAt,

@@ -410,7 +410,6 @@ function SessionRows({
                     <th className="py-1 pr-3 font-medium">Uscita</th>
                     <th className="py-1 pr-3 font-medium">Uscita da</th>
                     <th className="py-1 pr-3 text-right font-medium">Minuti</th>
-                    <th className="py-1 pr-3 text-right font-medium">Pause</th>
                     <th className="py-1 pr-3 font-medium">Esito</th>
                     <th className="py-1 font-medium" />
                   </tr>
@@ -454,7 +453,7 @@ function AttendanceRow({
     }
     const minutes =
       firstIso && exitIso
-        ? Math.max(0, Math.round((Date.parse(exitIso) - Date.parse(firstIso)) / 60000) - row.pause_minutes)
+        ? Math.max(0, Math.round((Date.parse(exitIso) - Date.parse(firstIso)) / 60000))
         : null
     await updateFadAttendance(row.id, {
       first_join_at: firstIso,
@@ -530,7 +529,6 @@ function AttendanceRow({
       <td className="py-1.5 pr-3 tabular-nums">{romeTime(row.exit_at) || '—'}</td>
       <td className="py-1.5 pr-3 text-xs text-slate-500">{exitSourceLabels[row.exit_source]}</td>
       <td className="py-1.5 pr-3 text-right tabular-nums">{row.minutes ?? '—'}</td>
-      <td className="py-1.5 pr-3 text-right tabular-nums text-slate-500">{row.pause_minutes || ''}</td>
       <td className="py-1.5 pr-3">
         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusTone[row.status]}`}>
           {statusLabels[row.status]}
