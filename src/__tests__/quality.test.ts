@@ -223,3 +223,42 @@ describe('fascicolo corso', () => {
     expect(html).not.toContain('<script>x')
   })
 })
+
+import { daysToExpiry, iterProgress, surveillanceDates, type CertificationStep } from '../lib/certification'
+
+describe('iter di certificazione', () => {
+  const step = (over: Partial<CertificationStep>): CertificationStep => ({
+    id: 's',
+    certification_id: 'c',
+    sort_order: 0,
+    title: 'Fase',
+    status: 'da_fare',
+    due_on: null,
+    done_on: null,
+    notes: '',
+    created_at: '',
+    ...over,
+  })
+
+  it('avanzamento, prossimo passo e ritardi; le fasi non applicabili non contano', () => {
+    const p = iterProgress(
+      [
+        step({ id: 'b', sort_order: 20, title: 'Audit fase 1', due_on: '2026-11-01' }),
+        step({ id: 'a', sort_order: 10, status: 'fatto' }),
+        step({ id: 'c', sort_order: 30, status: 'non_applicabile' }),
+        step({ id: 'd', sort_order: 40, due_on: '2027-01-01' }),
+      ],
+      '2026-11-16',
+    )
+    expect(p).toMatchObject({ done: 1, total: 3 })
+    expect(p.next?.id).toBe('b')
+    expect(p.overdue.map((s) => s.id)).toEqual(['b'])
+  })
+
+  it('scadenza e sorveglianze', () => {
+    expect(daysToExpiry('2026-11-26', '2026-11-16')).toBe(10)
+    expect(daysToExpiry('2026-11-06', '2026-11-16')).toBe(-10)
+    expect(daysToExpiry(null, '2026-11-16')).toBeNull()
+    expect(surveillanceDates('2027-02-28')).toEqual({ surveillance1: '2028-02-28', surveillance2: '2029-02-28', renewal: '2030-02-28' })
+  })
+})
