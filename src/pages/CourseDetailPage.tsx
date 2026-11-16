@@ -40,6 +40,7 @@ import { formatCourseShareLabel } from '../lib/fadShareMessage'
 import { FadShareBulk } from '../components/FadShareBulk'
 import { FadMoodleSync } from '../components/FadMoodleSync'
 import { FadAttendancePanel } from '../components/FadAttendancePanel'
+import { CourseQualityPanel } from '../components/quality/CourseQualityPanel'
 
 const genRoles: { type: PersonType; label: string }[] = [
   { type: 'teacher', label: 'Docente' },
@@ -68,6 +69,7 @@ const SECTIONS = [
   { id: 'genera', label: 'Genera' },
   { id: 'fad', label: 'FAD' },
   { id: 'presenze', label: 'Presenze FAD' },
+  { id: 'qualita', label: 'Qualità' },
 ] as const
 type SectionId = (typeof SECTIONS)[number]['id']
 type OpenState = Record<SectionId, boolean>
@@ -310,6 +312,7 @@ export function CourseDetailPage() {
     genera: matches.genera,
     fad: matches.fad,
     presenze: matches.presenze,
+    qualita: query.length >= 3 && matchesSearch('qualità iso attestati questionario gradimento fascicolo zip audit', query),
   }
 
   /** Durante la ricerca restano aperte solo le sezioni con risultati. */
@@ -884,6 +887,19 @@ export function CourseDetailPage() {
         >
           {isOpen('presenze') && (
             <FadAttendancePanel course={course} onCourseChanged={() => void getCourse(id).then(setCourse)} />
+          )}
+        </CollapsibleSection>
+
+        <CollapsibleSection
+          id="qualita"
+          title="Qualità ISO 9001"
+          summary="Fascicolo del corso in ZIP per l'audit, attestati numerati con consegna, questionario di gradimento"
+          open={isOpen('qualita')}
+          onToggle={() => toggle('qualita')}
+          dimmed={searching && !sectionHasMatch.qualita}
+        >
+          {isOpen('qualita') && (
+            <CourseQualityPanel course={course} students={students} teachers={peopleByType.teacher ?? []} />
           )}
         </CollapsibleSection>
       </div>

@@ -23,6 +23,8 @@ import { MailPage } from '../pages/MailPage'
 import { ProposalsPage } from '../pages/ProposalsPage'
 import { TodosPage } from '../pages/TodosPage'
 import { ProtocolPage } from '../pages/ProtocolPage'
+import { QualityPage } from '../pages/QualityPage'
+import { SurveyPage } from '../pages/SurveyPage'
 
 function page(element: React.ReactNode, adminOnly = false) {
   return (
@@ -38,6 +40,8 @@ export function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/reimposta-password" element={<ResetPasswordPage />} />
       <Route path="/in-attesa" element={<PendingPage />} />
+      {/* questionario di gradimento: pubblico, senza login */}
+      <Route path="/questionario/:token" element={<SurveyPage />} />
       <Route path="/" element={page(<DashboardPage />)} />
       <Route path="/cose-da-fare" element={page(<TodosPage />)} />
       <Route path="/corsi" element={page(<CoursesPage />)} />
@@ -58,6 +62,7 @@ export function AppRoutes() {
       <Route path="/pagamenti" element={page(<PaymentsPage />)} />
       <Route path="/posta" element={page(<MailPage />)} />
       <Route path="/protocollo" element={page(<ProtocolPage />)} />
+      <Route path="/qualita" element={page(<QualityPage />)} />
       <Route path="/proposte" element={page(<ProposalsPage />)} />
       <Route path="/fatturazione" element={page(<InvoicesPage />)} />
       <Route path="/fatturazione/:id" element={page(<InvoiceDetailPage />)} />
