@@ -46,6 +46,12 @@ const paths = {
       <path d="m9 12 2 2 4-4" />
     </>
   ),
+  quality: (
+    <>
+      <path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z" />
+      <path d="m9 12 2 2 4-4" />
+    </>
+  ),
   protocol: (
     <>
       <path d="M8 2v4" />
