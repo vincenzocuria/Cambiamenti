@@ -9,12 +9,14 @@ import { registerDocumentTools } from './tools/documenti'
 import { registerWriteTools } from './tools/modifiche'
 import { registerMailTools } from './tools/posta'
 import { registerProposalTools } from './tools/proposte'
+import { registerIterTools } from './tools/iter'
 
 const INSTRUCTIONS = `Gestionale dei corsi di formazione di Cambia-Menti S.r.l. (Regione Calabria, GOL e altri avvisi).
 Ciclo di un corso: bando/avviso e decreto di finanziamento → creazione e attivazione (organico, allievi, calendario) → svolgimento → fine → rendicontazione (verbale della Regione con importi riconosciuti, anticipo e saldo) → incasso del saldo e delle indennità (note di debito su Aruba) → esito chiuso.
 Usa scheda_corso per vedere l'iter completo e il prossimo passo. Ogni corso ha un iter di passi (decreto, avvio, presenze, adempimenti conclusivi, rendiconto, verbale, controfirma, autodichiarazione, note di debito, incassi, chiusura): quando una PEC fa avanzare un passo, proponi_modifica con tipo aggiorna_passo (stato, data, scadenza indicata dalla Regione, nota con protocollo, allegato_id della PEC da collegare al passo). Per gli aggiornamenti da PEC: cerca il corso (ID corso es. 673.7 + edizione es. "ED2 - 2025", oppure CUP), poi aggiorna i dati, cambia lo stato con il motivo e carica il documento. Il CUP non sempre c'è.
 PEC: il servizio sul PC copia le PEC nel gestionale una volta al giorno. Elaborale così: posta_da_elaborare → leggi_pec → per ogni dato nuovo o diverso usa proponi_modifica (MAI gli strumenti di scrittura diretta: la persona accetta o rifiuta nella pagina «Proposte») → segna_pec con stato elaborata e una nota che riassume la PEC e le proposte fatte. Prima di proporre controlla scheda_corso ed elenco_proposte per evitare doppioni; un corso nuovo solo se cerca_corsi non lo trova (ID corso + edizione). Ricevute, pubblicità e PEC non sui corsi: ignorata. Se non sei sicuro del corso: da_verificare senza proposte. Le PEC inviate (direction out) sono di Cambia-Menti: utili per date di avvio, vidimazioni, calendari.
 Gli strumenti di scrittura diretta (crea_corso, aggiorna_corso, ...) solo quando la persona lo chiede esplicitamente in chat.
+Scansioni di un corso mandate dalla persona: crea il corso (crea_corso, dopo aver controllato con cerca_corsi che non esista), imposta_iter, carica ogni documento (carica_documento o prepara_caricamento) e collegalo al passo giusto con aggiorna_passo (documento_ids), genera le lettere dei passi con genera_lettera_passo, poi di' alla persona cosa manca e cosa serve da lei (iter_corsi → serve_dalla_persona). Le note di debito si fanno solo alla fine, a corso chiuso, dopo il verbale con le frequenze riconosciute.
 Non esistono strumenti di cancellazione. Ogni modifica finisce nel registro (registro_modifiche).`
 
 export function createGestionaleMcp(env: Env, auth: McpAuth): McpServer {
@@ -26,5 +28,6 @@ export function createGestionaleMcp(env: Env, auth: McpAuth): McpServer {
   registerWriteTools(ctx)
   registerMailTools(ctx)
   registerProposalTools(ctx)
+  registerIterTools(ctx)
   return server
 }

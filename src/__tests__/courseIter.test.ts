@@ -134,4 +134,13 @@ describe('iter del corso', () => {
     const ev = evaluateIter(s, facts({ documents: docs }), new Map(), '2026-11-18')
     expect(ev.find((e) => e.step.step_key === 'comunicazione_avvio')!.state).toBe('da_fare')
   })
+
+  it('note di debito solo dopo il verbale: non sono il prossimo passo prima', () => {
+    const s = steps('gol')
+    for (const x of s) if (!['nota_debito_saldo', 'verbale', 'controfirma_verbale', 'autodichiarazione', 'nota_debito_indennita', 'incasso_saldo', 'incasso_indennita', 'chiusura', 'rendiconto'].includes(x.step_key!)) x.status = 'fatto'
+    const ev = evaluateIter(s, facts(), new Map(), '2026-11-18')
+    const nd = ev.find((e) => e.step.step_key === 'nota_debito_saldo')!
+    expect(nd.blockedBy).toContain('Verbale di verifica della Regione')
+    expect(summarizeIter(ev).next?.step.step_key).toBe('rendiconto')
+  })
 })
