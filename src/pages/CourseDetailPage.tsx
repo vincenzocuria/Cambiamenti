@@ -322,7 +322,13 @@ export function CourseDetailPage() {
       invoices: (invoiceRows ?? [])
         .filter((r) => r.invoice.status !== 'draft')
         .map((r) => ({ kind: r.kind, paid: Boolean(r.invoice.paid_at) })),
-      documents: (docs ?? []).map((d) => ({ id: d.id, title: d.title, file_name: d.file_name, category: d.category })),
+      documents: (docs ?? []).map((d) => ({
+        id: d.id,
+        title: d.title,
+        file_name: d.file_name,
+        category: d.category,
+        generated: Boolean(d.template_id),
+      })),
     }
   }, [course, staffing, peopleByType, reportLines, invoiceRows, docs])
 

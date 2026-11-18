@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase'
 import { buildDocumentStoragePath } from '../lib/documentStoragePath'
 import { COURSE_FIELDS, appendDatedNote, type ProposalRow, type ProposalStatus } from '../lib/proposals'
+import { defaultDue, stepDef } from '../lib/courseIter'
 
 export interface ProposalWithRefs extends ProposalRow {
   course: { id: string; name: string; edition: string } | null
@@ -73,6 +74,50 @@ function requireCourse(p: ProposalRow): string {
   return p.course_id
 }
 
+/** Copia un allegato PEC nei documenti del corso (o collega il documento già creato). */
+async function attachmentToCourse(
+  attachmentId: string,
+  courseId: string,
+  category: unknown,
+  title: unknown,
+): Promise<{ documentId: string; created: boolean }> {
+  const { data: a, error: e1 } = await supabase
+    .from('pec_attachments')
+    .select('id, file_name, mime_type, size_bytes, storage_path, document_id')
+    .eq('id', attachmentId)
+    .single()
+  if (e1) throw e1
+  if (a.document_id) {
+    const { error } = await supabase.from('document_courses').upsert({ document_id: a.document_id, course_id: courseId }, { ignoreDuplicates: true })
+    if (error) throw error
+    return { documentId: a.document_id, created: false }
+  }
+  if (!a.storage_path) throw new Error('Allegato non disponibile')
+  const path = buildDocumentStoragePath({ courseId, fileName: a.file_name })
+  const copy = await supabase.storage.from('documents').copy(a.storage_path, path)
+  if (copy.error) throw copy.error
+  const { data: doc, error } = await supabase
+    .from('documents')
+    .insert({
+      course_id: courseId,
+      category: category ?? 'other',
+      title: title ?? a.file_name,
+      file_name: a.file_name,
+      storage_path: path,
+      mime_type: a.mime_type || 'application/octet-stream',
+      size_bytes: a.size_bytes,
+      uploaded_by: await currentUserId(),
+    })
+    .select('id')
+    .single()
+  if (error) {
+    await supabase.storage.from('documents').remove([path])
+    throw error
+  }
+  await supabase.from('pec_attachments').update({ document_id: doc.id }).eq('id', a.id)
+  return { documentId: doc.id as string, created: true }
+}
+
 /** Esegue la modifica proposta con l'utente collegato. Restituisce un riepilogo. */
 async function apply(p: ProposalRow): Promise<string> {
   const pl = p.payload ?? {}
@@ -140,42 +185,59 @@ async function apply(p: ProposalRow): Promise<string> {
       return 'Movimento registrato'
     }
     case 'allega_documento': {
-      const id = requireCourse(p)
-      const { data: a, error: e1 } = await supabase
-        .from('pec_attachments')
-        .select('id, file_name, mime_type, size_bytes, storage_path, document_id')
-        .eq('id', String(pl.allegato_id))
-        .single()
+      const { created } = await attachmentToCourse(String(pl.allegato_id), requireCourse(p), pl.categoria, pl.titolo)
+      return created ? 'Documento caricato nel corso' : 'Documento già presente: collegato al corso'
+    }
+    case 'aggiorna_passo': {
+      const courseId = requireCourse(p)
+      const key = String(pl.passo ?? '')
+      const def = stepDef(key)
+      if (!def) throw new Error(`Passo «${key}» sconosciuto`)
+      let { data: step, error: e1 } = await supabase
+        .from('course_steps')
+        .select('id, status, done_on, notes')
+        .eq('course_id', courseId)
+        .eq('step_key', key)
+        .maybeSingle()
       if (e1) throw e1
-      if (a.document_id) {
-        const { error } = await supabase.from('document_courses').upsert({ document_id: a.document_id, course_id: id }, { ignoreDuplicates: true })
+      if (!step) {
+        const { data: c, error: e2 } = await supabase.from('courses').select('start_date, end_date').eq('id', courseId).single()
+        if (e2) throw e2
+        const { data: last } = await supabase.from('course_steps').select('sort_order').eq('course_id', courseId).order('sort_order', { ascending: false }).limit(1)
+        const { data: created, error: e3 } = await supabase
+          .from('course_steps')
+          .insert({
+            course_id: courseId,
+            step_key: key,
+            title: def.title,
+            sort_order: (last?.[0]?.sort_order ?? 0) + 10,
+            due_on: defaultDue(def, c.start_date, c.end_date),
+          })
+          .select('id, status, done_on, notes')
+          .single()
+        if (e3) throw e3
+        step = created
+      }
+      const patch: Record<string, unknown> = {}
+      if (pl.stato) {
+        patch.status = pl.stato
+        patch.manual = true
+        patch.done_on = pl.stato === 'fatto' ? (pl.fatto_il ?? step.done_on ?? new Date().toISOString().slice(0, 10)) : null
+      } else if (pl.fatto_il) patch.done_on = pl.fatto_il
+      if (pl.scadenza) patch.due_on = pl.scadenza
+      if (pl.nota) patch.notes = appendDatedNote(step.notes, String(pl.nota))
+      if (Object.keys(patch).length) {
+        const { error } = await supabase.from('course_steps').update(patch).eq('id', step.id)
         if (error) throw error
-        return 'Documento già presente: collegato al corso'
       }
-      if (!a.storage_path) throw new Error('Allegato non disponibile')
-      const path = buildDocumentStoragePath({ courseId: id, fileName: a.file_name })
-      const copy = await supabase.storage.from('documents').copy(a.storage_path, path)
-      if (copy.error) throw copy.error
-      const { data: doc, error } = await supabase
-        .from('documents')
-        .insert({
-          course_id: id,
-          category: pl.categoria ?? 'other',
-          title: pl.titolo ?? a.file_name,
-          file_name: a.file_name,
-          storage_path: path,
-          mime_type: a.mime_type || 'application/octet-stream',
-          size_bytes: a.size_bytes,
-          uploaded_by: await currentUserId(),
-        })
-        .select('id')
-        .single()
-      if (error) {
-        await supabase.storage.from('documents').remove([path])
-        throw error
+      if (pl.allegato_id) {
+        const { documentId } = await attachmentToCourse(String(pl.allegato_id), courseId, pl.categoria ?? def.category, pl.titolo_documento)
+        const { error } = await supabase
+          .from('course_step_documents')
+          .upsert({ step_id: step.id, document_id: documentId }, { onConflict: 'step_id,document_id', ignoreDuplicates: true })
+        if (error) throw error
       }
-      await supabase.from('pec_attachments').update({ document_id: doc.id }).eq('id', a.id)
-      return 'Documento caricato nel corso'
+      return `Passo «${def.title}» aggiornato`
     }
     case 'aggiungi_lezione': {
       const { error } = await supabase.from('calendar_events').insert({

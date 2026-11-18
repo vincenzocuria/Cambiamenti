@@ -14,6 +14,10 @@ export const templatePlaceholderGroups = [
       'scuola.telefono',
       'scuola.sdi',
       'scuola.foro',
+      'scuola.pec',
+      'scuola.sede',
+      'scuola.cf',
+      'scuola.accreditamento',
     ],
   },
   {

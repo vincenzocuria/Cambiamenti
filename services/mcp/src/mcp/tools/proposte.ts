@@ -3,6 +3,9 @@ import { dbError } from '../db'
 import { text, type McpCtx } from '../context'
 import { COURSE_STATUSES } from './corsi'
 import { DOCUMENT_CATEGORIES } from './documenti'
+import { ITER_STEPS } from '../../../../../src/lib/courseIter'
+
+export const STEP_KEYS = ITER_STEPS.map((d) => d.key) as [string, ...string[]]
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data nel formato AAAA-MM-GG')
 const COURSE_FIELDS = ['name', 'edition', 'code', 'cup', 'start_date', 'end_date', 'duration_hours', 'funding_program', 'funding_decree'] as const
@@ -42,6 +45,18 @@ const change = z.discriminatedUnion('tipo', [
     titolo: z.string().min(1).max(200),
   }),
   z.object({
+    tipo: z.literal('aggiorna_passo'),
+    corso_id: z.string().uuid(),
+    passo: z.enum(STEP_KEYS).describe("Chiave del passo dell'iter (vedi scheda_corso → iter.passi[].chiave)"),
+    stato: z.enum(['da_fare', 'in_corso', 'fatto', 'non_applicabile']).optional(),
+    fatto_il: date.optional(),
+    scadenza: date.optional().describe('Termine indicato dalla Regione (es. «entro 30 giorni dalla ricezione»)'),
+    nota: z.string().max(2000).optional().describe('Cosa è successo, con protocollo e data della PEC'),
+    allegato_id: z.string().uuid().optional().describe('Allegato PEC da copiare nel corso e collegare al passo'),
+    categoria: z.enum(DOCUMENT_CATEGORIES).optional(),
+    titolo_documento: z.string().max(200).optional(),
+  }),
+  z.object({
     tipo: z.literal('aggiungi_lezione'),
     corso_id: z.string().uuid(),
     titolo: z.string().min(1).max(200),
@@ -72,6 +87,11 @@ export function toPayload(c: Change): { kind: string; courseId: string | null; p
       }
     case 'allega_documento':
       return { kind: c.tipo, courseId: c.corso_id, payload: { allegato_id: c.allegato_id, categoria: c.categoria, titolo: c.titolo } }
+    case 'aggiorna_passo': {
+      const { tipo: _t, corso_id, ...rest } = c
+      const def = ITER_STEPS.find((d) => d.key === c.passo)
+      return { kind: c.tipo, courseId: corso_id, payload: { ...rest, titolo_passo: def?.title ?? c.passo } }
+    }
     case 'aggiungi_lezione':
       return { kind: c.tipo, courseId: c.corso_id, payload: { titolo: c.titolo, inizio: c.inizio, fine: c.fine, aula: c.aula } }
   }
@@ -93,7 +113,11 @@ export function registerProposalTools({ server, db }: McpCtx): void {
     async ({ titolo, motivo, pec_id, modifica }) => {
       const { kind, courseId, payload } = toPayload(modifica)
       let current: Record<string, unknown> = {}
-      if (courseId) {
+      if (courseId && kind === 'aggiorna_passo') {
+        const { data, error } = await db.from('course_steps').select('status, due_on, done_on').eq('course_id', courseId).eq('step_key', String(payload.passo)).maybeSingle()
+        if (error) throw dbError(error, 'Lettura passo')
+        current = data ?? { status: '(passo non ancora creato)' }
+      } else if (courseId) {
         const cols = kind === 'aggiorna_corso' ? Object.keys((payload.changes ?? {}) as object).filter((k) => (COURSE_FIELDS as readonly string[]).includes(k)) : ['status']
         const { data, error } = await db.from('courses').select(['id', ...cols].join(', ')).eq('id', courseId).maybeSingle()
         if (error) throw dbError(error, 'Lettura corso')
@@ -107,7 +131,7 @@ export function registerProposalTools({ server, db }: McpCtx): void {
           if (!Object.keys(changes).length) return text({ saltata: 'I valori proposti sono già quelli nel gestionale' })
         }
       }
-      if (kind === 'allega_documento') {
+      if ((kind === 'allega_documento' || kind === 'aggiorna_passo') && payload.allegato_id) {
         const { data: a, error } = await db.from('pec_attachments').select('file_name').eq('id', String(payload.allegato_id)).maybeSingle()
         if (error) throw dbError(error, 'Lettura allegato')
         if (!a) throw new Error('Allegato PEC non trovato')

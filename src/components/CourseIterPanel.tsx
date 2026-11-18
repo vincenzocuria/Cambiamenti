@@ -27,7 +27,9 @@ import {
   deleteCourseStep,
   linkStepDocument,
   listCourseSteps,
+  generateStepDocument,
   listStepDocuments,
+  resetCourseStepAuto,
   setCourseStepStatus,
   unlinkStepDocument,
   updateCourseStep,
@@ -223,6 +225,12 @@ export function CourseIterPanel({
                   documents={documents}
                   onRun={(fn) => void run(fn)}
                   onGoTo={onGoTo}
+                  onGenerate={(template) =>
+                    void run(async () => {
+                      await generateStepDocument(e.step, template, course)
+                      onDocumentsChanged()
+                    })
+                  }
                   onUpload={(file, title) =>
                     void run(async () => {
                       const doc = await uploadDocument({
@@ -299,6 +307,7 @@ function StepRow({
   documents,
   onRun,
   onGoTo,
+  onGenerate,
   onUpload,
 }: {
   item: EvaluatedStep
@@ -309,6 +318,7 @@ function StepRow({
   documents: DocumentRow[]
   onRun: (fn: () => Promise<void>) => void
   onGoTo: (action: IterAction) => void
+  onGenerate: (template: string) => void
   onUpload: (file: File, title: string) => void
 }) {
   const { step, def, state, autoDone, evidence, documentIds, overdue } = item
@@ -398,6 +408,17 @@ function StepRow({
               {overdue && <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700">In ritardo</span>}
               {state === 'in_corso' && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">In corso</span>}
               {autoDone && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">Risulta fatto</span>}
+              {step.manual && (
+                <button
+                  type="button"
+                  className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500 hover:bg-slate-200"
+                  title="Lo stato è stato scelto a mano. Clic: torna a deciderlo il gestionale dai dati e dai documenti"
+                  disabled={busy}
+                  onClick={() => onRun(() => resetCourseStepAuto(step))}
+                >
+                  Segnato a mano · rendi automatico
+                </button>
+              )}
             </div>
             <p className="mt-0.5 text-xs text-slate-500">
               {[
@@ -434,7 +455,7 @@ function StepRow({
             <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
               <select
                 className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
-                value={step.status}
+                value={state}
                 disabled={busy}
                 onChange={(e) => onRun(() => setCourseStepStatus(step, e.target.value as CourseStepStatus, now))}
                 aria-label={`Stato di ${step.title}`}
@@ -442,7 +463,7 @@ function StepRow({
                 {(Object.keys(courseStepStatusLabels) as CourseStepStatus[]).map((s) => (
                   <option key={s} value={s}>
                     {courseStepStatusLabels[s]}
-                    {s === 'da_fare' && autoDone ? ' (risulta fatto)' : ''}
+
                   </option>
                 ))}
               </select>
@@ -460,6 +481,17 @@ function StepRow({
                   if (f) onUpload(f, '')
                 }}
               />
+              {def?.template && (
+                <button
+                  type="button"
+                  className="text-xs text-slate-500 underline hover:text-slate-700"
+                  disabled={busy}
+                  title={`Genera «${def.template}» con i dati del corso (da completare, firmare e inviare)`}
+                  onClick={() => onGenerate(def.template!)}
+                >
+                  Genera lettera
+                </button>
+              )}
               {linkable.length > 0 && (
                 <button type="button" className="text-xs text-slate-500 underline hover:text-slate-700" onClick={() => setLinking((v) => !v)}>
                   Collega documento del corso

@@ -11,6 +11,7 @@ export const proposalKinds = [
   'registra_pagamento',
   'allega_documento',
   'aggiungi_lezione',
+  'aggiorna_passo',
 ] as const
 
 export type ProposalKind = (typeof proposalKinds)[number]
@@ -24,6 +25,7 @@ export const proposalKindLabel: Record<ProposalKind, string> = {
   registra_pagamento: 'Pagamento',
   allega_documento: 'Documento',
   aggiungi_lezione: 'Lezione',
+  aggiorna_passo: "Passo dell'iter",
 }
 
 /** Campi del corso che una proposta può impostare. */
@@ -116,6 +118,15 @@ export function proposalDiff(p: Pick<ProposalRow, 'kind' | 'payload' | 'current_
         { label: 'File', before: '', after: show(pl.file_name) },
         { label: 'Titolo', before: '', after: show(pl.titolo) },
       ]
+    case 'aggiorna_passo':
+      return [
+        { label: 'Passo', before: '', after: show(pl.titolo_passo ?? pl.passo) },
+        ...(pl.stato ? [{ label: 'Stato', before: show(cur.status), after: show(pl.stato) }] : []),
+        ...(pl.fatto_il ? [{ label: 'Fatto il', before: show(cur.done_on, 'done_date'), after: show(pl.fatto_il, 'fatto_date') }] : []),
+        ...(pl.scadenza ? [{ label: 'Scadenza', before: show(cur.due_on, 'due_date'), after: show(pl.scadenza, 'scadenza_date') }] : []),
+        ...(pl.nota ? [{ label: 'Nota', before: '', after: show(pl.nota) }] : []),
+        ...(pl.file_name ? [{ label: 'Documento dalla PEC', before: '', after: show(pl.file_name) }] : []),
+      ]
     case 'aggiungi_lezione':
       return [
         { label: 'Lezione', before: '', after: show(pl.titolo) },
@@ -146,6 +157,8 @@ export function proposalAction(p: Pick<ProposalRow, 'kind' | 'payload'>, courseN
       return `Se accetti, copio il file «${show(pl.file_name)}» nei documenti${corso}.`
     case 'aggiungi_lezione':
       return `Se accetti, aggiungo la lezione al calendario${corso}.`
+    case 'aggiorna_passo':
+      return `Se accetti, aggiorno il passo «${show(pl.titolo_passo ?? pl.passo)}» nell'iter${corso}${pl.file_name ? ' e gli allego il documento della PEC' : ''}.`
   }
 }
 

@@ -40,6 +40,7 @@ function steps(model: 'gol' | 'standard'): CourseStep[] {
     due_on: r.due_on,
     done_on: null,
     notes: '',
+    manual: false,
     created_at: '2026-11-18T00:00:00Z',
     updated_at: '2026-11-18T00:00:00Z',
   }))
@@ -123,5 +124,14 @@ describe('iter del corso', () => {
     const sum = summarizeIter(ev)
     expect(sum.total).toBe(ev.length - 1)
     expect(sum.overdue.map((e) => e.step.step_key)).toContain('calendario')
+  })
+
+  it('stato a mano: un passo riconosciuto per errore resta da fare', () => {
+    const s = steps('gol')
+    const avvio = s.find((x) => x.step_key === 'comunicazione_avvio')!
+    avvio.manual = true
+    const docs = [{ id: 'd1', title: 'Calendario avvio', file_name: 'x.pdf', category: 'other' }]
+    const ev = evaluateIter(s, facts({ documents: docs }), new Map(), '2026-11-18')
+    expect(ev.find((e) => e.step.step_key === 'comunicazione_avvio')!.state).toBe('da_fare')
   })
 })

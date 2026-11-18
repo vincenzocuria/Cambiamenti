@@ -1,4 +1,7 @@
 import { supabase } from '../lib/supabase'
+import type { Course, DocumentTemplate } from '../types/db'
+import { ensureGolTemplates } from './seedGolTemplates'
+import { generateFromTemplate } from './generateDocument'
 import { iterRows, type CourseStep, type CourseStepStatus, type IterModel } from '../lib/courseIter'
 
 export async function listCourseSteps(courseId: string): Promise<CourseStep[]> {
@@ -35,14 +38,30 @@ export async function addCourseStep(courseId: string, title: string, sortOrder: 
 
 export async function updateCourseStep(
   id: string,
-  patch: Partial<Pick<CourseStep, 'title' | 'status' | 'due_on' | 'done_on' | 'notes' | 'sort_order'>>,
+  patch: Partial<Pick<CourseStep, 'title' | 'status' | 'due_on' | 'done_on' | 'notes' | 'sort_order' | 'manual'>>,
 ): Promise<void> {
   const { error } = await supabase.from('course_steps').update(patch).eq('id', id)
   if (error) throw error
 }
 
+/** Stato scelto a mano: da quel momento vince sul riconoscimento automatico. */
 export function setCourseStepStatus(step: CourseStep, status: CourseStepStatus, today: string): Promise<void> {
-  return updateCourseStep(step.id, { status, done_on: status === 'fatto' ? (step.done_on ?? today) : null })
+  return updateCourseStep(step.id, { status, manual: true, done_on: status === 'fatto' ? (step.done_on ?? today) : null })
+}
+
+/** Torna a far decidere il gestionale dai dati e dai documenti. */
+export function resetCourseStepAuto(step: CourseStep): Promise<void> {
+  return updateCourseStep(step.id, { status: 'da_fare', manual: false, done_on: null })
+}
+
+/** Genera la lettera del passo dal modello e la collega al passo. */
+export async function generateStepDocument(step: CourseStep, templateName: string, course: Course): Promise<void> {
+  await ensureGolTemplates()
+  const { data, error } = await supabase.from('document_templates').select('*').eq('name', templateName).maybeSingle()
+  if (error) throw error
+  if (!data) throw new Error(`Modello «${templateName}» non trovato in Modelli`)
+  const doc = await generateFromTemplate({ template: data as DocumentTemplate, course, title: `${templateName} — ${course.name}` })
+  await linkStepDocument(step.id, doc.id)
 }
 
 export async function deleteCourseStep(id: string): Promise<void> {
