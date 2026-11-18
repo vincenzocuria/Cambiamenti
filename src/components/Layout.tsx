@@ -36,6 +36,7 @@ const groups: NavGroup[] = [
       { to: '/posta', label: 'Posta da verificare', icon: 'mail' },
       { to: '/protocollo', label: 'Protocollo', icon: 'protocol' },
       { to: '/qualita', label: 'Qualità ISO 9001', icon: 'quality' },
+      { to: '/contratti', label: 'Contratti', icon: 'contracts' },
       { to: '/pagamenti', label: 'Pagamenti', icon: 'payments' },
       { to: '/fatturazione', label: 'Fatturazione', icon: 'invoices' },
       { to: '/template', label: 'Template', icon: 'templates' },

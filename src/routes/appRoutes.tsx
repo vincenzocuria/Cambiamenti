@@ -23,6 +23,7 @@ import { MailPage } from '../pages/MailPage'
 import { ProposalsPage } from '../pages/ProposalsPage'
 import { TodosPage } from '../pages/TodosPage'
 import { ProtocolPage } from '../pages/ProtocolPage'
+import { ContractsPage } from '../pages/ContractsPage'
 import { QualityPage } from '../pages/QualityPage'
 import { SurveyPage } from '../pages/SurveyPage'
 
@@ -62,6 +63,7 @@ export function AppRoutes() {
       <Route path="/pagamenti" element={page(<PaymentsPage />)} />
       <Route path="/posta" element={page(<MailPage />)} />
       <Route path="/protocollo" element={page(<ProtocolPage />)} />
+      <Route path="/contratti" element={page(<ContractsPage />)} />
       <Route path="/qualita" element={page(<QualityPage />)} />
       <Route path="/proposte" element={page(<ProposalsPage />)} />
       <Route path="/fatturazione" element={page(<InvoicesPage />)} />

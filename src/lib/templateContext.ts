@@ -5,6 +5,7 @@ import type { Course, CourseStaffAssignment, Person, PersonType } from '../types
 import { euroInWords, formatEuro } from './euroInWords'
 import { fmtDate, fullName } from './format'
 import { FAD_LOGIN_URL, fadLoginUrl } from './fadLogin'
+import { contractVars, type ContractInput } from './collaborationContract'
 
 /** Premessa della lettera di incarico se il corso non indica il proprio finanziamento. */
 const DEFAULT_FUNDING =
@@ -57,6 +58,7 @@ export function buildTemplateContext(input: {
   person?: Person | null
   personType?: PersonType | null
   assignment?: CourseStaffAssignment | null
+  contract?: ContractInput | null
 }): Record<string, string> {
   const vars: Record<string, string> = {
     'scuola.nome': school.name,
@@ -121,6 +123,9 @@ export function buildTemplateContext(input: {
     'incarico.compenso_totale': total != null ? formatEuro(total) : '____________',
     'incarico.compenso_totale_lettere': total != null ? euroInWords(total) : '______________________',
   })
+
+  // Contratto di collaborazione: senza contratto restano righe da compilare a mano
+  Object.assign(vars, contractVars(input.contract))
 
   return vars
 }

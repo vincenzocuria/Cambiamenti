@@ -10,6 +10,7 @@ import { fmtDate, fullName } from '../lib/format'
 import { PersonForm } from '../components/PersonForm'
 import { DocumentsPanel } from '../components/DocumentsPanel'
 import { GenerateDocumentForm } from '../components/GenerateDocumentForm'
+import { ContractsPanel } from '../components/ContractsPanel'
 import { DangerButton, SecondaryButton } from '../components/Buttons'
 import { EmailLink, WhatsAppLink } from '../components/ContactLinks'
 import { SecretValue } from '../components/SecretValue'
@@ -262,6 +263,10 @@ export function PersonDetailPage({ type }: Props) {
           </ul>
         )}
       </div>
+
+      {isStaffType(type) && (
+        <ContractsPanel person={person} onDocumentsChanged={() => setDocsKey((n) => n + 1)} />
+      )}
 
       <GenerateDocumentForm
         person={person}

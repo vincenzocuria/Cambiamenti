@@ -5,6 +5,7 @@ import { fullName } from '../lib/format'
 import type { Course, DocumentRow, DocumentTemplate, Person, PersonType } from '../types/db'
 import { uploadDocument } from './documents'
 import { getCourseStaffAssignment } from './enrollments'
+import type { ContractInput } from '../lib/collaborationContract'
 
 function toHtmlDocument(title: string, body: string): string {
   const escaped = body
@@ -47,8 +48,10 @@ export async function generateFromTemplate(input: {
   course?: Course | null
   person?: Person | null
   personType?: PersonType | null
+  contract?: ContractInput | null
+  title?: string
 }): Promise<DocumentRow> {
-  const { template, course = null, person = null, personType = null } = input
+  const { template, course = null, person = null, personType = null, contract = null } = input
 
   if (template.requires_course && !course) {
     throw new Error('Questo template richiede un corso')
@@ -72,12 +75,12 @@ export async function generateFromTemplate(input: {
 
   const filled = fillTemplate(
     template.body,
-    buildTemplateContext({ course, person, personType, assignment }),
+    buildTemplateContext({ course, person, personType, assignment, contract }),
   )
 
   const who = person ? fullName(person) : ''
   const courseBit = course ? course.name : ''
-  const title = [template.name, who, courseBit].filter(Boolean).join(' — ')
+  const title = input.title || [template.name, who, courseBit].filter(Boolean).join(' — ')
   const fileName = `${slugFileName(title) || 'documento'}.html`
   const html = toHtmlDocument(title, filled)
   const file = new File([html], fileName, { type: 'text/html' })
