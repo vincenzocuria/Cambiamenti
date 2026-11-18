@@ -4,6 +4,7 @@ import { CourseStatusPipeline } from '../components/CourseStatusPipeline'
 import { DashboardCourseList } from '../components/DashboardCourseList'
 import { KpiCards } from '../components/KpiCards'
 import { DashboardPayments } from '../components/DashboardPayments'
+import { DashboardIter } from '../components/DashboardIter'
 import { fetchPaymentsData, type PaymentsData } from '../services/payments'
 import {
   fetchActiveCourses,
@@ -130,6 +131,8 @@ export function DashboardPage() {
           tone: c.key === 'daRendicontare' && counts && counts.daRendicontare > 0 ? 'warn' : 'default',
         }))}
       />
+
+      <DashboardIter />
 
       {paymentsError ? (
         <p className="text-sm text-red-600">{paymentsError}</p>

@@ -321,7 +321,7 @@ function StepRow({
   onGenerate: (template: string) => void
   onUpload: (file: File, title: string) => void
 }) {
-  const { step, def, state, autoDone, evidence, documentIds, overdue } = item
+  const { step, def, state, autoDone, evidence, documentIds, overdue, blockedBy } = item
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState({ title: step.title, due_on: step.due_on ?? '', done_on: step.done_on ?? '', notes: step.notes })
   const [linking, setLinking] = useState(false)
@@ -429,6 +429,12 @@ function StepRow({
                 .filter(Boolean)
                 .join(' · ') || def?.description}
             </p>
+            {blockedBy.length > 0 && (
+              <p className="mt-0.5 text-xs text-slate-400">Dopo: {blockedBy.join(', ')}</p>
+            )}
+            {def?.needs && state !== 'fatto' && state !== 'non_applicabile' && (
+              <p className="mt-0.5 text-xs text-amber-700">Serve: {def.needs}</p>
+            )}
             {step.notes && <p className="mt-1 whitespace-pre-line text-xs text-slate-600">{step.notes}</p>}
             {docs.length > 0 && (
               <div className="mt-1.5 flex flex-wrap gap-1.5">

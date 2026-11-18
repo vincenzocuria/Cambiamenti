@@ -63,6 +63,10 @@ export interface IterStepDef {
   auto?: (f: IterFacts, today: string) => string | null
   action?: IterAction
   actionLabel?: string
+  /** cosa serve dalla persona (firma digitale, dati da chiedere…) */
+  needs?: string
+  /** passi che devono essere fatti prima */
+  after?: string[]
   /** modello di lettera (nome in Modelli) che il passo può generare */
   template?: string
   /** scadenza proposta: data di inizio o fine corso più n giorni */
@@ -96,6 +100,7 @@ export const ITER_STEPS: IterStepDef[] = [
     phase: 'avvio',
     doc: /adesion|d'obbligo|atto obbligo|atto di obbligo/,
     category: 'declaration',
+    needs: 'Firma digitale del legale rappresentante',
   },
   {
     key: 'dati_corso',
@@ -145,6 +150,7 @@ export const ITER_STEPS: IterStepDef[] = [
     doc: /avvio|vidimaz/,
     category: 'other',
     template: COURSE_START_TEMPLATE,
+    needs: 'Firma digitale della lettera e invio via PEC',
     action: 'genera',
     actionLabel: 'Genera documenti',
     due: { from: 'start', days: 0 },
@@ -188,6 +194,8 @@ export const ITER_STEPS: IterStepDef[] = [
     doc: /conclusiv|fine corso|fine attivit|chiusura/,
     category: 'other',
     template: COURSE_END_TEMPLATE,
+    needs: 'Numeri finali (allievi che hanno concluso, idonei), firma digitale e invio via PEC',
+    after: ['svolgimento'],
     due: { from: 'end', days: 30 },
   },
   {
@@ -197,12 +205,15 @@ export const ITER_STEPS: IterStepDef[] = [
     phase: 'chiusura',
     doc: /rendicont|domanda di rimborso|domanda di saldo/,
     category: 'other',
+    needs: 'Accesso a Rendiconta Web e firma digitale della domanda',
+    after: ['svolgimento', 'presenze'],
     due: { from: 'end', days: 60 },
   },
   {
     key: 'verbale',
     title: 'Verbale di verifica della Regione',
-    description: 'Verbale con gli importi riconosciuti, anticipo e saldo (caricalo da Documenti: gli importi si leggono da soli).',
+    description: 'Verbale con le frequenze e gli importi riconosciuti, anticipo e saldo (caricalo da Documenti: gli importi si leggono da soli).',
+    after: ['rendiconto'],
     phase: 'chiusura',
     auto: (f) => (f.reportLines > 0 ? plural(f.reportLines, 'riga di verbale caricata', 'righe di verbale caricate') : null),
     action: 'verbali',
@@ -216,6 +227,8 @@ export const ITER_STEPS: IterStepDef[] = [
     doc: /controfirm|verbale[^]*firmat|firmat[^]*verbale/,
     category: 'report',
     template: REPORT_COUNTERSIGN_TEMPLATE,
+    needs: 'Firma digitale del verbale (controfirma) e caricamento su Rendiconta Web',
+    after: ['verbale'],
   },
   {
     key: 'autodichiarazione',
@@ -225,11 +238,15 @@ export const ITER_STEPS: IterStepDef[] = [
     golOnly: true,
     doc: /autodichiar|condizionalit/,
     category: 'declaration',
+    needs: 'Firma digitale del legale rappresentante',
+    after: ['verbale'],
   },
   {
     key: 'nota_debito_saldo',
     title: 'Nota di debito del saldo (TD05)',
-    description: 'Nota di debito elettronica del saldo verso la Regione (serie FPA).',
+    description:
+      'Nota di debito elettronica del saldo verso la Regione (serie FPA): solo a corso chiuso, dopo il verbale con le frequenze riconosciute.',
+    after: ['verbale', 'controfirma_verbale'],
     phase: 'chiusura',
     auto: (f) => (f.invoices.some((i) => i.kind === 'balance') ? 'Nota di debito emessa' : null),
     action: 'fatture',
@@ -238,7 +255,9 @@ export const ITER_STEPS: IterStepDef[] = [
   {
     key: 'nota_debito_indennita',
     title: 'Nota di debito delle indennità allievi (TD05)',
-    description: 'Nota di debito delle indennità di frequenza GOL anticipate agli allievi.',
+    description:
+      'Nota di debito delle indennità di frequenza GOL: solo a corso chiuso, dopo il verbale con le frequenze riconosciute.',
+    after: ['verbale', 'controfirma_verbale', 'autodichiarazione'],
     phase: 'chiusura',
     golOnly: true,
     auto: (f) => (f.invoices.some((i) => i.kind === 'allowance') ? 'Nota di debito emessa' : null),
@@ -249,6 +268,7 @@ export const ITER_STEPS: IterStepDef[] = [
     key: 'incasso_saldo',
     title: 'Saldo incassato',
     description: 'Pagamento del saldo ricevuto dalla Regione.',
+    after: ['nota_debito_saldo'],
     phase: 'chiusura',
     auto: (f) => {
       const lines = f.invoices.filter((i) => i.kind === 'balance')
@@ -261,6 +281,7 @@ export const ITER_STEPS: IterStepDef[] = [
     key: 'incasso_indennita',
     title: 'Indennità incassate',
     description: 'Rimborso delle indennità allievi ricevuto dalla Regione.',
+    after: ['nota_debito_indennita'],
     phase: 'chiusura',
     golOnly: true,
     auto: (f) => {
@@ -351,6 +372,8 @@ export interface EvaluatedStep {
   /** documenti collegati al passo o riconosciuti dal nome */
   documentIds: string[]
   overdue: boolean
+  /** passi precedenti richiesti e non ancora fatti (titoli) */
+  blockedBy: string[]
 }
 
 const norm = (s: string) => s.toLowerCase()
@@ -363,7 +386,7 @@ export function evaluateIter(
   today: string,
 ): EvaluatedStep[] {
   const sorted = [...steps].sort((a, b) => a.sort_order - b.sort_order || a.created_at.localeCompare(b.created_at))
-  return sorted.map((step) => {
+  const result: EvaluatedStep[] = sorted.map((step) => {
     const def = stepDef(step.step_key)
     const own = linked.get(step.id) ?? []
     const generated = new Set(facts.documents.filter((d) => d.generated).map((d) => d.id))
@@ -395,8 +418,17 @@ export function evaluateIter(
       evidence = autoDetail
     }
     const overdue = (state === 'da_fare' || state === 'in_corso') && !!step.due_on && step.due_on < today
-    return { step, def, state, autoDone, evidence, documentIds, overdue }
+    return { step, def, state, autoDone, evidence, documentIds, overdue, blockedBy: [] as string[] }
   })
+  const byKey = new Map(result.filter((e) => e.step.step_key).map((e) => [e.step.step_key!, e]))
+  for (const e of result) {
+    if (e.state === 'fatto' || e.state === 'non_applicabile') continue
+    e.blockedBy = (e.def?.after ?? [])
+      .map((k) => byKey.get(k))
+      .filter((p): p is EvaluatedStep => !!p && p.state !== 'fatto' && p.state !== 'non_applicabile')
+      .map((p) => p.step.title)
+  }
+  return result
 }
 
 export interface IterSummary {
@@ -412,7 +444,7 @@ export function summarizeIter(evaluated: EvaluatedStep[]): IterSummary {
   return {
     done: relevant.length - open.length,
     total: relevant.length,
-    next: open[0] ?? null,
+    next: open.find((e) => !e.blockedBy.length) ?? open[0] ?? null,
     overdue: open.filter((e) => e.overdue),
   }
 }

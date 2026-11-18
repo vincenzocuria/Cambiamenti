@@ -66,6 +66,10 @@ describe('server MCP', () => {
         'scadenze',
         'scheda_corso',
         'situazione_pagamenti',
+        'aggiorna_passo',
+        'genera_lettera_passo',
+        'imposta_iter',
+        'iter_corsi',
       ].sort(),
     )
     expect(names.some((n) => /elimina|cancella|delete/.test(n))).toBe(false)
