@@ -3,6 +3,7 @@ import { summarizeCoursePayments, type PaymentsInvoiceLine, type PaymentsStaffRo
 import type { CoursePayment, CourseReportLine } from '../../../../../src/types/db'
 import { dbError } from '../db'
 import { courseIter } from '../iter'
+import { evaluateIter, summarizeIter, courseStepStatusLabels, type CourseStep } from '../../../../../src/lib/courseIter'
 import { one, text, wordsFilter, type McpCtx } from '../context'
 
 export const COURSE_STATUSES = ['bozza', 'in_creazione', 'in_attivazione', 'in_corso', 'finito', 'rendicontato', 'esito_chiuso'] as const
@@ -59,7 +60,7 @@ export function registerCourseTools({ server, db }: McpCtx): void {
       annotations: { readOnlyHint: true },
     },
     async ({ id }) => {
-      const [course, staff, students, lessons, payments, reports, invoices, docLinks, auditRows] = await Promise.all([
+      const [course, staff, students, lessons, payments, reports, invoices, docLinks, auditRows, stepRows, fadDays] = await Promise.all([
         db.from('courses').select('*').eq('id', id).maybeSingle(),
         db.from('course_staff').select('person_id, role, modules, hours, hourly_rate, people(id, first_name, last_name)').eq('course_id', id),
         db.from('course_students').select('students(id, first_name, last_name, tax_code)').eq('course_id', id),
@@ -72,6 +73,8 @@ export function registerCourseTools({ server, db }: McpCtx): void {
           .eq('course_id', id),
         db.from('document_courses').select('documents(id, title, category, file_name, mime_type, created_at)').eq('course_id', id),
         db.from('mcp_audit_log').select('tool, summary, created_at').eq('course_id', id).order('created_at', { ascending: false }).limit(20),
+        db.from('course_steps').select('*, course_step_documents(document_id)').eq('course_id', id).order('sort_order'),
+        db.from('fad_sessions').select('id', { count: 'exact', head: true }).eq('course_id', id),
       ])
       if (course.error) throw dbError(course.error, 'Lettura corso')
       if (!course.data) throw new Error('Corso non trovato')
@@ -145,9 +148,61 @@ export function registerCourseTools({ server, db }: McpCtx): void {
         documents: documents.length,
       })
 
+      // Iter impostato nella scheda corso: passi con stato, scadenze e documenti
+      const stored = stepRows.error ? [] : ((stepRows.data ?? []) as (CourseStep & { course_step_documents: { document_id: string }[] })[])
+      const evaluated = evaluateIter(
+        stored,
+        {
+          status: c.status,
+          code: (c.code as string | null) || null,
+          cup: (c.cup as string | null) || null,
+          fundingProgram: (c.funding_program as string | null) || null,
+          fundingDecree: (c.funding_decree as string | null) || null,
+          startDate: (c.start_date as string | null) ?? null,
+          endDate: (c.end_date as string | null) ?? null,
+          durationHours: c.duration_hours == null ? null : Number(c.duration_hours),
+          staff: staffRows.length,
+          students: studentList.length,
+          lessons: lessonRows.length,
+          fadDays: fadDays.count ?? 0,
+          reportLines: reportLines.length,
+          invoices: invoiceRows
+            .filter((r) => r.invoice && r.invoice.direction === 'out' && r.invoice.status !== 'draft')
+            .map((r) => ({ kind: r.kind as string, paid: Boolean(r.invoice!.paid_at) })),
+          documents: (documents as { id: string; title: string; file_name: string; category: string }[]).map((d) => ({
+            id: d.id,
+            title: d.title,
+            file_name: d.file_name,
+            category: d.category,
+          })),
+        },
+        new Map(stored.map((s) => [s.id, s.course_step_documents.map((l) => l.document_id)])),
+        new Date().toISOString().slice(0, 10),
+      )
+      const iterSummary = summarizeIter(evaluated)
+      const iterCorso = stored.length
+        ? {
+            passi_fatti: `${iterSummary.done}/${iterSummary.total}`,
+            prossimo_passo: iterSummary.next
+              ? `${iterSummary.next.step.title}${iterSummary.next.step.due_on ? ` (entro il ${iterSummary.next.step.due_on})` : ''}`
+              : 'Nessuno: iter completo',
+            in_ritardo: iterSummary.overdue.map((e) => e.step.title),
+            passi: evaluated.map((e) => ({
+              passo: e.step.title,
+              chiave: e.step.step_key,
+              stato: e.state === 'fatto' && e.autoDone ? 'fatto (verificato dal gestionale)' : courseStepStatusLabels[e.state],
+              dettaglio: e.evidence,
+              scadenza: e.step.due_on,
+              fatto_il: e.step.done_on,
+              note: e.step.notes || undefined,
+              documenti: e.documentIds,
+            })),
+          }
+        : null
+
       return text({
         corso: c,
-        iter,
+        iter: iterCorso ?? iter,
         organico: (staff.data ?? []).map((s) => ({
           persona: one(s.people as Person | Person[] | null),
           ruolo: s.role,

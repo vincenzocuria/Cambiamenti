@@ -41,6 +41,8 @@ import { FadShareBulk } from '../components/FadShareBulk'
 import { FadMoodleSync } from '../components/FadMoodleSync'
 import { FadAttendancePanel } from '../components/FadAttendancePanel'
 import { CourseQualityPanel } from '../components/quality/CourseQualityPanel'
+import { CourseIterPanel, type IterBaseFacts } from '../components/CourseIterPanel'
+import type { IterAction } from '../lib/courseIter'
 
 const genRoles: { type: PersonType; label: string }[] = [
   { type: 'teacher', label: 'Docente' },
@@ -58,6 +60,7 @@ const roleLabels: Record<string, string> = {
 
 /** Sezioni della scheda, nell'ordine in cui compaiono. */
 const SECTIONS = [
+  { id: 'iter', label: 'Iter' },
   { id: 'dati', label: 'Dati' },
   { id: 'docenti', label: 'Docenti' },
   { id: 'tutor', label: 'Tutor' },
@@ -74,8 +77,8 @@ const SECTIONS = [
 type SectionId = (typeof SECTIONS)[number]['id']
 type OpenState = Record<SectionId, boolean>
 
-/** Di default tutte chiuse: il quadro d'insieme lo danno avanzamento e KPI. */
-const DEFAULT_OPEN = Object.fromEntries(SECTIONS.map((s) => [s.id, false])) as OpenState
+/** Di default è aperto solo l'iter (il prossimo passo); il resto lo danno avanzamento e KPI. */
+const DEFAULT_OPEN = Object.fromEntries(SECTIONS.map((s) => [s.id, s.id === 'iter'])) as OpenState
 
 const OPEN_STORAGE_KEY = 'courseDetail.openSections.v2'
 
@@ -137,6 +140,8 @@ export function CourseDetailPage() {
   const [genMode, setGenMode] = useState<'single' | 'bulk'>('bulk')
   const [open, setOpen] = useState<OpenState>(loadOpenState)
   const [search, setSearch] = useState('')
+  const [iterSummary, setIterSummary] = useState<{ text: string; tone: 'ok' | 'warn' | 'default' } | null>(null)
+  const onIterSummary = useCallback((text: string, tone: 'ok' | 'warn' | 'default') => setIterSummary({ text, tone }), [])
   const searchRef = useRef<HTMLInputElement>(null)
 
   const staffTakenIds = useMemo(() => takenStaffIds(peopleByType), [peopleByType])
@@ -300,7 +305,29 @@ export function CourseDetailPage() {
     }
   }, [query, peopleByType, docs, reportLines, invoiceRows, personNames, course])
 
+  const iterFacts = useMemo<IterBaseFacts | null>(() => {
+    if (!course) return null
+    return {
+      status: course.status,
+      code: course.code || null,
+      cup: course.cup || null,
+      fundingProgram: course.funding_program || null,
+      fundingDecree: course.funding_decree || null,
+      startDate: course.start_date,
+      endDate: course.end_date,
+      durationHours: course.duration_hours,
+      staff: staffing.teacher + staffing.tutor + staffing.admin_staff,
+      students: peopleByType.student?.length ?? 0,
+      reportLines: reportLines?.length ?? 0,
+      invoices: (invoiceRows ?? [])
+        .filter((r) => r.invoice.status !== 'draft')
+        .map((r) => ({ kind: r.kind, paid: Boolean(r.invoice.paid_at) })),
+      documents: (docs ?? []).map((d) => ({ id: d.id, title: d.title, file_name: d.file_name, category: d.category })),
+    }
+  }, [course, staffing, peopleByType, reportLines, invoiceRows, docs])
+
   const sectionHasMatch: Record<SectionId, boolean> = {
+    iter: query.length >= 3 && matchesSearch('iter passi scadenze prossimo passo rendiconta adempimenti', query),
     dati: matches.dati,
     docenti: (matches.people.teacher?.length ?? 0) > 0,
     tutor: (matches.people.tutor?.length ?? 0) > 0,
@@ -614,6 +641,28 @@ export function CourseDetailPage() {
 
       {/* Sezioni */}
       <div className="space-y-4">
+        <CollapsibleSection
+          id="iter"
+          title="Iter del corso"
+          badge={iterSummary ? iterSummary.text.split(' · ')[0] : ''}
+          badgeTone={iterSummary?.tone === 'warn' ? 'warn' : iterSummary?.tone === 'ok' ? 'ok' : 'default'}
+          summary={iterSummary ? iterSummary.text.split(' · ').slice(1).join(' · ') : 'Passi dal decreto alla chiusura, con scadenze e documenti'}
+          open={isOpen('iter')}
+          onToggle={() => toggle('iter')}
+          dimmed={searching && !sectionHasMatch.iter}
+        >
+          {iterFacts && (
+            <CourseIterPanel
+              course={course}
+              facts={iterFacts}
+              documents={docs ?? []}
+              onGoTo={(action: IterAction) => goTo(action)}
+              onDocumentsChanged={() => setDocsKey((n) => n + 1)}
+              onSummary={onIterSummary}
+            />
+          )}
+        </CollapsibleSection>
+
         <CollapsibleSection
           id="dati"
           title="Dati del corso"
