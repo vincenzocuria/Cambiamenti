@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { guessIterModel, iterRows } from '../../../../../src/lib/courseIter'
 import { audit } from '../audit'
 import { dbError } from '../db'
 import { text, today, type McpCtx } from '../context'
@@ -46,11 +47,14 @@ export function registerWriteTools({ server, db }: McpCtx): void {
       const { data, error } = await db
         .from('courses')
         .insert({ ...args, status: args.status ?? 'bozza', notes: args.notes ? appendNote(null, args.notes) : null })
-        .select('id, name, edition, status')
+        .select('id, name, edition, status, funding_program, start_date, end_date')
         .single()
       if (error) throw dbError(error, 'Creazione corso')
+      // Ogni corso nasce con il suo iter
+      const model = guessIterModel(data)
+      const iter = await db.from('course_steps').insert(iterRows(model, data.id, data.start_date, data.end_date, data.status))
       const warning = await audit(db, { tool: 'crea_corso', courseId: data.id, summary: `Creato corso ${args.name} ${args.edition}`, args })
-      return text({ creato: data, avviso: warning })
+      return text({ creato: data, iter: iter.error ? `Iter non creato: ${iter.error.message}` : `Iter ${model} impostato`, avviso: warning })
     },
   )
 

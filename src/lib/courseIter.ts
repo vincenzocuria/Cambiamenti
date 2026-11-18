@@ -349,14 +349,23 @@ export function defaultDue(def: IterStepDef | undefined, startDate: string | nul
 }
 
 /** Le righe da creare per un modello (sort_order a passi di 10 per poter inserire passi in mezzo). */
-export function iterRows(model: IterModel, courseId: string, startDate: string | null, endDate: string | null) {
-  return modelSteps(model).map((d, i) => ({
-    course_id: courseId,
-    step_key: d.key,
-    sort_order: (i + 1) * 10,
-    title: d.title,
-    due_on: defaultDue(d, startDate, endDate),
-  }))
+/** Passi che un corso già finito / rendicontato ha di sicuro alle spalle (senza documento in archivio). */
+const PAST_WHEN_RENDICONTATO = new Set(['esami_attestati', 'adempimenti_conclusivi', 'rendiconto'])
+
+export function iterRows(model: IterModel, courseId: string, startDate: string | null, endDate: string | null, courseStatus?: string) {
+  const finished = courseStatus ? atLeast(courseStatus, 'finito') : false
+  const reported = courseStatus ? atLeast(courseStatus, 'rendicontato') : false
+  return modelSteps(model).map((d, i) => {
+    const past = (finished && d.phase !== 'chiusura') || (reported && PAST_WHEN_RENDICONTATO.has(d.key))
+    return {
+      course_id: courseId,
+      step_key: d.key,
+      sort_order: (i + 1) * 10,
+      title: d.title,
+      due_on: past ? null : defaultDue(d, startDate, endDate),
+      ...(past ? { status: 'fatto' as const, notes: "Già fatto quando è stato impostato l'iter (corso già avanti)." } : {}),
+    }
+  })
 }
 
 export type EffectiveState = 'fatto' | 'non_applicabile' | 'in_corso' | 'da_fare'

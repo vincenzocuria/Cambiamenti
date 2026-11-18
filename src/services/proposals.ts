@@ -1,7 +1,8 @@
 import { supabase } from '../lib/supabase'
 import { buildDocumentStoragePath } from '../lib/documentStoragePath'
 import { COURSE_FIELDS, appendDatedNote, type ProposalRow, type ProposalStatus } from '../lib/proposals'
-import { defaultDue, stepDef } from '../lib/courseIter'
+import { defaultDue, guessIterModel, stepDef } from '../lib/courseIter'
+import { createCourseIter } from './courseSteps'
 
 export interface ProposalWithRefs extends ProposalRow {
   course: { id: string; name: string; edition: string } | null
@@ -137,7 +138,9 @@ async function apply(p: ProposalRow): Promise<string> {
         .select('id')
         .single()
       if (error) throw error
-      return `Corso creato (${data.id})`
+      const { data: c } = await supabase.from('courses').select('*').eq('id', data.id).single()
+      if (c) await createCourseIter(c.id, guessIterModel(c), c.start_date, c.end_date, c.status).catch(() => undefined)
+      return `Corso creato (${data.id}) con il suo iter`
     }
     case 'aggiorna_corso': {
       const changes = pick((pl.changes ?? {}) as Record<string, unknown>, COURSE_FIELDS.filter((f) => f !== 'notes' && f !== 'status'))

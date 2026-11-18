@@ -143,4 +143,15 @@ describe('iter del corso', () => {
     expect(nd.blockedBy).toContain('Verbale di verifica della Regione')
     expect(summarizeIter(ev).next?.step.step_key).toBe('rendiconto')
   })
+
+  it('corso già rendicontato: le fasi passate nascono fatte, senza scadenze', () => {
+    const rows = iterRows('gol', 'c1', '2025-11-03', '2025-12-09', 'rendicontato')
+    const by = Object.fromEntries(rows.map((r) => [r.step_key, r]))
+    expect(by.adesione).toMatchObject({ status: 'fatto', due_on: null })
+    expect(by.rendiconto).toMatchObject({ status: 'fatto' })
+    expect(by.organico.status).toBe('fatto')
+    expect(by.verbale.status).toBeUndefined()
+    expect(by.controfirma_verbale.status).toBeUndefined()
+    expect(iterRows('gol', 'c1', '2026-12-01', '2026-12-20', 'bozza').every((r) => !('status' in r))).toBe(true)
+  })
 })

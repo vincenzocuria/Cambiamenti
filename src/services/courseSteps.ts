@@ -20,10 +20,11 @@ export async function createCourseIter(
   model: IterModel,
   startDate: string | null,
   endDate: string | null,
+  status?: string,
 ): Promise<void> {
   const existing = await listCourseSteps(courseId)
   const have = new Set(existing.map((s) => s.step_key).filter(Boolean))
-  const rows = iterRows(model, courseId, startDate, endDate).filter((r) => !have.has(r.step_key))
+  const rows = iterRows(model, courseId, startDate, endDate, status).filter((r) => !have.has(r.step_key))
   if (!rows.length) return
   const { error } = await supabase.from('course_steps').insert(rows)
   if (error) throw error

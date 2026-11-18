@@ -55,14 +55,14 @@ export function registerIterTools({ server, db, auth }: McpCtx): void {
       }),
     },
     async ({ corso_id, modello }) => {
-      const { data: c, error } = await db.from('courses').select('id, name, funding_program, start_date, end_date').eq('id', corso_id).maybeSingle()
+      const { data: c, error } = await db.from('courses').select('id, name, funding_program, start_date, end_date, status').eq('id', corso_id).maybeSingle()
       if (error) throw dbError(error, 'Lettura corso')
       if (!c) throw new Error('Corso non trovato')
       const model = modello ?? guessIterModel(c)
       const existing = await db.from('course_steps').select('step_key').eq('course_id', corso_id)
       if (existing.error) throw dbError(existing.error, 'Lettura passi')
       const have = new Set((existing.data ?? []).map((r) => r.step_key))
-      const rows = iterRows(model, corso_id, c.start_date, c.end_date).filter((r) => !have.has(r.step_key))
+      const rows = iterRows(model, corso_id, c.start_date, c.end_date, c.status).filter((r) => !have.has(r.step_key))
       if (rows.length) {
         const ins = await db.from('course_steps').insert(rows)
         if (ins.error) throw dbError(ins.error, 'Creazione iter')
