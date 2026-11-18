@@ -29,7 +29,8 @@ const person = {
   email: 'mario@example.com',
 } as unknown as Person
 
-const staffSeeds = golTemplateSeeds.filter((t) => t.person_role !== 'student')
+// Template di corso del personale (il contratto co.co.co. non è legato a un corso)
+const staffSeeds = golTemplateSeeds.filter((t) => t.person_role !== 'student' && t.requires_course)
 
 describe('template personale di corso', () => {
   it('ha nomi univoci', () => {

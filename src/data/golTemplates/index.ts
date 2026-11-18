@@ -4,6 +4,8 @@ import { allegato3cBody } from './allegato3c'
 import { allegato5cBody } from './allegato5c'
 import { allegato21bBody, mod31bBody } from './staffDeclaration'
 import { teacherAppointmentBody } from './teacherAppointment'
+import { cococoContractBody } from './cococoContract'
+import { COCOCO_TEMPLATE_NAME } from '../../lib/collaborationContract'
 
 /** Template GOL da garantire in anagrafica documenti. */
 export const golTemplateSeeds: DocumentTemplateInput[] = [
@@ -63,6 +65,15 @@ export const golTemplateSeeds: DocumentTemplateInput[] = [
     body: teacherAppointmentBody,
     requires_course: true,
     person_role: 'teacher',
+    default_category: 'appointment',
+  },
+  {
+    name: COCOCO_TEMPLATE_NAME,
+    description:
+      'Contratto di collaborazione coordinata e continuativa del personale interno. Si genera dalla sezione «Contratti di collaborazione» della scheda persona: date, attività, corsi e compenso vengono da lì.',
+    body: cococoContractBody,
+    requires_course: false,
+    person_role: 'staff',
     default_category: 'appointment',
   },
 ]
