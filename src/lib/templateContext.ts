@@ -72,6 +72,10 @@ export function buildTemplateContext(input: {
     'scuola.telefono': school.phone,
     'scuola.sdi': school.sdiCode,
     'scuola.foro': school.court,
+    'scuola.pec': school.pec,
+    'scuola.sede': school.officialSeat,
+    'scuola.cf': school.taxCode,
+    'scuola.accreditamento': school.accreditation,
     'fad.link': FAD_LOGIN_URL,
     oggi: fmtDate(new Date().toISOString()),
   }

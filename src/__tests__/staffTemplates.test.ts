@@ -30,7 +30,8 @@ const person = {
 } as unknown as Person
 
 // Template di corso del personale (il contratto co.co.co. non è legato a un corso)
-const staffSeeds = golTemplateSeeds.filter((t) => t.person_role !== 'student' && t.requires_course)
+const staffSeeds = golTemplateSeeds.filter((t) => t.person_role !== 'student' && t.person_role !== 'none' && t.requires_course)
+const courseLetters = golTemplateSeeds.filter((t) => t.person_role === 'none')
 
 describe('template personale di corso', () => {
   it('ha nomi univoci', () => {
@@ -54,5 +55,14 @@ describe('template personale di corso', () => {
     const filled = fillTemplate(t.body, vars)
     expect(filled).toContain('RSSMRA80A01H501U')
     expect(filled).toContain('938.1')
+  })
+
+  it.each(courseLetters.map((t) => [t.name, t] as const))('lettera di corso %s usa solo variabili note', (_name, t) => {
+    const vars = buildTemplateContext({ course })
+    const keys = [...t.body.matchAll(/\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/g)].map((m) => m[1])
+    expect(keys.filter((k) => !(k in vars))).toEqual([])
+    const filled = fillTemplate(t.body, vars)
+    expect(filled).toContain('938.1')
+    expect(filled).toContain('cambiamentisrl@pec.it')
   })
 })

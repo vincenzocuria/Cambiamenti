@@ -143,9 +143,20 @@ export function registerMailTools({ server, db, auth }: McpCtx): void {
         corso_id: z.string().uuid(),
         categoria: z.enum(DOCUMENT_CATEGORIES),
         titolo: z.string().min(1).max(200).optional(),
+        passo: z
+          .string()
+          .optional()
+          .describe("Chiave del passo dell'iter del corso a cui collegare il documento (es. comunicazione_avvio, verbale, controfirma_verbale, autodichiarazione)"),
       }),
     },
     async (args) => {
+      const linkStep = async (documentId: string) => {
+        if (!args.passo) return null
+        const { data: step } = await db.from('course_steps').select('id').eq('course_id', args.corso_id).eq('step_key', args.passo).maybeSingle()
+        if (!step) return `Passo «${args.passo}» non presente nell'iter del corso: documento non collegato al passo`
+        const r = await db.from('course_step_documents').upsert({ step_id: step.id, document_id: documentId }, { ignoreDuplicates: true })
+        return r.error ? `Collegamento al passo non riuscito: ${r.error.message}` : null
+      }
       const { data: a, error } = await db
         .from('pec_attachments')
         .select('id, file_name, size_bytes, storage_path, document_id')
@@ -157,7 +168,8 @@ export function registerMailTools({ server, db, auth }: McpCtx): void {
         const link = await db.from('document_courses').upsert({ document_id: a.document_id, course_id: args.corso_id }, { ignoreDuplicates: true })
         if (link.error) throw dbError(link.error, 'Collegamento documento')
         const warning = await audit(db, { tool: 'allega_pec_a_corso', courseId: args.corso_id, summary: `Collegato ${a.file_name}`, args })
-        return text({ collegato: a.document_id, avviso: warning })
+        const stepWarning = await linkStep(a.document_id as string)
+        return text({ collegato: a.document_id, avviso: warning, passo: stepWarning ?? (args.passo ? 'collegato al passo' : undefined) })
       }
       if (!a.storage_path) throw new Error('Allegato non disponibile nel gestionale')
       const fileName = a.file_name as string
@@ -184,7 +196,8 @@ export function registerMailTools({ server, db, auth }: McpCtx): void {
       }
       await db.from('pec_attachments').update({ document_id: doc.id }).eq('id', a.id)
       const warning = await audit(db, { tool: 'allega_pec_a_corso', courseId: args.corso_id, summary: `Allegato PEC «${doc.title}» caricato`, args })
-      return text({ caricato: doc, avviso: warning })
+      const stepWarning = await linkStep(doc.id as string)
+      return text({ caricato: doc, avviso: warning, passo: stepWarning ?? (args.passo ? 'collegato al passo' : undefined) })
     },
   )
 }

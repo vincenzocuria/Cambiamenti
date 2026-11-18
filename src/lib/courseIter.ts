@@ -21,6 +21,8 @@ export interface CourseStep {
   due_on: string | null
   done_on: string | null
   notes: string
+  /** stato segnato a mano: vince sul riconoscimento automatico */
+  manual: boolean
   created_at: string
   updated_at: string
 }
@@ -42,7 +44,8 @@ export interface IterFacts {
   reportLines: number
   /** righe di note di debito/fatture collegate al corso */
   invoices: { kind: string; paid: boolean }[]
-  documents: { id: string; title: string; file_name: string; category: string }[]
+  /** generated: lettera generata da un modello (bozza da firmare e inviare, non prova che il passo è fatto) */
+  documents: { id: string; title: string; file_name: string; category: string; generated?: boolean }[]
 }
 
 export interface IterStepDef {
@@ -60,9 +63,13 @@ export interface IterStepDef {
   auto?: (f: IterFacts, today: string) => string | null
   action?: IterAction
   actionLabel?: string
+  /** modello di lettera (nome in Modelli) che il passo può generare */
+  template?: string
   /** scadenza proposta: data di inizio o fine corso più n giorni */
   due?: { from: 'start' | 'end'; days: number }
 }
+
+import { COURSE_END_TEMPLATE, COURSE_START_TEMPLATE, REPORT_COUNTERSIGN_TEMPLATE } from '../data/golTemplates/courseLetters'
 
 const ORDER = ['bozza', 'in_creazione', 'in_attivazione', 'in_corso', 'finito', 'rendicontato', 'esito_chiuso']
 const atLeast = (status: string, target: string) => ORDER.indexOf(status) >= ORDER.indexOf(target)
@@ -137,6 +144,7 @@ export const ITER_STEPS: IterStepDef[] = [
     phase: 'avvio',
     doc: /avvio|vidimaz/,
     category: 'other',
+    template: COURSE_START_TEMPLATE,
     action: 'genera',
     actionLabel: 'Genera documenti',
     due: { from: 'start', days: 0 },
@@ -179,6 +187,7 @@ export const ITER_STEPS: IterStepDef[] = [
     phase: 'chiusura',
     doc: /conclusiv|fine corso|fine attivit|chiusura/,
     category: 'other',
+    template: COURSE_END_TEMPLATE,
     due: { from: 'end', days: 30 },
   },
   {
@@ -206,6 +215,7 @@ export const ITER_STEPS: IterStepDef[] = [
     phase: 'chiusura',
     doc: /controfirm|verbale[^]*firmat|firmat[^]*verbale/,
     category: 'report',
+    template: REPORT_COUNTERSIGN_TEMPLATE,
   },
   {
     key: 'autodichiarazione',
@@ -356,24 +366,28 @@ export function evaluateIter(
   return sorted.map((step) => {
     const def = stepDef(step.step_key)
     const own = linked.get(step.id) ?? []
+    const generated = new Set(facts.documents.filter((d) => d.generated).map((d) => d.id))
     const found = def?.doc
-      ? facts.documents.filter((d) => !own.includes(d.id) && def.doc!.test(norm(`${d.title} ${d.file_name}`))).map((d) => d.id)
+      ? facts.documents
+          .filter((d) => !own.includes(d.id) && !d.generated && def.doc!.test(norm(`${d.title} ${d.file_name}`)))
+          .map((d) => d.id)
       : []
+    const ownProof = own.filter((id) => !generated.has(id))
     const documentIds = [...own, ...found]
     const autoDetail = def?.auto?.(facts, today) ?? null
     let state: EffectiveState = step.status
     let autoDone = false
     let evidence: string | null = null
+    let seen: string | null = null
+    if (autoDetail) seen = autoDetail
+    else if (ownProof.length) seen = ownProof.length === 1 ? 'Documento caricato' : `${ownProof.length} documenti caricati`
+    else if (found.length) {
+      const doc = facts.documents.find((d) => d.id === found[0])!
+      seen = `Trovato «${doc.title || doc.file_name}»`
+    }
     if (step.status === 'da_fare' || step.status === 'in_corso') {
-      if (autoDetail) {
-        evidence = autoDetail
-      } else if (own.length) {
-        evidence = own.length === 1 ? 'Documento caricato' : `${own.length} documenti caricati`
-      } else if (found.length) {
-        const doc = facts.documents.find((d) => d.id === found[0])!
-        evidence = `Trovato «${doc.title || doc.file_name}»`
-      }
-      if (evidence) {
+      if (seen && !step.manual) {
+        evidence = seen
         state = 'fatto'
         autoDone = true
       }

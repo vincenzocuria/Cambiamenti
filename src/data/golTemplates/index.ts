@@ -6,9 +6,41 @@ import { allegato21bBody, mod31bBody } from './staffDeclaration'
 import { teacherAppointmentBody } from './teacherAppointment'
 import { cococoContractBody } from './cococoContract'
 import { COCOCO_TEMPLATE_NAME } from '../../lib/collaborationContract'
+import {
+  COURSE_END_TEMPLATE,
+  COURSE_START_TEMPLATE,
+  REPORT_COUNTERSIGN_TEMPLATE,
+  courseEndBody,
+  courseStartBody,
+  reportCountersignBody,
+} from './courseLetters'
 
 /** Template GOL da garantire in anagrafica documenti. */
 export const golTemplateSeeds: DocumentTemplateInput[] = [
+  {
+    name: COURSE_START_TEMPLATE,
+    description: "Lettera di avvio del corso alla Regione, generata dal passo «Comunicazione di avvio» dell'iter.",
+    body: courseStartBody,
+    requires_course: true,
+    person_role: 'none',
+    default_category: 'other',
+  },
+  {
+    name: COURSE_END_TEMPLATE,
+    description: "Lettera di conclusione del corso alla Regione, dal passo «Adempimenti conclusivi» dell'iter.",
+    body: courseEndBody,
+    requires_course: true,
+    person_role: 'none',
+    default_category: 'other',
+  },
+  {
+    name: REPORT_COUNTERSIGN_TEMPLATE,
+    description: "Lettera di trasmissione del verbale controfirmato, dal passo dell'iter.",
+    body: reportCountersignBody,
+    requires_course: true,
+    person_role: 'none',
+    default_category: 'report',
+  },
   {
     name: 'Allegato 1.c — Autodichiarazione INPS',
     description:
