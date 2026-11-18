@@ -71,14 +71,21 @@ export function CourseIterPanel({
   const [error, setError] = useState('')
   const [newStep, setNewStep] = useState('')
   const [showDone, setShowDone] = useState(true)
+  const autoCreated = useRef(false)
 
   const load = useCallback(async () => {
     try {
-      const [s, lessons, fadDays] = await Promise.all([
+      let [s, lessons, fadDays] = await Promise.all([
         listCourseSteps(course.id),
         countLessons(course.id),
         countFadDays(course.id),
       ])
+      if (!s.length && !autoCreated.current) {
+        // Ogni corso ha sempre il suo iter: se manca lo imposto col modello proposto
+        autoCreated.current = true
+        await createCourseIter(course.id, guessIterModel(course), course.start_date, course.end_date, course.status)
+        s = await listCourseSteps(course.id)
+      }
       setSteps(s)
       setCounts({ lessons, fadDays })
       setLinks(await listStepDocuments(s.map((x) => x.id)))
@@ -147,7 +154,7 @@ export function CourseIterPanel({
           <PrimaryButton
             type="button"
             disabled={busy}
-            onClick={() => void run(() => createCourseIter(course.id, model, course.start_date, course.end_date))}
+            onClick={() => void run(() => createCourseIter(course.id, model, course.start_date, course.end_date, course.status))}
           >
             Imposta l'iter
           </PrimaryButton>
@@ -276,7 +283,7 @@ export function CourseIterPanel({
           type="button"
           className="ml-auto text-xs text-slate-400 underline hover:text-slate-600"
           disabled={busy}
-          onClick={() => void run(() => createCourseIter(course.id, model, course.start_date, course.end_date))}
+          onClick={() => void run(() => createCourseIter(course.id, model, course.start_date, course.end_date, course.status))}
           title="Aggiunge i passi del modello che mancano, senza toccare gli altri"
         >
           Completa con il modello

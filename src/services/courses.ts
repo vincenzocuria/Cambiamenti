@@ -1,3 +1,5 @@
+import { createCourseIter } from './courseSteps'
+import { guessIterModel } from '../lib/courseIter'
 import { supabase } from '../lib/supabase'
 import { normalizeCourseInput } from '../lib/normalizeCourseInput'
 import type { Course, CourseInput } from '../types/db'
@@ -25,6 +27,8 @@ export async function createCourse(input: CourseInput): Promise<Course> {
     .select()
     .single()
   if (error) throw error
+  // Ogni corso nasce con il suo iter (modello GOL o standard)
+  await createCourseIter(data.id, guessIterModel(data), data.start_date, data.end_date, data.status).catch(() => undefined)
   return data
 }
 
