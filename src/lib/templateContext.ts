@@ -29,6 +29,7 @@ function personVars(person: Person, prefix: string): Record<string, string> {
     [`${prefix}.indirizzo`]: [person.address, person.postal_code, person.city, person.province]
       .filter(Boolean)
       .join(', '),
+    [`${prefix}.via`]: person.address,
     [`${prefix}.citta`]: person.city,
     [`${prefix}.cap`]: person.postal_code,
     [`${prefix}.provincia`]: person.province,

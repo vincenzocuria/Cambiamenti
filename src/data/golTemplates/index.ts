@@ -14,6 +14,7 @@ import {
   courseStartBody,
   reportCountersignBody,
 } from './courseLetters'
+import { ENROLLMENT_DECLARATION_TEMPLATE, enrollmentDeclarationBody } from './dichiarazioneFrequenza'
 
 /** Template GOL da garantire in anagrafica documenti. */
 export const golTemplateSeeds: DocumentTemplateInput[] = [
@@ -40,6 +41,15 @@ export const golTemplateSeeds: DocumentTemplateInput[] = [
     requires_course: true,
     person_role: 'none',
     default_category: 'report',
+  },
+  {
+    name: ENROLLMENT_DECLARATION_TEMPLATE,
+    description:
+      "Da far firmare a ogni iscritto prima dell'avvio (richiesta FormAres, V finestra GOL): disponibilità a frequentare, status di condizionalità, consenso privacy e informativa. Precompilata con i dati dell'allievo e del corso; i campi mancanti restano da compilare a mano.",
+    body: enrollmentDeclarationBody,
+    requires_course: true,
+    person_role: 'student',
+    default_category: 'declaration',
   },
   {
     name: 'Allegato 1.c — Autodichiarazione INPS',
