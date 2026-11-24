@@ -81,7 +81,7 @@ export function CoursesPage() {
       title: 'Corsi',
       rows: filtered,
       format,
-      filters: describeFilters([statusLabel, search && `ricerca «${search}»`]),
+      filters: describeFilters([statusLabel, search.trim() && `ricerca «${search.trim()}»`]),
       columns: [
         { header: 'Corso', value: (c) => c.name },
         { header: 'Edizione', value: (c) => c.edition || '' },

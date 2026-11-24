@@ -11,8 +11,11 @@ export function useListQuery() {
       (prev) => {
         const u = new URLSearchParams(prev)
         if ('q' in next) {
-          const q = next.q?.trim() ?? ''
-          if (q) u.set('q', q)
+          // Il valore resta com'è (spazi compresi): è quello mostrato nella casella di ricerca,
+          // e togliere gli spazi qui impedirebbe di scriverne uno tra due parole.
+          // La ricerca vera ignora comunque gli spazi ai bordi (matchesSearch).
+          const q = next.q ?? ''
+          if (q.trim()) u.set('q', q)
           else u.delete('q')
         }
         if ('stato' in next) {
