@@ -149,7 +149,9 @@ export async function uploadDocument(params: {
   return data
 }
 
-async function signedDocumentUrl(doc: DocumentRow, download: boolean): Promise<string> {
+type StoredFile = Pick<DocumentRow, 'storage_path' | 'file_name'>
+
+async function signedDocumentUrl(doc: StoredFile, download: boolean): Promise<string> {
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(
     doc.storage_path,
     300,
@@ -164,7 +166,7 @@ export function getDownloadUrl(doc: DocumentRow): Promise<string> {
 }
 
 /** Link firmato senza Content-Disposition di download, per l'anteprima nel browser. */
-export function getPreviewUrl(doc: DocumentRow): Promise<string> {
+export function getPreviewUrl(doc: StoredFile): Promise<string> {
   return signedDocumentUrl(doc, false)
 }
 

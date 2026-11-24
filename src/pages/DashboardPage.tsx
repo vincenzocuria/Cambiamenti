@@ -5,6 +5,7 @@ import { DashboardCourseList } from '../components/DashboardCourseList'
 import { KpiCards } from '../components/KpiCards'
 import { DashboardPayments } from '../components/DashboardPayments'
 import { DashboardIter } from '../components/DashboardIter'
+import { DashboardCompanyDocs } from '../components/DashboardCompanyDocs'
 import { fetchPaymentsData, type PaymentsData } from '../services/payments'
 import {
   fetchActiveCourses,
@@ -133,6 +134,8 @@ export function DashboardPage() {
       />
 
       <DashboardIter />
+
+      <DashboardCompanyDocs />
 
       {paymentsError ? (
         <p className="text-sm text-red-600">{paymentsError}</p>
