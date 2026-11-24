@@ -29,6 +29,9 @@ import {
   updateQualityDocument,
   uploadQualityFile,
 } from '../../services/quality'
+import { companyFileUrl, listCompanyDocumentsForQuality } from '../../services/companyDocuments'
+import type { CompanyDocument } from '../../lib/companyDocuments'
+import { Link } from 'react-router-dom'
 
 const today = () => new Date().toISOString().slice(0, 10)
 
@@ -167,10 +170,22 @@ export function QualityDocumentsTab() {
   const [filter, setFilter] = useState<QualityFilter>({ area: 'tutte', status: 'tutti', query: '' })
   const fileInput = useRef<HTMLInputElement>(null)
   const [uploadFor, setUploadFor] = useState<QualityDocument | null>(null)
+  // file tenuti in «Documenti della società» e collegati a una voce dell'elenco master
+  const [companyByQuality, setCompanyByQuality] = useState<Map<string, CompanyDocument[]>>(new Map())
 
   const load = useCallback(async () => {
     try {
-      setDocs(await listQualityDocuments())
+      const [list, company] = await Promise.all([
+        listQualityDocuments(),
+        listCompanyDocumentsForQuality().catch(() => [] as CompanyDocument[]),
+      ])
+      setDocs(list)
+      const map = new Map<string, CompanyDocument[]>()
+      for (const c of company) {
+        if (!c.quality_document_id) continue
+        map.set(c.quality_document_id, [...(map.get(c.quality_document_id) ?? []), c])
+      }
+      setCompanyByQuality(map)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Caricamento non riuscito')
     } finally {
@@ -229,6 +244,14 @@ export function QualityDocumentsTab() {
   async function openFile(d: QualityDocument) {
     try {
       window.open(await qualityFileUrl(d, false), '_blank', 'noopener')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Apertura non riuscita')
+    }
+  }
+
+  async function openCompanyFile(c: CompanyDocument) {
+    try {
+      window.open(await companyFileUrl(c, false), '_blank', 'noopener')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Apertura non riuscita')
     }
@@ -413,8 +436,25 @@ export function QualityDocumentsTab() {
                       <button type="button" className="font-medium text-indigo-600 hover:underline" onClick={() => void openFile(d)}>
                         Apri {d.file_name}
                       </button>
-                    ) : (
+                    ) : !companyByQuality.get(d.id)?.some((c) => c.storage_path) ? (
                       <span className="text-slate-400">Nessun file</span>
+                    ) : null}
+                    {companyByQuality.get(d.id)?.map((c) =>
+                      c.storage_path ? (
+                        <button
+                          key={c.id}
+                          type="button"
+                          className="font-medium text-indigo-600 hover:underline"
+                          onClick={() => void openCompanyFile(c)}
+                          title="File tenuto in Documenti della società"
+                        >
+                          Apri {c.file_name} (Documenti società)
+                        </button>
+                      ) : (
+                        <Link key={c.id} to="/documenti-societa?vista=da_caricare" className="text-amber-700 hover:underline">
+                          Da caricare in Documenti società
+                        </Link>
+                      ),
                     )}
                     <button type="button" className="text-slate-500 underline hover:text-slate-700" disabled={busy} onClick={() => pickFile(d)}>
                       {d.file_name ? 'Sostituisci file' : 'Carica file'}

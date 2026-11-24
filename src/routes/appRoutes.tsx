@@ -25,6 +25,7 @@ import { TodosPage } from '../pages/TodosPage'
 import { ProtocolPage } from '../pages/ProtocolPage'
 import { ContractsPage } from '../pages/ContractsPage'
 import { QualityPage } from '../pages/QualityPage'
+import { CompanyDocumentsPage } from '../pages/CompanyDocumentsPage'
 import { SurveyPage } from '../pages/SurveyPage'
 
 function page(element: React.ReactNode, adminOnly = false) {
@@ -65,6 +66,7 @@ export function AppRoutes() {
       <Route path="/protocollo" element={page(<ProtocolPage />)} />
       <Route path="/contratti" element={page(<ContractsPage />)} />
       <Route path="/qualita" element={page(<QualityPage />)} />
+      <Route path="/documenti-societa" element={page(<CompanyDocumentsPage />)} />
       <Route path="/proposte" element={page(<ProposalsPage />)} />
       <Route path="/fatturazione" element={page(<InvoicesPage />)} />
       <Route path="/fatturazione/:id" element={page(<InvoiceDetailPage />)} />

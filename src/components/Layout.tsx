@@ -34,6 +34,7 @@ const groups: NavGroup[] = [
     items: [
       { to: '/proposte', label: 'Proposte', icon: 'proposals' },
       { to: '/posta', label: 'Posta da verificare', icon: 'mail' },
+      { to: '/documenti-societa', label: 'Documenti società', icon: 'company' },
       { to: '/protocollo', label: 'Protocollo', icon: 'protocol' },
       { to: '/qualita', label: 'Qualità ISO 9001', icon: 'quality' },
       { to: '/contratti', label: 'Contratti', icon: 'contracts' },

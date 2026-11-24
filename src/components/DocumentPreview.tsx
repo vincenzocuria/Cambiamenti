@@ -6,7 +6,8 @@ import { getPreviewUrl } from '../services/documents'
 import { Modal } from './Modal'
 
 interface Props {
-  doc: DocumentRow
+  /** Basta il file: va bene anche per i documenti della società o della qualità. */
+  doc: Pick<DocumentRow, 'file_name' | 'title' | 'mime_type' | 'storage_path'>
   onClose: () => void
 }
 
@@ -44,7 +45,7 @@ function imageMime(bytes: Uint8Array): string {
   return bytes[0] === 0xff ? 'image/jpeg' : 'image/png'
 }
 
-async function openSigned(doc: DocumentRow, signedUrl: string): Promise<Shown> {
+async function openSigned(doc: Props['doc'], signedUrl: string): Promise<Shown> {
   const response = await fetch(signedUrl)
   if (!response.ok) throw new Error('Anteprima non disponibile')
   const bytes = new Uint8Array(await response.arrayBuffer())
