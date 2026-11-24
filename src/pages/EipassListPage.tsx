@@ -162,7 +162,7 @@ export function EipassListPage() {
       title: 'EIPASS privato',
       rows: filtered,
       format,
-      filters: describeFilters([status && eipassStatusLabels[status], search && `ricerca «${search}»`]),
+      filters: describeFilters([status && eipassStatusLabels[status], search.trim() && `ricerca «${search.trim()}»`]),
       columns: [
         { header: 'Nominativo', value: (c) => fullName(c) },
         { header: 'Codice fiscale', value: (c) => c.tax_code || '' },

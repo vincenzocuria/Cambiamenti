@@ -172,7 +172,7 @@ export function PeopleListPage({ type }: Props) {
       title: l.title,
       rows: sorted,
       format,
-      filters: describeFilters([statusLabel, search && `ricerca «${search}»`]),
+      filters: describeFilters([statusLabel, search.trim() && `ricerca «${search.trim()}»`]),
       columns: [
         { header: 'Nominativo', value: (p) => fullName(p) },
         ...(isStudent

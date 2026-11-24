@@ -106,7 +106,7 @@ export function TemplatesPage() {
       title: 'Template documenti',
       rows: filtered,
       format,
-      filters: describeFilters([statusLabel, search && `ricerca «${search}»`]),
+      filters: describeFilters([statusLabel, search.trim() && `ricerca «${search.trim()}»`]),
       columns: [
         { header: 'Nome', value: (t) => t.name },
         { header: 'Descrizione', value: (t) => t.description || '' },

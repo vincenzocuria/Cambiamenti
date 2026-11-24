@@ -103,7 +103,7 @@ export function UsersPage() {
       title: 'Utenti',
       rows: filtered,
       format,
-      filters: describeFilters([statusLabel, search && `ricerca «${search}»`]),
+      filters: describeFilters([statusLabel, search.trim() && `ricerca «${search.trim()}»`]),
       columns: [
         { header: 'Email', value: (p) => p.email },
         { header: 'Nome', value: (p) => p.full_name || '' },
