@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { CourseStaffAssignment } from '../types/db'
+import type { CourseStaffAssignment, CourseStaffRole } from '../types/db'
 import { formatEuro } from '../lib/euroInWords'
 import { updateCourseStaffAssignment } from '../services/enrollments'
 import { PrimaryButton, SecondaryButton } from './Buttons'
@@ -7,6 +7,7 @@ import { PrimaryButton, SecondaryButton } from './Buttons'
 interface Props {
   courseId: string
   personId: string
+  role: CourseStaffRole
   assignment: CourseStaffAssignment | undefined
   onSaved: (next: CourseStaffAssignment) => void
 }
@@ -19,8 +20,10 @@ function toNumber(value: string): number | null {
   return value.trim() === '' || Number.isNaN(n) ? null : n
 }
 
-/** Moduli, ore e compenso orario del docente sul corso (usati dalla lettera di incarico). */
-export function StaffAssignmentEditor({ courseId, personId, assignment, onSaved }: Props) {
+/** Moduli/attività, ore e compenso orario della figura sul corso (usati dalla lettera di incarico e dai pagamenti). */
+export function StaffAssignmentEditor({ courseId, personId, role, assignment, onSaved }: Props) {
+  const isTeacher = role === 'teacher'
+  const modulesLabel = isTeacher ? 'Moduli' : 'Attività'
   const [open, setOpen] = useState(false)
   const [modules, setModules] = useState(assignment?.modules ?? '')
   const [hours, setHours] = useState(assignment?.hours?.toString() ?? '')
@@ -48,7 +51,7 @@ export function StaffAssignmentEditor({ courseId, personId, assignment, onSaved 
         hourly_rate: toNumber(rate),
       }
       await updateCourseStaffAssignment(courseId, personId, next)
-      onSaved({ role: assignment?.role ?? 'teacher', ...next, modules: modules.trim() })
+      onSaved({ role: assignment?.role ?? role, ...next, modules: modules.trim() })
       setOpen(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Salvataggio non riuscito')
@@ -66,7 +69,9 @@ export function StaffAssignmentEditor({ courseId, personId, assignment, onSaved 
             {assignment?.modules ? ` · ${assignment.modules}` : ''}{' '}
           </>
         ) : (
-          <span className="text-amber-700">Incarico: moduli, ore e compenso da indicare </span>
+          <span className="text-amber-700">
+            Incarico: {isTeacher ? 'moduli, ' : ''}ore e compenso da indicare{' '}
+          </span>
         )}
         <button
           type="button"
@@ -82,12 +87,18 @@ export function StaffAssignmentEditor({ courseId, personId, assignment, onSaved 
   return (
     <div className="mt-2 space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
       <label className="block text-xs font-medium text-slate-600">
-        Moduli
+        {modulesLabel}
         <textarea
           className={inputClass + ' h-16 py-1'}
           value={modules}
           onChange={(e) => setModules(e.target.value)}
-          placeholder="Es. ACCOGLIENZA; REDAZIONE TESTI E COMUNICAZIONI FORMALI"
+          placeholder={
+            isTeacher
+              ? 'Es. ACCOGLIENZA; REDAZIONE TESTI E COMUNICAZIONI FORMALI'
+              : role === 'tutor'
+                ? 'Es. Tutoraggio d’aula e FAD'
+                : 'Es. Segreteria, rendicontazione'
+          }
         />
       </label>
       <div className="grid grid-cols-2 gap-2">

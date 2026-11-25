@@ -84,9 +84,9 @@ export function CoursePeople({
     setEnrolled(people)
     if (courses) setCoursesByStudent(courses)
     if (status) setEnrollments(status)
-    // Lettera di incarico: moduli, ore e compenso dei docenti
-    if (type === 'teacher') {
-      setAssignments(await listCourseStaffAssignments(courseId, 'teacher'))
+    // Incarico: moduli/attività, ore e compenso di docenti, tutor e amministrativi
+    if (meta.staffRole) {
+      setAssignments(await listCourseStaffAssignments(courseId, meta.staffRole))
     }
   }
 
@@ -330,11 +330,12 @@ export function CoursePeople({
                     }}
                   />
                 )}
-                {type === 'teacher' && (
+                {meta.staffRole && (
                   <StaffAssignmentEditor
                     key={`${p.id}-${assignments.has(p.id)}`}
                     courseId={courseId}
                     personId={p.id}
+                    role={meta.staffRole}
                     assignment={assignments.get(p.id)}
                     onSaved={(next) =>
                       setAssignments((prev) => new Map(prev).set(p.id, next))
