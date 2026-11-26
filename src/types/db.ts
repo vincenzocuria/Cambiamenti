@@ -69,13 +69,15 @@ export type CalendarEventInput = Omit<
 >
 
 /** Anagrafica o ruolo sul corso. `staff` = personale unificato; teacher/tutor/admin_staff = ruoli. */
-export type PersonType = 'student' | 'staff' | 'teacher' | 'tutor' | 'admin_staff'
+export type PersonType = 'student' | 'staff' | 'teacher' | 'tutor' | 'admin_staff' | 'external'
 
-export type CourseStaffRole = 'teacher' | 'tutor' | 'admin_staff'
+export type CourseStaffRole = 'teacher' | 'tutor' | 'admin_staff' | 'external'
 
 /** Dati dell'incarico di una figura su un corso (lettera di incarico). */
 export interface CourseStaffAssignment {
   role: CourseStaffRole
+  /** Ruolo libero delle figure esterne (es. «Preparatore», «Ricerca allievi»). */
+  role_label: string
   modules: string
   hours: number | null
   hourly_rate: number | null

@@ -6,7 +6,7 @@ import { buildZip, type ZipEntry } from '../lib/zip'
 import { buildDossierIndex, type DossierData } from '../lib/courseDossier'
 import { certificateLabel, summarizeResponses } from '../lib/quality'
 import { protocolLabel } from '../lib/protocol'
-import { listCourseEnrollments, listCoursePeople } from './enrollments'
+import { listCourseEnrollments, listCoursePeople, listCourseStaffAssignments } from './enrollments'
 import { listDocuments } from './documents'
 import { listFadSessions } from './fadAttendance'
 import { listProtocol } from './protocol'
@@ -55,6 +55,10 @@ export async function buildCourseDossier(
       listSurveys(course.id),
       course.moodle_course_id ? listFadSessions(course.id).catch(() => []) : Promise.resolve([]),
     ])
+  const [externals, externalRoles] = await Promise.all([
+    listCoursePeople('external', course.id),
+    listCourseStaffAssignments(course.id, 'external'),
+  ])
   const responses = await listSurveyResponses(surveys.map((s) => s.id))
   const summary = summarizeResponses(responses)
 
@@ -65,6 +69,13 @@ export async function buildCourseDossier(
     ...teachers.map((p) => ['Docente', fullName(p), p.tax_code, p.email, p.phone]),
     ...tutors.map((p) => ['Tutor', fullName(p), p.tax_code, p.email, p.phone]),
     ...admins.map((p) => ['Amministrativo', fullName(p), p.tax_code, p.email, p.phone]),
+    ...externals.map((p) => [
+      `Figura esterna${externalRoles.get(p.id)?.role_label ? ` (${externalRoles.get(p.id)?.role_label})` : ''}`,
+      fullName(p),
+      p.tax_code,
+      p.email,
+      p.phone,
+    ]),
   ]
   add('02 Organico del corso.xls', sheet('Organico', ['Ruolo', 'Nome', 'Codice fiscale', 'Email', 'Telefono'], staffRows))
 

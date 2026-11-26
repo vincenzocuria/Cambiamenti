@@ -139,7 +139,7 @@ export function registerWriteTools({ server, db }: McpCtx): void {
         riferimento: z.string().max(200).optional().describe('Es. mandato, bonifico, protocollo'),
         note: z.string().max(1000).optional(),
         persona_id: z.string().uuid().optional(),
-        ruolo: z.enum(['teacher', 'tutor', 'admin_staff']).optional(),
+        ruolo: z.enum(['teacher', 'tutor', 'admin_staff', 'external']).optional().describe('external = figura esterna (preparatore, ricerca allievi, ecc.)'),
       }),
     },
     async (args) => {

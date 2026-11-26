@@ -56,6 +56,7 @@ const roleLabels: Record<string, string> = {
   teacher: 'Docenti',
   tutor: 'Tutor',
   admin_staff: 'Amministrativi',
+  external: 'Figure esterne',
 }
 
 /** Sezioni della scheda, nell'ordine in cui compaiono. */
@@ -65,6 +66,7 @@ const SECTIONS = [
   { id: 'docenti', label: 'Docenti' },
   { id: 'tutor', label: 'Tutor' },
   { id: 'amministrativi', label: 'Amministrativi' },
+  { id: 'esterni', label: 'Esterni' },
   { id: 'alunni', label: 'Alunni' },
   { id: 'documenti', label: 'Documenti' },
   { id: 'verbali', label: 'Verbali' },
@@ -87,6 +89,7 @@ const ROLE_SECTIONS = [
   { type: 'teacher', id: 'docenti', title: 'Docenti' },
   { type: 'tutor', id: 'tutor', title: 'Tutor' },
   { type: 'admin_staff', id: 'amministrativi', title: 'Figure amministrative' },
+  { type: 'external', id: 'esterni', title: 'Figure esterne' },
   { type: 'student', id: 'alunni', title: 'Alunni' },
 ] as const satisfies readonly { type: PersonType; id: SectionId; title: string }[]
 
@@ -131,6 +134,7 @@ export function CourseDetailPage() {
     teacher: [],
     tutor: [],
     admin_staff: [],
+    external: [],
   })
   const [docs, setDocs] = useState<DocumentRow[] | null>(null)
   const [reportLines, setReportLines] = useState<CourseReportLine[] | null>(null)
@@ -158,12 +162,13 @@ export function CourseDetailPage() {
 
   async function reloadStaff() {
     if (!id) return
-    const [counts, students, teachers, tutors, admins] = await Promise.all([
+    const [counts, students, teachers, tutors, admins, externals] = await Promise.all([
       fetchCourseStaffingCounts(id),
       listCoursePeople('student', id),
       listCoursePeople('teacher', id),
       listCoursePeople('tutor', id),
       listCoursePeople('admin_staff', id),
+      listCoursePeople('external', id),
     ])
     setStaffing(counts)
     setPeopleByType({
@@ -171,6 +176,7 @@ export function CourseDetailPage() {
       teacher: teachers,
       tutor: tutors,
       admin_staff: admins,
+      external: externals,
     })
   }
 
@@ -338,6 +344,7 @@ export function CourseDetailPage() {
     docenti: (matches.people.teacher?.length ?? 0) > 0,
     tutor: (matches.people.tutor?.length ?? 0) > 0,
     amministrativi: (matches.people.admin_staff?.length ?? 0) > 0,
+    esterni: (matches.people.external?.length ?? 0) > 0,
     alunni: (matches.people.student?.length ?? 0) > 0,
     documenti: matches.docs.length > 0,
     verbali: matches.lines.length > 0,
@@ -468,6 +475,7 @@ export function CourseDetailPage() {
         docenti: matches.people.teacher?.length ?? 0,
         tutor: matches.people.tutor?.length ?? 0,
         amministrativi: matches.people.admin_staff?.length ?? 0,
+        esterni: matches.people.external?.length ?? 0,
         alunni: matches.people.student?.length ?? 0,
         documenti: matches.docs.length,
         verbali: matches.lines.length,
@@ -740,8 +748,14 @@ export function CourseDetailPage() {
                     ? `${list.length} / min. ${req.min}`
                     : `${list.length}`
               }
-              badgeTone={req ? (req.ok ? 'ok' : 'warn') : list.length ? 'default' : 'warn'}
-              summary={roleSummary(role.type, list, req)}
+              badgeTone={
+                req ? (req.ok ? 'ok' : 'warn') : list.length || role.type === 'external' ? 'default' : 'warn'
+              }
+              summary={
+                role.type === 'external' && !list.length
+                  ? 'Preparatore, ricerca allievi e altre figure fuori dall’organico del corso'
+                  : roleSummary(role.type, list, req)
+              }
               open={isOpen(role.id)}
               onToggle={() => toggle(role.id)}
               dimmed={searching && !sectionHasMatch[role.id]}

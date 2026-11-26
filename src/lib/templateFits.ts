@@ -7,7 +7,8 @@ export function roleMatches(templateRole: string, personType: PersonType | null)
       personType === 'staff' ||
       personType === 'teacher' ||
       personType === 'tutor' ||
-      personType === 'admin_staff'
+      personType === 'admin_staff' ||
+      personType === 'external'
     )
   }
   if (personType === 'staff') {

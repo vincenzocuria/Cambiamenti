@@ -40,7 +40,7 @@ describe('lettera di incarico', () => {
         course,
         person,
         personType: 'teacher',
-        assignment: { role: 'teacher', modules: 'ACCOGLIENZA', hours: 80, hourly_rate: 25 },
+        assignment: { role: 'teacher', role_label: '', modules: 'ACCOGLIENZA', hours: 80, hourly_rate: 25 },
       }),
     )
     expect(text).toContain('moduli: ACCOGLIENZA')

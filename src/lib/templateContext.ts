@@ -122,6 +122,7 @@ export function buildTemplateContext(input: {
   const rate = assignment?.hourly_rate ?? null
   const total = hours != null && rate != null ? hours * rate : null
   Object.assign(vars, {
+    'incarico.ruolo': assignment?.role_label.trim() || '_'.repeat(40),
     'incarico.moduli': assignment?.modules.trim() || '_'.repeat(60),
     'incarico.ore': hours != null ? String(hours).replace('.', ',') : '______',
     'incarico.compenso_orario': rate != null ? formatEuro(rate) : '________',
