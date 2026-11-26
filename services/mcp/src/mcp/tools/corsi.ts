@@ -62,7 +62,7 @@ export function registerCourseTools({ server, db }: McpCtx): void {
     async ({ id }) => {
       const [course, staff, students, lessons, payments, reports, invoices, docLinks, auditRows, stepRows, fadDays] = await Promise.all([
         db.from('courses').select('*').eq('id', id).maybeSingle(),
-        db.from('course_staff').select('person_id, role, modules, hours, hourly_rate, people(id, first_name, last_name)').eq('course_id', id),
+        db.from('course_staff').select('person_id, role, role_label, modules, hours, hourly_rate, people(id, first_name, last_name)').eq('course_id', id),
         db.from('course_students').select('students(id, first_name, last_name, tax_code)').eq('course_id', id),
         db.from('calendar_events').select('starts_at, ends_at').eq('course_id', id).order('starts_at'),
         db.from('course_payments').select('*').eq('course_id', id).order('paid_on', { ascending: false }),
@@ -206,6 +206,7 @@ export function registerCourseTools({ server, db }: McpCtx): void {
         organico: (staff.data ?? []).map((s) => ({
           persona: one(s.people as Person | Person[] | null),
           ruolo: s.role,
+          ...(s.role_label ? { ruolo_descrizione: s.role_label } : {}),
           moduli: s.modules,
           ore: s.hours,
           compenso_orario: s.hourly_rate,

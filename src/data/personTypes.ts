@@ -65,20 +65,37 @@ export const personTypeMeta: Record<PersonType, PersonTypeMeta> = {
     courseMin: 3,
     templatePrefix: 'amministrativo',
   },
+  external: {
+    type: 'external',
+    table: 'people',
+    staffRole: 'external',
+    title: 'Figure esterne',
+    singular: 'figura esterna',
+    basePath: '/personale',
+    courseMin: 0,
+    templatePrefix: 'esterno',
+  },
 }
 
-export const courseRequiredRoles: CourseStaffRole[] = ['teacher', 'tutor', 'admin_staff']
+/** Ruoli con un minimo richiesto sul corso (le figure esterne sono facoltative). */
+export const courseRequiredRoles = ['teacher', 'tutor', 'admin_staff'] as const satisfies readonly CourseStaffRole[]
 
 export function metaFor(type: PersonType): PersonTypeMeta {
   return personTypeMeta[type]
 }
 
 export function isStaffType(type: PersonType): boolean {
-  return type === 'staff' || type === 'teacher' || type === 'tutor' || type === 'admin_staff'
+  return (
+    type === 'staff' ||
+    type === 'teacher' ||
+    type === 'tutor' ||
+    type === 'admin_staff' ||
+    type === 'external'
+  )
 }
 
 export function isCourseStaffRole(type: PersonType): type is CourseStaffRole {
-  return type === 'teacher' || type === 'tutor' || type === 'admin_staff'
+  return type === 'teacher' || type === 'tutor' || type === 'admin_staff' || type === 'external'
 }
 
 export function staffRoleSingular(role: CourseStaffRole): string {

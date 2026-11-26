@@ -29,6 +29,7 @@ const roleLabels: Record<string, string> = {
   teacher: 'Docente',
   tutor: 'Tutor',
   admin_staff: 'Amministrativo',
+  external: 'Figura esterna',
 }
 
 export function PersonDetailPage({ type }: Props) {
